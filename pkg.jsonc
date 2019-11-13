@@ -1,0 +1,110 @@
+{
+    // 插件的名字，应全部小写，不能有空格
+    "name": "helloworld",
+    // 插件的友好显示名称，用于显示在应用市场，支持中文
+    "displayName": "HelloWorld",
+    // 描述
+    "description": "LEAVE BLANK",
+    // 关键字，用于应用市场搜索
+    "keywords": ["vscode", "plugin", "demo"],
+    // 版本号
+    "version": "0.0.1",
+    // 发布者，如果要发布到应用市场的话，这个名字必须与发布者一致
+    "publisher": "tarrow",
+    // 表示插件最低支持的vscode版本
+    "engines": {
+        "vscode": "^1.39.0"
+    },
+    // 插件应用市场分类，可选值： [Programming Languages, Snippets, Linters,
+    // Themes, Debuggers, Formatters, Keymaps, SCM Providers, Other, 
+    // Extension Packs, Language Packs]
+    "categories": [
+        "Programming Languages",
+        "Other"
+    ],
+    // 插件图标，至少128x128像素
+    "icon": "",
+    // 扩展的激活事件数组，可以被哪些事件激活扩展
+    "activationEvents": [
+        "onCommand:extension.helloWorld"
+    ],
+    // 插件的主入口
+    "main": "./out/extension.js",
+    "contributes": {
+        // 插件配置项
+        "configuration": {
+            // 配置项标题，会显示在vscode的设置页
+            "title": "",
+            // 配置项
+            "properties": {}
+        },
+        // 命令
+        "commands": [{
+            "command": "extension.helloWorld",
+            "title": "Hello World"
+        }],
+        // 快捷键绑定
+        "keybindings": [{
+            "command": "extension.helloWorld",
+            "key": "ctrl+f10",
+            "mac": "cmd+f10",
+            "when": "editorTextFoucs"
+        }],
+        // 菜单
+        "menus": {
+            // 编辑器右键菜单
+            "editor/context": [{
+                // 表示只有编辑器具有焦点时才会在菜单中出现
+                "when": "editorFocus",
+                "command": "extension.helloWorld",
+                // navigation是一个永远置顶的分组
+                "group": "navigation"
+            }],
+            // 编辑器右上角图标，不配置图片就显示文字
+            "editor/title": [{
+                "when": "editorFocus && resourceLangId == javascript",
+                "command": "extension.helloWorld",
+                "group": "navigation"
+            }],
+            // 编辑器标题右键菜单
+            "editor/title/context": [{
+                "when": "resourceLangId == javascript",
+                "command": "extension.helloWorld",
+                "group": "navigation"
+            }],
+            // 资源管理器右键菜单
+            "explorer/context": [{
+                "command": "extension.helloWorld",
+                "group": "navigation"
+            }]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/glob": "^7.1.1",
+        "@types/mocha": "^5.2.6",
+        "@types/node": "^10.12.21",
+        "@types/vscode": "^1.39.0",
+        "glob": "^7.1.4",
+        "mocha": "^6.1.4",
+        "typescript": "^3.3.1",
+        "tslint": "^5.12.1",
+        "vscode-test": "^1.2.0"
+    },
+    "license": "SEE LICENSE IN LICENSE.txt",
+    "bugs": {
+        "url": "https://github.com/?/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/?"
+    },
+    // 主页
+    "homepage": "https://github.com/?/blob/master/README.md"
+}
