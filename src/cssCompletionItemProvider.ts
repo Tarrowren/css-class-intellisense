@@ -50,6 +50,10 @@ export class CssCompletionItemProvider implements vscode.CompletionItemProvider 
         let uris = <string[]>[];
         htmlDoc.roots.forEach(node => this.findUri(node, uris));
 
+        if (uris.length === 0) {
+            return Promise.resolve(<string[]>[]);
+        }
+
         // 转为绝对路径
         let absoluteUris = uris.map(uri => {
             console.log(uri);
@@ -100,7 +104,7 @@ export class CssCompletionItemProvider implements vscode.CompletionItemProvider 
                 return Array.from(new Set(symbols.filter(symbol => symbol.kind === 5).map(symbol => {
                     let arr = symbol.name.split(/\.([a-zA-Z0-9-_]+)/);
                     arr.shift();
-                    return arr.filter(s => s.search(/[a-zA-Z0-9-_]/) === 0);
+                    return arr.filter(s => s.search(/[a-zA-Z-_]/) === 0);
                 }).reduce((total, current) => total.concat(current))));
             } catch (err) {
                 vscode.window.showErrorMessage(`Cannot read file ${uri}, ${err}`);
