@@ -8,16 +8,16 @@ css class智能提示的测试版，之后可能会进行彻底的更改。
 
 When you open or save the HTML file, the CSS files you linked will be automatically detected, including local and remote files, without manual settings.
 
-## Known Issues
-
-暂未提供html嵌入的css class的智能提示。
-
-No Class Intellisense for HTML embedded CSS for now.
-
 ## Release Notes
 
 ### 0.0.1
 
 对外部引入的css文件提供class智能提示。
 
-Class Intellisense for CSS files imported from outside.
+Class Intellisense for linking CSS.
+
+### 0.0.2
+
+智能提示内嵌CSS。
+
+Class Intellisense for embedding CSS.
