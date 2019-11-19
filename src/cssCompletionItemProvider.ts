@@ -34,7 +34,7 @@ export class CssCompletionItemProvider implements vscode.CompletionItemProvider 
         );
     }
 
-    private cssAggregator(): Promise<string[]> {
+    private async cssAggregator(): Promise<string[]> {
         let editor = vscode.window.activeTextEditor;
         if (editor === undefined) {
             return Promise.reject('Active text editor is undefined');
@@ -48,29 +48,42 @@ export class CssCompletionItemProvider implements vscode.CompletionItemProvider 
         let textDoc = html.TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
         let htmlDoc = this.htmlService.parseHTMLDocument(textDoc);
         let uris = <string[]>[];
-        htmlDoc.roots.forEach(node => this.findUri(node, uris));
+        let embeddingCSS = <string[]>[];
+        htmlDoc.roots.forEach(node => this.findUriAndCSS(textDoc, node, uris, embeddingCSS));
 
-        if (uris.length === 0) {
-            return Promise.resolve(<string[]>[]);
+        let result = <string[]>[];
+        // 需要重构
+        if (embeddingCSS.length !== 0) {
+            let embeddingCSSText = embeddingCSS.reduce((total, current) => total += current);
+            let embeddingCSSDoc = css.TextDocument.create(textDoc.uri, textDoc.languageId, textDoc.version, embeddingCSSText);
+            const symbols = this.cssService.findDocumentSymbols(embeddingCSSDoc, this.cssService.parseStylesheet(embeddingCSSDoc));
+
+            result = result.concat(Array.from(new Set(symbols.filter(symbol => symbol.kind === 5).map(symbol => {
+                let arr = symbol.name.split(/\.([a-zA-Z0-9-_]+)/);
+                arr.shift();
+                arr.filter(s => s.search(/[a-zA-Z-_]/) === 0);
+                return arr.filter(s => s.search(/[a-zA-Z-_]/) === 0);
+            }).reduce((total, current) => total.concat(current)))));
         }
-
-        // 转为绝对路径
-        let absoluteUris = uris.map(uri => {
-            console.log(uri);
-            if (uri.search(/https/i) === 0) {
-                return uri;
-            }
-            if (path.isAbsolute(uri)) {
-                return uri;
-            } else {
-                return path.resolve(doc.uri.fsPath, `../${uri}`);
-            }
-        });
-
-        return this.openCssDoc(absoluteUris);
+        if (uris.length !== 0) {
+            // 转为绝对路径
+            let absoluteUris = uris.map(uri => {
+                // console.log(uri);
+                if (uri.search(/https/i) === 0) {
+                    return uri;
+                }
+                if (path.isAbsolute(uri)) {
+                    return uri;
+                } else {
+                    return path.resolve(doc.uri.fsPath, `../${uri}`);
+                }
+            });
+            result = result.concat(await this.openCssDoc(absoluteUris));
+        }
+        return result;
     }
 
-    private findUri(node: html.Node, uris: string[]) {
+    private findUriAndCSS(textDoc: css.TextDocument, node: html.Node, uris: string[], embeddingCSS: string[]) {
         if (node.tag === 'link') {
             if (node.attributes !== undefined) {
                 let href = node.attributes['href'];
@@ -78,9 +91,13 @@ export class CssCompletionItemProvider implements vscode.CompletionItemProvider 
                     uris.push(href.substr(1, href.length - 2));
                 }
             }
+        } else if (node.tag === 'style') {
+            if (node.startTagEnd !== undefined && node.endTagStart !== undefined) {
+                embeddingCSS.push(textDoc.getText(css.Range.create(textDoc.positionAt(node.startTagEnd), textDoc.positionAt(node.endTagStart))));
+            }
         }
         node.children.forEach(n => {
-            this.findUri(n, uris);
+            this.findUriAndCSS(textDoc, n, uris, embeddingCSS);
         });
     }
 
