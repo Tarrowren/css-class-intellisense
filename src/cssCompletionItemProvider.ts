@@ -11,7 +11,7 @@ export class CssCompletionItemProvider implements CompletionItemProvider {
         this.refreshCompletionItems();
     }
 
-    provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
+    public provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
         // 判断光标是否在class内
         let line = document.lineAt(position).text;
         let start = line.substring(0, position.character).search(/class\s*=\s*("([^"]*)$|'([^']*)$)/i);
@@ -22,22 +22,18 @@ export class CssCompletionItemProvider implements CompletionItemProvider {
         }
     }
 
-    refreshCompletionItems() {
-        try {
-            let editor = window.activeTextEditor;
-            if (editor === undefined) {
-                throw new Error("No Active Text Editor");
-            }
-            let doc = editor.document;
-            if (doc.languageId !== 'html') {
-                throw new Error('Not an HTML file');
-            }
-            // 从文档中获取style下的class与link的uri
-            let textDoc = html.TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
-            this.completionItems = this.htmlDocAnalysisService.getAllCompletionItem(textDoc);
+    public refreshCompletionItems() {
+        let editor = window.activeTextEditor;
+        if (editor === undefined) {
+            return;
         }
-        catch (err) {
-            window.showErrorMessage(`[css-class-intellisense] ERROR! ${err.message}`);
+        let doc = editor.document;
+        if (doc.languageId !== 'html') {
+            return;
         }
+        // 从文档中获取style下的class与link的uri
+        let textDoc = html.TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
+        this.completionItems = this.htmlDocAnalysisService.getAllCompletionItem(textDoc);
+        // window.showErrorMessage(`[css-class-intellisense] ERROR! ${err.message}`);
     }
 }

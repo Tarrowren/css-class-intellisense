@@ -1,5 +1,6 @@
+import * as path from "path";
 import { LanguageService, TextDocument, Node, Range } from "vscode-html-languageservice";
-import { CompletionItem } from "vscode";
+import { CompletionItem, workspace } from "vscode";
 import { RemoteCSSAnalysisSerivce } from "./remoteCSS";
 import { CSSDocAnalysisService } from "./cssDocAnalysisService";
 
@@ -8,8 +9,9 @@ export interface HTMLDocAnalysisService {
 }
 
 export class HTMLAnalysisService implements HTMLDocAnalysisService {
-    private url: string[] = [];
-    private embeddingCSS: string[] = [];
+    private remoteLinks: string[] = [];
+    private localLinks: string[] = [];
+    private embeddingCSS: string = "";
     private htmlService: LanguageService;
     private cssDocAnalysisService: CSSDocAnalysisService;
     private remoteCSSAnalysisSerivce: RemoteCSSAnalysisSerivce;
@@ -22,18 +24,29 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
 
     public async getAllCompletionItem(textDocument: TextDocument): Promise<CompletionItem[]> {
         this.refresh(textDocument);
-        let items = await this.remoteCSSAnalysisSerivce.getAllCompletionItems(this.url);
-        if (this.embeddingCSS.length > 0) {
-            let embeddingCSSText = this.embeddingCSS.reduce((total, current) => total += current);
-            let embeddingCSSDoc = TextDocument.create("", "", 0, embeddingCSSText);
-            items = items.concat(await this.cssDocAnalysisService.TextDocAnalysis(embeddingCSSDoc));
+        return Promise.resolve(
+            (await this.cssDocAnalysisService.TextDocAnalysis(TextDocument.create("", "", 0, this.embeddingCSS)))
+                .concat(await this.getLocalCSSAnalysis())
+                .concat(await this.remoteCSSAnalysisSerivce.getAllCompletionItems(this.remoteLinks)));
+    }
+
+    private getLocalCSSAnalysis(): Promise<CompletionItem[]> {
+        let arr = this.localLinks.map(async link => {
+            let doc = await workspace.openTextDocument(link);
+            let textDoc = TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
+            return this.cssDocAnalysisService.TextDocAnalysis(textDoc);
+        });
+        if (arr.length > 0) {
+            return arr.reduce(async (total, current) => (await total).concat(await current));
+        } else {
+            return Promise.resolve(<CompletionItem[]>[]);
         }
-        return items;
     }
 
     private refresh(textDocument: TextDocument): void {
-        this.url = [];
-        this.embeddingCSS = [];
+        this.remoteLinks = [];
+        this.localLinks = [];
+        this.embeddingCSS = "";
         let htmlDoc = this.htmlService.parseHTMLDocument(textDocument);
         htmlDoc.roots.forEach(node => this.findUrlAndCSS(textDocument, node));
     }
@@ -44,12 +57,21 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
             if (node.attributes !== undefined) {
                 let href = node.attributes["href"];
                 if (href !== null && href.length > 2) {
-                    this.url.push(href.substr(1, href.length - 2));
+                    let url = href.substr(1, href.length - 2);
+                    if (url.search("http") === 0) {
+                        this.remoteLinks.push(url);
+                    } else {
+                        if (path.isAbsolute(url)) {
+                            this.localLinks.push(url);
+                        } else {
+                            this.localLinks.push(path.resolve(textDocument.uri, `../${url}`));
+                        }
+                    }
                 }
             }
         } else if (node.tag === "style") {
             if (node.startTagEnd !== undefined && node.endTagStart !== undefined) {
-                this.embeddingCSS.push(textDocument.getText(Range.create(textDocument.positionAt(node.startTagEnd), textDocument.positionAt(node.endTagStart))));
+                this.embeddingCSS += textDocument.getText(Range.create(textDocument.positionAt(node.startTagEnd), textDocument.positionAt(node.endTagStart)));
             }
         }
         node.children.forEach(n => {

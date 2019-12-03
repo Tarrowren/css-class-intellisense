@@ -15,10 +15,15 @@ export class CSSAnalysisService implements CSSDocAnalysisService {
 
     public async TextDocAnalysis(textDocument: TextDocument): Promise<CompletionItem[]> {
         let symbols = this.cssService.findDocumentSymbols(textDocument, this.cssService.parseStylesheet(textDocument));
-        return Array.from(new Set(symbols.filter(symbol => symbol.kind === 5).map(symbol => {
+        let cssString = symbols.filter(symbol => symbol.kind === 5).map(symbol => {
             let arr = symbol.name.split(/\.([a-zA-Z0-9-_]+)/);
             arr.shift();
             return arr.filter(s => s.search(/[a-zA-Z-_]/) === 0);
-        }).reduce((total, current) => total.concat(current)))).map(cssClass => new CompletionItem(cssClass));
+        });
+        if (cssString.length > 0) {
+            return Array.from(new Set(cssString.reduce((total, current) => total.concat(current)))).map(cssClass => new CompletionItem(cssClass));
+        } else {
+            return Promise.resolve(<CompletionItem[]>[]);
+        }
     }
 }
