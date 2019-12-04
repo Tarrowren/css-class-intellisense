@@ -70,10 +70,16 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
                 window.showErrorMessage(`[css-class-intellisense] WARNING! Downloading! Do not frequent operation. `);
                 return Promise.resolve(<CompletionItem[]>[]);
             }
-            this.downloading = true;
-            doc = await this.saveRemoteCSSDoc(url);
-            this.remoteCSSDoc.push(doc);
-            this.downloading = false;
+            try {
+                this.downloading = true;
+                doc = await this.saveRemoteCSSDoc(url);
+                this.remoteCSSDoc.push(doc);
+            } catch (err) {
+                window.showErrorMessage(`[css-class-intellisense] ERROR! ${err}`);
+                return Promise.resolve(<CompletionItem[]>[]);
+            } finally {
+                this.downloading = false;
+            }
             // 使用json文件保存远程CSS信息
             let err: NodeJS.ErrnoException | null = await new Promise(reject => fs.writeFile(this.remoteCSSFileJSONPath, JSON.stringify(this.remoteCSSDoc, null, "\t"), err => reject(err)));
             if (err) {
@@ -93,6 +99,10 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     // 保存新的远程CSS文档
     private async saveRemoteCSSDoc(url: string): Promise<RemoteCSSDoc> {
         let filename = path.join(this.remoteCSSFolderPath, Date.now() + ".css");
+        let err: Error | undefined = await new Promise(resolve => request(url).on("data", data => resolve(undefined)).on("error", err => resolve(err)));
+        if (err) {
+            throw err;
+        }
         // 下载文件
         return await new Promise(resolve => {
             request(url).pipe(fs.createWriteStream(filename)).on("close", () => resolve(new RemoteCSSDoc(filename, url)));
