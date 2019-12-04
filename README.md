@@ -21,3 +21,9 @@ Class Intellisense for linking CSS.
 智能提示内嵌CSS。
 
 Class Intellisense for embedding CSS.
+
+### 1.0.0
+
+将远程css文件下载到本地，提高智能提示的流畅度。
+
+Improve the fluency of Intellisense by download remote CSS files to local.
