@@ -34,6 +34,5 @@ export class CssCompletionItemProvider implements CompletionItemProvider {
         // 从文档中获取style下的class与link的uri
         let textDoc = html.TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
         this.completionItems = this.htmlDocAnalysisService.getAllCompletionItem(textDoc);
-        // window.showErrorMessage(`[css-class-intellisense] ERROR! ${err.message}`);
     }
 }

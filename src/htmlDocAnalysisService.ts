@@ -1,6 +1,6 @@
 import * as path from "path";
 import { LanguageService, TextDocument, Node, Range } from "vscode-html-languageservice";
-import { CompletionItem, workspace } from "vscode";
+import { CompletionItem, workspace, window } from "vscode";
 import { RemoteCSSAnalysisSerivce } from "./remoteCSS";
 import { CSSDocAnalysisService } from "./cssDocAnalysisService";
 
@@ -31,10 +31,16 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
     }
 
     private getLocalCSSAnalysis(): Promise<CompletionItem[]> {
+
         let arr = this.localLinks.map(async link => {
-            let doc = await workspace.openTextDocument(link);
-            let textDoc = TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
-            return this.cssDocAnalysisService.TextDocAnalysis(textDoc);
+            try {
+                let doc = await workspace.openTextDocument(link);
+                let textDoc = TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
+                return this.cssDocAnalysisService.TextDocAnalysis(textDoc);
+            } catch (err) {
+                window.showErrorMessage(`[css-class-intellisense] ERROR! ${err}`);
+                return Promise.resolve(<CompletionItem[]>[]);
+            }
         });
         if (arr.length > 0) {
             return arr.reduce(async (total, current) => (await total).concat(await current));

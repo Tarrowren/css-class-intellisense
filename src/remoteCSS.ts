@@ -14,6 +14,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     private remoteCSSFileJSONPath: string = "";
     private remoteCSSDoc: RemoteCSSDoc[] = [];
     private cssAnalysisService: CSSDocAnalysisService;
+    private downloading: boolean = false;
 
     constructor(cssAnalysisService: CSSDocAnalysisService) {
         this.cssAnalysisService = cssAnalysisService;
@@ -30,27 +31,31 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     }
 
     private async refresh(): Promise<void> {
-        this.remoteCSSFolderPath = path.join(this.getRootPath(), "./remote_css");
-        this.remoteCSSFileJSONPath = path.join(this.remoteCSSFolderPath, "./remoteCSSFile.json");
-
-        let folderExists: boolean = await new Promise(resolve => fs.exists(this.remoteCSSFolderPath, e => resolve(e)));
-        let fileExists: boolean = await new Promise(resolve => fs.exists(this.remoteCSSFileJSONPath, e => resolve(e)));
-        let err: NodeJS.ErrnoException | null;
-        // 不存在则创建
-        if (!folderExists) {
-            err = await new Promise(reject => fs.mkdir(this.remoteCSSFolderPath, err => reject(err)));
-            if (err) {
-                throw err;
-            }
-        }
-        if (!fileExists) {
-            err = await new Promise(reject => fs.writeFile(this.remoteCSSFileJSONPath, "", err => reject(err)));
-            if (err) {
-                throw err;
-            }
-        }
-        let jsonDoc = await workspace.openTextDocument(this.remoteCSSFileJSONPath);
         try {
+            this.remoteCSSFolderPath = path.join(this.getRootPath(), "./remote_css");
+            this.remoteCSSFileJSONPath = path.join(this.remoteCSSFolderPath, "./remoteCSSFile.json");
+
+            let folderExists: boolean = await new Promise(resolve => fs.exists(this.remoteCSSFolderPath, e => resolve(e)));
+            let fileExists: boolean = await new Promise(resolve => fs.exists(this.remoteCSSFileJSONPath, e => resolve(e)));
+            let err: NodeJS.ErrnoException | null;
+            // 不存在则创建
+            if (!folderExists) {
+                err = await new Promise(resolve => fs.mkdir(this.remoteCSSFolderPath, err => resolve(err)));
+                if (err) {
+                    throw err;
+                }
+            }
+            if (!fileExists) {
+                err = await new Promise(resolve => fs.writeFile(this.remoteCSSFileJSONPath, "", err => resolve(err)));
+                if (err) {
+                    throw err;
+                }
+            }
+        } catch (err) {
+            window.showErrorMessage(`[css-class-intellisense] WARNING! ${err}`);
+        }
+        try {
+            let jsonDoc = await workspace.openTextDocument(this.remoteCSSFileJSONPath);
             this.remoteCSSDoc = JSON.parse(jsonDoc.getText()) as RemoteCSSDoc[];
         } catch (err) {
             this.remoteCSSDoc = [];
@@ -61,17 +66,28 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     private async findRemoteCSSDocAndAnalysis(url: string): Promise<CompletionItem[]> {
         let doc = this.remoteCSSDoc.find(r => r.url === url);
         if (doc === undefined) {
+            if (this.downloading) {
+                window.showErrorMessage(`[css-class-intellisense] WARNING! Downloading! Do not frequent operation. `);
+                return Promise.resolve(<CompletionItem[]>[]);
+            }
+            this.downloading = true;
             doc = await this.saveRemoteCSSDoc(url);
             this.remoteCSSDoc.push(doc);
+            this.downloading = false;
             // 使用json文件保存远程CSS信息
             let err: NodeJS.ErrnoException | null = await new Promise(reject => fs.writeFile(this.remoteCSSFileJSONPath, JSON.stringify(this.remoteCSSDoc, null, "\t"), err => reject(err)));
             if (err) {
                 throw err;
             }
         }
-        let textDoc = await workspace.openTextDocument(doc.filename);
-        let cssDoc = TextDocument.create(textDoc.uri.fsPath, textDoc.languageId, textDoc.version, textDoc.getText());
-        return this.cssAnalysisService.TextDocAnalysis(cssDoc);
+        try {
+            let textDoc = await workspace.openTextDocument(doc.filename);
+            let cssDoc = TextDocument.create(textDoc.uri.fsPath, textDoc.languageId, textDoc.version, textDoc.getText());
+            return this.cssAnalysisService.TextDocAnalysis(cssDoc);
+        } catch (err) {
+            await new Promise(resolve => fs.writeFile(this.remoteCSSFileJSONPath, "", err => resolve(err)));
+            return Promise.resolve(<CompletionItem[]>[]);
+        }
     }
 
     // 保存新的远程CSS文档
