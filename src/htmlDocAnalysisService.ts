@@ -30,15 +30,18 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
                 .concat(await this.remoteCSSAnalysisSerivce.getAllCompletionItems(this.remoteLinks)));
     }
 
-    private getLocalCSSAnalysis(): Promise<CompletionItem[]> {
+    public changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisSerivce: RemoteCSSAnalysisSerivce) {
+        this.remoteCSSAnalysisSerivce = remoteCSSAnalysisSerivce;
+    }
 
+    private getLocalCSSAnalysis(): Promise<CompletionItem[]> {
         let arr = this.localLinks.map(async link => {
             try {
                 let doc = await workspace.openTextDocument(link);
                 let textDoc = TextDocument.create(doc.uri.fsPath, doc.languageId, doc.version, doc.getText());
                 return this.cssDocAnalysisService.TextDocAnalysis(textDoc);
             } catch (err) {
-                window.showErrorMessage(`[css-class-intellisense] ERROR! ${err}`);
+                window.showErrorMessage(`[css class intellisense] ${err.message}`);
                 return Promise.resolve(<CompletionItem[]>[]);
             }
         });

@@ -9,6 +9,12 @@ export interface RemoteCSSAnalysisSerivce {
     getAllCompletionItems(urls: string[]): Promise<CompletionItem[]>;
 }
 
+export class CloseRemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
+    getAllCompletionItems(urls: string[]): Promise<CompletionItem[]> {
+        return Promise.resolve(<CompletionItem[]>[]);
+    }
+}
+
 export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     private remoteCSSFolderPath: string = "";
     private remoteCSSFileJSONPath: string = "";
@@ -52,7 +58,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
                 }
             }
         } catch (err) {
-            window.showErrorMessage(`[css-class-intellisense] WARNING! ${err}`);
+            window.showWarningMessage(`[css class intellisense] ${err.message}`);
         }
         try {
             let jsonDoc = await workspace.openTextDocument(this.remoteCSSFileJSONPath);
@@ -67,23 +73,23 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
         let doc = this.remoteCSSDoc.find(r => r.url === url);
         if (doc === undefined) {
             if (this.downloading) {
-                window.showErrorMessage(`[css-class-intellisense] WARNING! Downloading! Do not frequent operation. `);
+                window.showWarningMessage(`[css class intellisense] Downloading! Do not frequent operation.`);
                 return Promise.resolve(<CompletionItem[]>[]);
             }
             try {
                 this.downloading = true;
                 doc = await this.saveRemoteCSSDoc(url);
                 this.remoteCSSDoc.push(doc);
+                // 使用json文件保存远程CSS信息
+                let err: NodeJS.ErrnoException | null = await new Promise(resolve => fs.writeFile(this.remoteCSSFileJSONPath, JSON.stringify(this.remoteCSSDoc, null, "\t"), err => resolve(err)));
+                if (err) {
+                    throw err;
+                }
             } catch (err) {
-                window.showErrorMessage(`[css-class-intellisense] ERROR! ${err}`);
+                window.showErrorMessage(`[css class intellisense] ${err.message}`);
                 return Promise.resolve(<CompletionItem[]>[]);
             } finally {
                 this.downloading = false;
-            }
-            // 使用json文件保存远程CSS信息
-            let err: NodeJS.ErrnoException | null = await new Promise(reject => fs.writeFile(this.remoteCSSFileJSONPath, JSON.stringify(this.remoteCSSDoc, null, "\t"), err => reject(err)));
-            if (err) {
-                throw err;
             }
         }
         try {
@@ -99,7 +105,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     // 保存新的远程CSS文档
     private async saveRemoteCSSDoc(url: string): Promise<RemoteCSSDoc> {
         let filename = path.join(this.remoteCSSFolderPath, Date.now() + ".css");
-        let err: Error | undefined = await new Promise(resolve => request(url).on("data", data => resolve(undefined)).on("error", err => resolve(err)));
+        let err: Error | undefined = await new Promise(resolve => request(url).on("data", () => resolve(undefined)).on("error", err => resolve(err)));
         if (err) {
             throw err;
         }
