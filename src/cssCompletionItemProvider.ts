@@ -3,6 +3,7 @@ import { HTMLDocAnalysisService } from "./htmlDocAnalysisService";
 import * as html from "vscode-html-languageservice";
 
 export class CssCompletionItemProvider implements CompletionItemProvider {
+    private lastTextDocument: TextDocument | undefined;
     private completionItems: Promise<CompletionItem[]> | undefined;
     private htmlDocAnalysisService: HTMLDocAnalysisService;
 
@@ -12,6 +13,11 @@ export class CssCompletionItemProvider implements CompletionItemProvider {
     }
 
     public provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
+        // 切换文档时刷新
+        if (this.lastTextDocument !== document) {
+            this.lastTextDocument = document;
+            this.refreshCompletionItems();
+        }
         // 判断光标是否在class内
         let line = document.lineAt(position).text;
         let start = line.substring(0, position.character).search(/class\s*=\s*("([^"]*)$|'([^']*)$)/i);
