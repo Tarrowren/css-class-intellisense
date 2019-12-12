@@ -24,10 +24,9 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
 
     public async getAllCompletionItem(textDocument: TextDocument): Promise<CompletionItem[]> {
         this.refresh(textDocument);
-        return Promise.resolve(
-            (await this.cssDocAnalysisService.TextDocAnalysis(TextDocument.create("", "", 0, this.embeddingCSS)))
-                .concat(await this.getLocalCSSAnalysis())
-                .concat(await this.remoteCSSAnalysisSerivce.getAllCompletionItems(this.remoteLinks)));
+        return (await this.cssDocAnalysisService.TextDocAnalysis(TextDocument.create("", "", 0, this.embeddingCSS)))
+            .concat(await this.getLocalCSSAnalysis())
+            .concat(await this.remoteCSSAnalysisSerivce.getAllCompletionItems(this.remoteLinks));
     }
 
     public changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisSerivce: RemoteCSSAnalysisSerivce) {
@@ -42,14 +41,12 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
                 return this.cssDocAnalysisService.TextDocAnalysis(textDoc);
             } catch (err) {
                 window.showErrorMessage(`[css class intellisense] ${err.message}`);
-                return Promise.resolve(<CompletionItem[]>[]);
+                return [];
             }
         });
-        if (arr.length > 0) {
-            return arr.reduce(async (total, current) => (await total).concat(await current));
-        } else {
-            return Promise.resolve(<CompletionItem[]>[]);
-        }
+        return arr.length > 0
+            ? arr.reduce(async (total, current) => (await total).concat(await current))
+            : Promise.resolve([]);
     }
 
     private refresh(textDocument: TextDocument): void {
@@ -70,11 +67,9 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
                     if (url.search("http") === 0) {
                         this.remoteLinks.push(url);
                     } else {
-                        if (path.isAbsolute(url)) {
-                            this.localLinks.push(url);
-                        } else {
-                            this.localLinks.push(path.resolve(textDocument.uri, `../${url}`));
-                        }
+                        path.isAbsolute(url)
+                            ? this.localLinks.push(url)
+                            : this.localLinks.push(path.resolve(textDocument.uri, `../${url}`));
                     }
                 }
             }
@@ -83,8 +78,6 @@ export class HTMLAnalysisService implements HTMLDocAnalysisService {
                 this.embeddingCSS += textDocument.getText(Range.create(textDocument.positionAt(node.startTagEnd), textDocument.positionAt(node.endTagStart)));
             }
         }
-        node.children.forEach(n => {
-            this.findUrlAndCSS(textDocument, n);
-        });
+        node.children.forEach(n => this.findUrlAndCSS(textDocument, n));
     }
 }

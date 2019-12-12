@@ -11,7 +11,7 @@ export interface RemoteCSSAnalysisSerivce {
 
 export class CloseRemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
     getAllCompletionItems(urls: string[]): Promise<CompletionItem[]> {
-        return Promise.resolve(<CompletionItem[]>[]);
+        return Promise.resolve([]);
     }
 }
 
@@ -28,12 +28,10 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
 
     public async getAllCompletionItems(urls: string[]): Promise<CompletionItem[]> {
         await this.refresh();
-        if (urls.length > 0) {
-            return urls.map(async url => await this.findRemoteCSSDocAndAnalysis(url))
-                .reduce(async (total, current) => (await total).concat(await current));
-        } else {
-            return Promise.resolve(<CompletionItem[]>[]);
-        }
+        return urls.length > 0
+            ? urls.map(async url => await this.findRemoteCSSDocAndAnalysis(url))
+                .reduce(async (total, current) => (await total).concat(await current))
+            : Promise.resolve([]);
     }
 
     private async refresh(): Promise<void> {
@@ -74,7 +72,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
         if (doc === undefined) {
             if (this.downloading) {
                 window.showWarningMessage(`[css class intellisense] Downloading! Do not frequent operation.`);
-                return Promise.resolve(<CompletionItem[]>[]);
+                return Promise.resolve([]);
             }
             try {
                 this.downloading = true;
@@ -87,7 +85,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
                 }
             } catch (err) {
                 window.showErrorMessage(`[css class intellisense] ${err.message}`);
-                return Promise.resolve(<CompletionItem[]>[]);
+                return Promise.resolve([]);
             } finally {
                 this.downloading = false;
             }
@@ -98,7 +96,7 @@ export class RemoteCSSAnalysisRepo implements RemoteCSSAnalysisSerivce {
             return this.cssAnalysisService.TextDocAnalysis(cssDoc);
         } catch (err) {
             await new Promise(resolve => fs.writeFile(this.remoteCSSFileJSONPath, "", err => resolve(err)));
-            return Promise.resolve(<CompletionItem[]>[]);
+            return Promise.resolve([]);
         }
     }
 

@@ -27,11 +27,9 @@ export function activate(context: ExtensionContext) {
 		workspace.onDidSaveTextDocument(doc => {
 			if (doc.languageId === 'html') {
 				let remoteCSSSupport: boolean | undefined = workspace.getConfiguration().get("Remote CSS Support");
-				if (remoteCSSSupport) {
-					htmlAnalysisService.changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisRepo);
-				} else {
-					htmlAnalysisService.changeRemoteCSSAnalysisSerivce(closeRemoteCSSAnalysisRepo);
-				}
+				remoteCSSSupport
+					? htmlAnalysisService.changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisRepo)
+					: htmlAnalysisService.changeRemoteCSSAnalysisSerivce(closeRemoteCSSAnalysisRepo);
 				cssProvider.refreshCompletionItems();
 			}
 		}),

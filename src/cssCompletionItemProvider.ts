@@ -21,11 +21,7 @@ export class CssCompletionItemProvider implements CompletionItemProvider {
         // 判断光标是否在class内
         let line = document.lineAt(position).text;
         let start = line.substring(0, position.character).search(/class\s*=\s*("([^"]*)$|'([^']*)$)/i);
-        if (start !== -1) {
-            return this.completionItems;
-        } else {
-            return;
-        }
+        return start !== -1 ? this.completionItems : null;
     }
 
     public refreshCompletionItems() {

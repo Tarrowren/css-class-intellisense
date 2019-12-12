@@ -6,6 +6,10 @@ const path = require('path');
 const config = {
     target: 'node',
     entry: './src/extension.ts',
+    node: {
+        __dirname: false,
+        __filename: false
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'extension.js',

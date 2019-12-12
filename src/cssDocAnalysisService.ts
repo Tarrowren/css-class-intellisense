@@ -1,4 +1,3 @@
-
 import { TextDocument, LanguageService } from "vscode-css-languageservice";
 import { CompletionItem } from "vscode";
 
@@ -20,10 +19,9 @@ export class CSSAnalysisService implements CSSDocAnalysisService {
             arr.shift();
             return arr.filter(s => s.search(/[a-zA-Z-_]/) === 0);
         });
-        if (cssString.length > 0) {
-            return Array.from(new Set(cssString.reduce((total, current) => total.concat(current)))).map(cssClass => new CompletionItem(cssClass));
-        } else {
-            return Promise.resolve(<CompletionItem[]>[]);
-        }
+
+        return cssString.length > 0
+            ? Array.from(new Set(cssString.reduce((total, current) => total.concat(current)))).map(cssClass => new CompletionItem(cssClass))
+            : [];
     }
 }
