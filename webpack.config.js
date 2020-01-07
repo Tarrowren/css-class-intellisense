@@ -28,9 +28,15 @@ const config = {
             test: /\.ts$/,
             exclude: /node_modules/,
             use: [{
-                loader: 'ts-loader'
+                loader: 'ts-loader',
+                options: {
+                    compilerOptions: {
+                        "module": "es6"
+                    }
+                }
             }]
         }]
     }
 };
+
 module.exports = config;

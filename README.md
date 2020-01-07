@@ -1,6 +1,6 @@
-# css-class-intellisense-alpha README
+# css-class-intellisense README
 
-css class智能提示的测试版，之后可能会进行彻底的更改。
+css class智能提示。
 
 ## Features
 
