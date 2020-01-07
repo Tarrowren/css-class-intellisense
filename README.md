@@ -16,12 +16,12 @@ Remote CSS support is off by default. You can enable it by setting "Remote CSS S
 
 ## Release Notes
 
-### 0.0.1
+### 0.1.0
 
 对外部引入的css文件提供class智能提示。  
 Class Intellisense for linking CSS.
 
-### 0.0.2
+### 0.2.0
 
 智能提示内嵌CSS。  
 Class Intellisense for embedding CSS.
@@ -31,7 +31,7 @@ Class Intellisense for embedding CSS.
 将远程css文件下载到本地，提高提示的流畅度。  
 Improve the fluency of Intellisense by download remote CSS files to local.
 
-### 1.0.1
+### 1.1.0
 
 提供远程css支持选项设置  
 Provide remote CSS support option setting.
