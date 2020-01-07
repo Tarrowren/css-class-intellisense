@@ -8,5 +8,3 @@ src/**
 **/*.map
 **/*.ts
 webpack.config.js
-image/**
-!image/icon.png

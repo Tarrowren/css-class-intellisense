@@ -12,7 +12,7 @@ When you **open** or **save** the HTML file, the CSS files you linked will be au
 默认关闭远程CSS支持，要开启该功能需要进行设置。  
 Remote CSS support is off by default. You can enable it by setting "Remote CSS Support" to `true`.
 
-![setting](./image/setting.png)
+![setting](./resources/readme/setting.png)
 
 ## Release Notes
 

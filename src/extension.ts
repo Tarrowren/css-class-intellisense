@@ -1,43 +1,25 @@
-import { getLanguageService } from "vscode-html-languageservice";
-import { getCSSLanguageService } from "vscode-css-languageservice";
-import { ExtensionContext, workspace, languages } from "vscode";
-import { CssCompletionItemProvider } from "./cssCompletionItemProvider";
-import { HTMLAnalysisService } from "./htmlDocAnalysisService";
-import { CSSAnalysisService } from "./cssDocAnalysisService";
-import { RemoteCSSAnalysisRepo, CloseRemoteCSSAnalysisRepo } from "./remoteCSS";
+// The module 'vscode' contains the VS Code extensibility API
+// Import the module and reference it with the alias vscode in your code below
+import * as vscode from 'vscode';
 
-export function activate(context: ExtensionContext) {
-    const htmlService = getLanguageService();
-    const cssService = getCSSLanguageService();
-    const cssAnalysisService = new CSSAnalysisService(cssService);
-    const remoteCSSAnalysisRepo = new RemoteCSSAnalysisRepo(cssAnalysisService);
-    const closeRemoteCSSAnalysisRepo = new CloseRemoteCSSAnalysisRepo();
-    const htmlAnalysisService = new HTMLAnalysisService(htmlService, cssAnalysisService, closeRemoteCSSAnalysisRepo);
-    const cssProvider = new CssCompletionItemProvider(htmlAnalysisService);
+// this method is called when your extension is activated
+// your extension is activated the very first time the command is executed
+export function activate(context: vscode.ExtensionContext) {
+    // Use the console to output diagnostic information (console.log) and errors (console.error)
+    // This line of code will only be executed once when your extension is activated
+    console.log('Congratulations, your extension "new" is now active!');
+    // The command has been defined in the package.json file
+    // Now provide the implementation of the command with registerCommand
+    // The commandId parameter must match the command field in package.json
+    let disposable = vscode.commands.registerCommand('extension.helloWorld', () => {
+        // The code you place here will be executed every time your command is executed
 
-    // 按配置开启远程CSS支持
-    let remoteCSSSupport: boolean | undefined = workspace.getConfiguration().get("Remote CSS Support");
-    if (remoteCSSSupport) {
-        htmlAnalysisService.changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisRepo);
-    }
+        // Display a message box to the user
+        vscode.window.showInformationMessage('Hello World!');
+    });
 
-    context.subscriptions.push(
-        // 保存html文件时更新CompletionItems
-        workspace.onDidSaveTextDocument(doc => {
-            if (doc.languageId === 'html') {
-                cssProvider.refreshCompletionItems();
-            }
-        }),
-        // 修改配置文件时
-        workspace.onDidChangeConfiguration((a) => {
-            let remoteCSSSupport: boolean | undefined = workspace.getConfiguration().get("Remote CSS Support");
-            remoteCSSSupport
-                ? htmlAnalysisService.changeRemoteCSSAnalysisSerivce(remoteCSSAnalysisRepo)
-                : htmlAnalysisService.changeRemoteCSSAnalysisSerivce(closeRemoteCSSAnalysisRepo);
-        }),
-        // 注册服务
-        languages.registerCompletionItemProvider({ scheme: 'file', language: 'html' }, cssProvider)
-    );
+    context.subscriptions.push(disposable);
 }
 
+// this method is called when your extension is deactivated
 export function deactivate() { }

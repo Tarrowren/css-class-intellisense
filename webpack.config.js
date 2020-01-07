@@ -6,19 +6,15 @@ const path = require('path');
 const config = {
     target: 'node',
     entry: './src/extension.ts',
-    node: {
-        __dirname: false,
-        __filename: false
-    },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'extension.js',
-        libraryTarget: 'commonjs2',
-        devtoolModuleFilenameTemplate: '../[resource-path]'
+        libraryTarget: "commonjs2",
+        devtoolModuleFilenameTemplate: "../[resource-path]",
     },
     devtool: 'source-map',
     externals: {
-        vscode: 'commonjs vscode'
+        vscode: "commonjs vscode"
     },
     resolve: {
         extensions: ['.ts', '.js']
@@ -36,7 +32,7 @@ const config = {
                 }
             }]
         }]
-    }
-};
+    },
+}
 
 module.exports = config;
