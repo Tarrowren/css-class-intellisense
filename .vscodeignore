@@ -8,3 +8,4 @@ src/**
 **/*.map
 **/*.ts
 webpack.config.js
+resources/readme/**
