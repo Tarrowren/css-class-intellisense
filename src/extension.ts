@@ -3,7 +3,9 @@ import { ElementClassCompletionItemProvider } from "./elementClassCompletionItem
 
 export function activate(context: ExtensionContext) {
     const provider = new ElementClassCompletionItemProvider();
-    context.subscriptions.push(languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, provider));
+    context.subscriptions.push(
+        languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, provider)
+    );
 }
 
 export function deactivate() { }
