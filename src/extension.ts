@@ -1,11 +1,9 @@
 import { ExtensionContext, languages } from "vscode";
-import { ElementClassCompletionItemProvider } from "./elementClassCompletionItemProvider";
+import { CSSClassCompletionItemProvider } from "./cssClassCompletionItemProvider";
 
 export function activate(context: ExtensionContext) {
-    const provider = new ElementClassCompletionItemProvider();
-    context.subscriptions.push(
-        languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, provider)
-    );
+    const provider = new CSSClassCompletionItemProvider();
+    context.subscriptions.push(languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, provider));
 }
 
 export function deactivate() { }
