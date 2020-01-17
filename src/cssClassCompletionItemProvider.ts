@@ -1,16 +1,17 @@
-import { CancellationToken, CompletionContext, CompletionItem, CompletionItemProvider, Position, ProviderResult, TextDocument, TextDocumentChangeEvent, workspace } from "vscode";
-import { HTMLDocument } from "./HTMLDocument";
+import * as Parser from "tree-sitter";
+import { CancellationToken, CompletionContext, CompletionItem, CompletionItemProvider, Position, ProviderResult, TextDocument, workspace } from "vscode";
+import { HTMLDoc } from "./Doc";
 
 export class CSSClassCompletionItemProvider implements CompletionItemProvider {
-    private htmlDocument: HTMLDocument | undefined;
+    private htmlDoc: HTMLDoc | undefined;
 
-    constructor() {
+    constructor(private parser: Parser) {
         workspace.onDidChangeTextDocument(event => {
-            if (this.htmlDocument && this.htmlDocument.isSameDocument(event.document)) {
+            if (this.htmlDoc && this.htmlDoc.isSameDoc(event.document)) {
                 for (const e of event.contentChanges) {
-                    this.htmlDocument.editTree({
+                    this.htmlDoc.editTree({
                         newEndIndex: e.rangeOffset + e.text.length,
-                        newEndPosition: this.htmlDocument.pointAt(e.rangeOffset + e.text.length),
+                        newEndPosition: this.htmlDoc.pointAt(e.rangeOffset + e.text.length),
                         oldEndIndex: e.rangeOffset + e.rangeLength,
                         oldEndPosition: { column: e.range.end.character, row: e.range.end.line },
                         startIndex: e.rangeOffset,
@@ -22,14 +23,17 @@ export class CSSClassCompletionItemProvider implements CompletionItemProvider {
     }
 
     provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
-        if (!this.htmlDocument) {
-            this.htmlDocument = new HTMLDocument(document);
+        // console.time("use");
+        if (this.htmlDoc) {
+            this.htmlDoc.changeDoc(document);
         } else {
-            this.htmlDocument.changeDocument(document);
+            this.htmlDoc = new HTMLDoc(document, this.parser);
         }
-
-        if (this.htmlDocument.isInAttributeValue({ column: position.character, row: position.line }, "class")) {
-            return this.htmlDocument.getAllCompletionItems();
+        let items;
+        if (this.htmlDoc.isInAttributeValue({ column: position.character, row: position.line }, "class")) {
+            items = this.htmlDoc.getCompletionItems();
         }
+        // console.timeEnd("use");
+        return items;
     }
 }

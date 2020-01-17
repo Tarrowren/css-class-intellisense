@@ -1,9 +1,11 @@
+import * as Parser from "tree-sitter";
 import { ExtensionContext, languages } from "vscode";
-import { CSSClassCompletionItemProvider } from "./cssClassCompletionItemProvider";
+import { CSSClassCompletionItemProvider } from "./CSSClassCompletionItemProvider";
 
 export function activate(context: ExtensionContext) {
-    const provider = new CSSClassCompletionItemProvider();
-    context.subscriptions.push(languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, provider));
+    const parser = new Parser();
+    const completionItemProvider = new CSSClassCompletionItemProvider(parser);
+    context.subscriptions.push(languages.registerCompletionItemProvider({ scheme: "file", language: "html" }, completionItemProvider));
 }
 
 export function deactivate() { }

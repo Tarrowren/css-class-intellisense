@@ -43,9 +43,11 @@
     },
     "devDependencies": {
         "@types/node": "^13.1.4",
+        "@types/request": "^2.48.4",
         "@types/vscode": "^1.41.0",
         "electron": "^6.1.5",
         "electron-rebuild": "^1.8.8",
+        "request": "^2.88.0",
         "ts-loader": "^6.2.1",
         "tslint": "^5.20.1",
         "typescript": "^3.7.4",
