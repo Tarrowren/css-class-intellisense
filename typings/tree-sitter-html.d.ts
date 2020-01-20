@@ -1,1 +1,5 @@
-declare module "tree-sitter-html" { }
+declare module "tree-sitter-html" {
+    class HTML { }
+    namespace HTML { }
+    export = HTML;
+}
