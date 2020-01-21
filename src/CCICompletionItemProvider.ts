@@ -1,7 +1,7 @@
+import * as Parser from "tree_sitter";
 import { CancellationToken, CompletionContext, CompletionItem, CompletionItemProvider, Position, ProviderResult, TextDocument, TextDocumentChangeEvent, TextDocumentContentChangeEvent } from "vscode";
 import { HTMLDoc } from "./HTMLDoc";
 import { LinkingLinter } from "./LinkingLinter";
-import Parser = require("tree-sitter");
 
 export class CCICompletionItemProvider implements CompletionItemProvider {
     private htmlDoc: HTMLDoc | null = null;

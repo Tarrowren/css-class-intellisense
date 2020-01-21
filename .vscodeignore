@@ -1,5 +1,8 @@
 .vscode/**
 node_modules/**
+!node_modules/tree-sitter/**
+!node_modules/tree-sitter-css/**
+!node_modules/tree-sitter-html/**
 out/**
 src/**
 .gitignore

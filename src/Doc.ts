@@ -1,5 +1,5 @@
+import * as Parser from "tree_sitter";
 import { CompletionItem, CompletionItemKind, TextDocument } from "vscode";
-import Parser = require("tree-sitter");
 
 export interface DocAnalysis {
     getCompletionItems(): CompletionItem[];

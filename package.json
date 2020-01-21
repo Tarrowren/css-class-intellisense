@@ -18,11 +18,11 @@
         "Programming Languages",
         "Other"
     ],
-    "icon": "./resources/icon.png",
+    "icon": "resources/icon.png",
     "activationEvents": [
         "onLanguage:html"
     ],
-    "main": "./out/extension.js",
+    "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
             "title": "CSS Class Intellisense",

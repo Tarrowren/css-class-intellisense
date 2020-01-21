@@ -14,7 +14,10 @@ const config = {
     },
     devtool: 'source-map',
     externals: {
-        vscode: "commonjs vscode"
+        vscode: "commonjs vscode",
+        tree_sitter: "tree-sitter",
+        tree_sitter_html: "tree-sitter-html",
+        tree_sitter_css: "tree-sitter-css",
     },
     resolve: {
         extensions: ['.ts', '.js']

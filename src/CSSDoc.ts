@@ -1,7 +1,7 @@
+import * as Parser from "tree_sitter";
+import * as CSS from "tree_sitter_css";
 import { CompletionItem, TextDocument } from "vscode";
 import { Doc, DocAnalysis } from "./Doc";
-import Parser = require("tree-sitter");
-import CSS = require("tree-sitter-css");
 
 export class CSSDoc extends Doc implements DocAnalysis {
     constructor(document: TextDocument, parser: Parser) {

@@ -1,13 +1,13 @@
-import request = require("request");
+import * as fs from "fs";
+import * as path from "path";
+import * as request from "request";
+import * as Parser from "tree_sitter";
+import * as CSS from "tree_sitter_css";
+import * as HTML from "tree_sitter_html";
 import { CompletionItem, DiagnosticSeverity, Position, Range, TextDocument, Uri, workspace } from "vscode";
 import { CSSDoc } from "./CSSDoc";
 import { cssTreeAnalysis, Doc, DocAnalysis } from "./Doc";
 import { LinkingLinter } from "./LinkingLinter";
-import Parser = require("tree-sitter");
-import path = require("path");
-import HTML = require("tree-sitter-html");
-import CSS = require("tree-sitter-css");
-import fs = require("fs");
 
 export class HTMLDoc extends Doc implements DocAnalysis {
     private htmlTree: Parser.Tree;
@@ -20,6 +20,10 @@ export class HTMLDoc extends Doc implements DocAnalysis {
      * key: url, value: CompletionItem[]
      */
     private remoteMap: any = {};
+    /**
+     * key: url, value: 1
+     */
+    private downingMap: any = {};
 
     constructor(private linter: LinkingLinter, document: TextDocument, parser: Parser, private cachePath: string) {
         super(document, parser);
@@ -68,7 +72,11 @@ export class HTMLDoc extends Doc implements DocAnalysis {
                             newRemoteMap[hrefValue] = this.remoteMap[hrefValue];
                             continue;
                         }
+                        if (this.downingMap[hrefValue]) {
+                            continue;
+                        }
                         try {
+                            this.downingMap[hrefValue] = 1;
                             newRemoteMap[hrefValue] = await this.remoteCSS(hrefValue);
                         } catch (err) {
                             this.linter.changeDiagnostics(this.document.uri, {
@@ -76,6 +84,8 @@ export class HTMLDoc extends Doc implements DocAnalysis {
                                 message: err.message,
                                 severity: DiagnosticSeverity.Error
                             });
+                        } finally {
+                            delete this.downingMap[hrefValue];
                         }
                     } else {
                         if (this.localMap[hrefValue]) {
@@ -111,7 +121,6 @@ export class HTMLDoc extends Doc implements DocAnalysis {
     private async remoteCSS(url: string): Promise<CompletionItem[]> {
         let code = "";
         if (this.cachePath === "") {
-            console.log("down");
             code = await down(url);
         } else {
             const uri = Uri.parse(url, true);
