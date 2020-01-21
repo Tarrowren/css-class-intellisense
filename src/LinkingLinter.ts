@@ -10,6 +10,6 @@ export class LinkingLinter {
     readonly onDidChangeDiagnostics = this._onDidChangeDiagnostics.event;
 
     changeDiagnostics(uri: Uri, diagnostic?: Diagnostic) {
-        this._onDidChangeDiagnostics.fire({ uri, diagnostic: diagnostic });
+        this._onDidChangeDiagnostics.fire({ uri, diagnostic });
     }
 }

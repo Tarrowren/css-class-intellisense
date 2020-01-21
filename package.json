@@ -27,10 +27,10 @@
         "configuration": {
             "title": "CSS Class Intellisense",
             "properties": {
-                "Remote CSS Support": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Enable remote CSS support and create a \"remote_css\" folder automatically."
+                "cssClassIntellisense.remoteCSSCachePath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "If the field is empty, caching is not used."
                 }
             }
         }

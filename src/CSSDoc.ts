@@ -10,6 +10,12 @@ export class CSSDoc extends Doc implements DocAnalysis {
         this.cssTree = this.parser.parse(this.document.getText());
     }
 
+    editTree(delta: Parser.Edit): void {
+        this.cssTree?.edit(delta);
+        this.parser.setLanguage(CSS);
+        this.cssTree = this.parser.parse(this.document.getText(), this.cssTree);
+    }
+
     getCompletionItems(): CompletionItem[] {
         return this.cssClassAnalysis();
     }

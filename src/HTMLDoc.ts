@@ -1,12 +1,13 @@
 import request = require("request");
-import { CompletionItem, CompletionItemKind, DiagnosticSeverity, Position, Range, TextDocument, workspace } from "vscode";
+import { CompletionItem, DiagnosticSeverity, Position, Range, TextDocument, Uri, workspace } from "vscode";
 import { CSSDoc } from "./CSSDoc";
-import { Doc, DocAnalysis } from "./Doc";
+import { cssTreeAnalysis, Doc, DocAnalysis } from "./Doc";
 import { LinkingLinter } from "./LinkingLinter";
 import Parser = require("tree-sitter");
 import path = require("path");
 import HTML = require("tree-sitter-html");
 import CSS = require("tree-sitter-css");
+import fs = require("fs");
 
 export class HTMLDoc extends Doc implements DocAnalysis {
     private htmlTree: Parser.Tree;
@@ -19,12 +20,8 @@ export class HTMLDoc extends Doc implements DocAnalysis {
      * key: url, value: CompletionItem[]
      */
     private remoteMap: any = {};
-    /**
-     * key: url, value: 1
-     */
-    private downingMap: any = {};
 
-    constructor(private linter: LinkingLinter, document: TextDocument, parser: Parser) {
+    constructor(private linter: LinkingLinter, document: TextDocument, parser: Parser, private cachePath: string) {
         super(document, parser);
         const code = this.document.getText();
 
@@ -59,55 +56,51 @@ export class HTMLDoc extends Doc implements DocAnalysis {
     }
 
     private async linkingCSSMap(): Promise<void> {
-        this.linter.changeDiagnostics(this.document.uri);
         const newLocalMap: any = {};
         const newRemoteMap: any = {};
-        try {
-            for (const node of this.htmlTree.rootNode.descendantsOfType("element")) {
-                if (node.firstChild?.firstNamedChild?.text === "link") {
-                    const hrefNode = node.firstChild.namedChildren.find(n => n.firstChild?.text === "href" && n.childCount > 1)?.lastChild?.firstNamedChild;
-                    if (hrefNode) {
-                        const hrefValue = hrefNode.text.trim();
-                        if (hrefValue.substring(0, 4) === "http") {
-                            if (this.remoteMap[hrefValue]) {
-                                newRemoteMap[hrefValue] = this.remoteMap[hrefValue];
-                                continue;
-                            }
-                            try {
-                                newRemoteMap[hrefValue] = await this.remoteCSS(hrefValue);
-                            } catch (err) {
-                                this.linter.changeDiagnostics(this.document.uri, {
-                                    range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
-                                    message: err.message,
-                                    severity: DiagnosticSeverity.Error
-                                });
-                            }
-                        } else {
-                            if (this.localMap[hrefValue]) {
-                                newLocalMap[hrefValue] = this.localMap[hrefValue];
-                                continue;
-                            }
-                            const url = path.normalize(hrefValue);
-                            try {
-                                newLocalMap[hrefValue] = path.isAbsolute(url)
-                                    ? await this.localCSS(url)
-                                    : await this.localCSS(path.join(this.document.uri.fsPath, `../${url}`));
-                            } catch (err) {
-                                this.linter.changeDiagnostics(this.document.uri, {
-                                    range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
-                                    message: err.message,
-                                    severity: DiagnosticSeverity.Error
-                                });
-                            }
+        for (const node of this.htmlTree.rootNode.descendantsOfType("element")) {
+            if (node.firstChild?.firstNamedChild?.text === "link") {
+                const hrefNode = node.firstChild.namedChildren.find(n => n.firstChild?.text === "href" && n.childCount > 1)?.lastChild?.firstNamedChild;
+                if (hrefNode) {
+                    const hrefValue = hrefNode.text.trim();
+                    if (hrefValue.substring(0, 4) === "http") {
+                        if (this.remoteMap[hrefValue]) {
+                            newRemoteMap[hrefValue] = this.remoteMap[hrefValue];
+                            continue;
+                        }
+                        try {
+                            newRemoteMap[hrefValue] = await this.remoteCSS(hrefValue);
+                        } catch (err) {
+                            this.linter.changeDiagnostics(this.document.uri, {
+                                range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
+                                message: err.message,
+                                severity: DiagnosticSeverity.Error
+                            });
+                        }
+                    } else {
+                        if (this.localMap[hrefValue]) {
+                            newLocalMap[hrefValue] = this.localMap[hrefValue];
+                            continue;
+                        }
+                        const url = path.normalize(hrefValue);
+                        try {
+                            newLocalMap[hrefValue] = path.isAbsolute(url)
+                                ? await this.localCSS(url)
+                                : await this.localCSS(path.join(this.document.uri.fsPath, `../${url}`));
+                        } catch (err) {
+                            this.linter.changeDiagnostics(this.document.uri, {
+                                range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
+                                message: err.message,
+                                severity: DiagnosticSeverity.Error
+                            });
                         }
                     }
                 }
             }
-            this.localMap = newLocalMap;
-            this.remoteMap = newRemoteMap;
-        } catch (err) {
-            console.error(err.message);
         }
+        this.linter.changeDiagnostics(this.document.uri);
+        this.localMap = newLocalMap;
+        this.remoteMap = newRemoteMap;
     }
 
     private async localCSS(url: string): Promise<CSSDoc> {
@@ -116,38 +109,34 @@ export class HTMLDoc extends Doc implements DocAnalysis {
     }
 
     private async remoteCSS(url: string): Promise<CompletionItem[]> {
-        const code = await new Promise<string>((resolve, reject) => {
-            request(url, (err, resp, body) => {
-                if (err) {
-                    reject(err);
-                }
-                if (resp.statusCode === 200) {
-                    resolve(body);
-                } else {
-                    reject(Error(`Response (${resp.statusMessage})`));
-                }
-            });
-        });
-        this.parser.setLanguage(CSS);
-        const tree = this.parser.parse(code);
-
-        const completionItems = <CompletionItem[]>[];
-        const obj: any = {};
-        tree.rootNode.descendantsOfType("class_selector").forEach(node => {
-            const className = node.lastChild?.text;
-            if (className && !obj[className]) {
-                obj[className] = 1;
-                completionItems.push({ label: className, detail: url, kind: CompletionItemKind.Class });
+        let code = "";
+        if (this.cachePath === "") {
+            console.log("down");
+            code = await down(url);
+        } else {
+            const uri = Uri.parse(url, true);
+            const docCachePath = path.join(this.cachePath, uri.authority + uri.path);
+            try {
+                code = (await workspace.openTextDocument(docCachePath)).getText();
+            } catch{
+                code = await down(url);
             }
-        });
-        return completionItems;
+            await fs.promises.mkdir(path.dirname(docCachePath), { recursive: true });
+            await fs.promises.writeFile(docCachePath, code);
+        }
+        this.parser.setLanguage(CSS);
+        return cssTreeAnalysis(this.parser.parse(code), url);
     }
 
-    private clearTimeout() {
+    private clearTimeout(): void {
         if (this.timeout) {
             clearTimeout(this.timeout);
         }
         this.timeout = null;
+    }
+
+    setConfiguration(cachePath: string): void {
+        this.cachePath = cachePath;
     }
 
     getCompletionItems(): CompletionItem[] {
@@ -179,7 +168,7 @@ export class HTMLDoc extends Doc implements DocAnalysis {
      * 更换文档
      * @param document
      */
-    changeDoc(document: TextDocument) {
+    changeDoc(document: TextDocument): void {
         if (this.isSameDoc(document)) {
             return;
         }
@@ -209,19 +198,19 @@ export class HTMLDoc extends Doc implements DocAnalysis {
         this.clearTimeout();
 
         this.htmlTree.edit(delta);
-        this.cssTree?.edit(delta);
+        this.parser.setLanguage(HTML);
+        this.htmlTree = this.parser.parse(this.document.getText(), this.htmlTree);
+
+        const ranges = this.embeddingCSSRanges();
+        if (ranges.length > 0) {
+            this.cssTree?.edit(delta);
+            this.parser.setLanguage(CSS);
+            this.cssTree = this.parser.parse(this.document.getText(), this.cssTree, { includedRanges: ranges });
+        } else {
+            this.cssTree = null;
+        }
 
         this.timeout = setTimeout(() => {
-            this.parser.setLanguage(HTML);
-            this.htmlTree = this.parser.parse(this.document.getText(), this.htmlTree);
-
-            const ranges = this.embeddingCSSRanges();
-            if (ranges.length > 0) {
-                this.parser.setLanguage(CSS);
-                this.cssTree = this.parser.parse(this.document.getText(), this.cssTree, { includedRanges: ranges });
-            } else {
-                this.cssTree = null;
-            }
             this.linkingCSSMap();
         }, 500);
     }
@@ -237,8 +226,37 @@ export class HTMLDoc extends Doc implements DocAnalysis {
             row: p.line
         };
     }
+
+    /**
+     * 获取Linking的本地文档的CSSDoc对象
+     * @param document
+     */
+    getLocalCSSDoc(document: TextDocument): CSSDoc | undefined {
+        for (const key in this.localMap) {
+            const cssDoc = this.localMap[key] as CSSDoc;
+            if (cssDoc.isSameDoc(document)) {
+                return cssDoc;
+            }
+        }
+    }
 }
 
 function point2Position(point: Parser.Point): Position {
     return new Position(point.row, point.column);
+}
+
+function down(url: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        request.get(url, (error, response, body) => {
+            if (error) {
+                reject(error);
+            } else {
+                if (response.statusCode === 200) {
+                    resolve(body);
+                } else {
+                    reject(Error(`Response (${response.statusMessage})`));
+                }
+            }
+        });
+    });
 }
