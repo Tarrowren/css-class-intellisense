@@ -1,4 +1,4 @@
-# css-class-intellisense README
+# css-class-intellisense
 
 CSS Class 智能提示。
 
