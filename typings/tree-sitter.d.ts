@@ -1,6 +1,13 @@
 declare module "tree_sitter" {
     class Parser {
-        parse(input: string | Parser.Input, previousTree?: Parser.Tree | null, includedRanges?: { bufferSize?: number, includedRanges: Parser.Range[] }): Parser.Tree;
+        parse(
+            input: string | Parser.Input,
+            previousTree?: Parser.Tree | null,
+            includedRanges?: {
+                bufferSize?: number;
+                includedRanges: Parser.Range[];
+            }
+        ): Parser.Tree;
         getLanguage(): any;
         setLanguage(language: any): void;
         getLogger(): Parser.Logger;
@@ -73,14 +80,30 @@ declare module "tree_sitter" {
             firstNamedChildForIndex(index: number): SyntaxNode | null;
 
             descendantForIndex(index: number): SyntaxNode;
-            descendantForIndex(startIndex: number, endIndex: number): SyntaxNode;
+            descendantForIndex(
+                startIndex: number,
+                endIndex: number
+            ): SyntaxNode;
             namedDescendantForIndex(index: number): SyntaxNode;
-            namedDescendantForIndex(startIndex: number, endIndex: number): SyntaxNode;
+            namedDescendantForIndex(
+                startIndex: number,
+                endIndex: number
+            ): SyntaxNode;
             descendantForPosition(position: Point): SyntaxNode;
-            descendantForPosition(startPosition: Point, endPosition: Point): SyntaxNode;
+            descendantForPosition(
+                startPosition: Point,
+                endPosition: Point
+            ): SyntaxNode;
             namedDescendantForPosition(position: Point): SyntaxNode;
-            namedDescendantForPosition(startPosition: Point, endPosition: Point): SyntaxNode;
-            descendantsOfType(types: String | Array<String>, startPosition?: Point, endPosition?: Point): Array<SyntaxNode>;
+            namedDescendantForPosition(
+                startPosition: Point,
+                endPosition: Point
+            ): SyntaxNode;
+            descendantsOfType(
+                types: String | Array<String>,
+                startPosition?: Point,
+                endPosition?: Point
+            ): Array<SyntaxNode>;
 
             closest(types: String | Array<String>): SyntaxNode | null;
             walk(): TreeCursor;
@@ -94,9 +117,9 @@ declare module "tree_sitter" {
             endPosition: Point;
             startIndex: number;
             endIndex: number;
-            readonly currentNode: SyntaxNode
+            readonly currentNode: SyntaxNode;
 
-            reset(node: SyntaxNode): void
+            reset(node: SyntaxNode): void;
             gotoParent(): boolean;
             gotoFirstChild(): boolean;
             gotoFirstChildForIndex(index: number): boolean;
@@ -113,5 +136,5 @@ declare module "tree_sitter" {
         }
     }
 
-    export = Parser
+    export = Parser;
 }

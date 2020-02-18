@@ -25,20 +25,20 @@ Use **tree-sitter** to watch file changes in real time.
 
 ### 1.1.0
 
-提供远程css支持选项设置。  
+提供远程 css 支持选项设置。  
 Provide remote CSS support option setting.
 
 ### 1.0.0
 
-将远程css文件下载到本地，提高提示的流畅度。  
+将远程 css 文件下载到本地，提高提示的流畅度。  
 Improve the fluency of Intellisense by download remote CSS files to local.
 
 ### 0.2.0
 
-智能提示内嵌CSS。  
+智能提示内嵌 CSS。  
 Class Intellisense for embedding CSS.
 
 ### 0.1.0
 
-对外部引入的css文件提供class智能提示。  
+对外部引入的 css 文件提供 class 智能提示。  
 Class Intellisense for linking CSS.

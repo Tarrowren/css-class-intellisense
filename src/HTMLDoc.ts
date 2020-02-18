@@ -4,7 +4,15 @@ import * as request from "request";
 import * as Parser from "tree_sitter";
 import * as CSS from "tree_sitter_css";
 import * as HTML from "tree_sitter_html";
-import { CompletionItem, DiagnosticSeverity, Position, Range, TextDocument, Uri, workspace } from "vscode";
+import {
+    CompletionItem,
+    DiagnosticSeverity,
+    Position,
+    Range,
+    TextDocument,
+    Uri,
+    workspace
+} from "vscode";
 import { CSSDoc } from "./CSSDoc";
 import { cssTreeAnalysis, Doc, DocAnalysis } from "./Doc";
 import { LinkingLinter } from "./LinkingLinter";
@@ -25,7 +33,12 @@ export class HTMLDoc extends Doc implements DocAnalysis {
      */
     private downingMap: any = {};
 
-    constructor(private linter: LinkingLinter, document: TextDocument, parser: Parser, private cachePath: string) {
+    constructor(
+        private linter: LinkingLinter,
+        document: TextDocument,
+        parser: Parser,
+        private cachePath: string
+    ) {
         super(document, parser);
         const code = this.document.getText();
 
@@ -35,7 +48,9 @@ export class HTMLDoc extends Doc implements DocAnalysis {
         const ranges = this.embeddingCSSRanges();
         if (ranges.length > 0) {
             this.parser.setLanguage(CSS);
-            this.cssTree = this.parser.parse(code, null, { includedRanges: ranges });
+            this.cssTree = this.parser.parse(code, null, {
+                includedRanges: ranges
+            });
         } else {
             this.cssTree = null;
         }
@@ -62,9 +77,13 @@ export class HTMLDoc extends Doc implements DocAnalysis {
     private async linkingCSSMap(): Promise<void> {
         const newLocalMap: any = {};
         const newRemoteMap: any = {};
-        for (const node of this.htmlTree.rootNode.descendantsOfType("element")) {
+        for (const node of this.htmlTree.rootNode.descendantsOfType(
+            "element"
+        )) {
             if (node.firstChild?.firstNamedChild?.text === "link") {
-                const hrefNode = node.firstChild.namedChildren.find(n => n.firstChild?.text === "href" && n.childCount > 1)?.lastChild?.firstNamedChild;
+                const hrefNode = node.firstChild.namedChildren.find(
+                    n => n.firstChild?.text === "href" && n.childCount > 1
+                )?.lastChild?.firstNamedChild;
                 if (hrefNode) {
                     const hrefValue = hrefNode.text.trim();
                     if (hrefValue.substring(0, 4) === "http") {
@@ -77,10 +96,15 @@ export class HTMLDoc extends Doc implements DocAnalysis {
                         }
                         try {
                             this.downingMap[hrefValue] = 1;
-                            newRemoteMap[hrefValue] = await this.remoteCSS(hrefValue);
+                            newRemoteMap[hrefValue] = await this.remoteCSS(
+                                hrefValue
+                            );
                         } catch (err) {
                             this.linter.changeDiagnostics(this.document.uri, {
-                                range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
+                                range: new Range(
+                                    point2Position(hrefNode.startPosition),
+                                    point2Position(hrefNode.endPosition)
+                                ),
                                 message: err.message,
                                 severity: DiagnosticSeverity.Error
                             });
@@ -96,10 +120,18 @@ export class HTMLDoc extends Doc implements DocAnalysis {
                         try {
                             newLocalMap[hrefValue] = path.isAbsolute(url)
                                 ? await this.localCSS(url)
-                                : await this.localCSS(path.join(this.document.uri.fsPath, `../${url}`));
+                                : await this.localCSS(
+                                      path.join(
+                                          this.document.uri.fsPath,
+                                          `../${url}`
+                                      )
+                                  );
                         } catch (err) {
                             this.linter.changeDiagnostics(this.document.uri, {
-                                range: new Range(point2Position(hrefNode.startPosition), point2Position(hrefNode.endPosition)),
+                                range: new Range(
+                                    point2Position(hrefNode.startPosition),
+                                    point2Position(hrefNode.endPosition)
+                                ),
                                 message: err.message,
                                 severity: DiagnosticSeverity.Error
                             });
@@ -124,13 +156,20 @@ export class HTMLDoc extends Doc implements DocAnalysis {
             code = await down(url);
         } else {
             const uri = Uri.parse(url, true);
-            const docCachePath = path.join(this.cachePath, uri.authority + uri.path);
+            const docCachePath = path.join(
+                this.cachePath,
+                uri.authority + uri.path
+            );
             try {
-                code = (await workspace.openTextDocument(docCachePath)).getText();
-            } catch{
+                code = (
+                    await workspace.openTextDocument(docCachePath)
+                ).getText();
+            } catch {
                 code = await down(url);
             }
-            await fs.promises.mkdir(path.dirname(docCachePath), { recursive: true });
+            await fs.promises.mkdir(path.dirname(docCachePath), {
+                recursive: true
+            });
             await fs.promises.writeFile(docCachePath, code);
         }
         this.parser.setLanguage(CSS);
@@ -151,7 +190,9 @@ export class HTMLDoc extends Doc implements DocAnalysis {
     getCompletionItems(): CompletionItem[] {
         let completionItems = this.cssClassAnalysis();
         for (const key in this.localMap) {
-            completionItems = completionItems.concat((this.localMap[key] as CSSDoc).getCompletionItems());
+            completionItems = completionItems.concat(
+                (this.localMap[key] as CSSDoc).getCompletionItems()
+            );
         }
         for (const key in this.remoteMap) {
             completionItems = completionItems.concat(this.remoteMap[key]);
@@ -166,7 +207,10 @@ export class HTMLDoc extends Doc implements DocAnalysis {
      */
     isInAttributeValue(point: Parser.Point, attributeName: string): boolean {
         const node = this.htmlTree.rootNode.descendantForPosition(point).parent;
-        if (node?.type === "quoted_attribute_value" && point.column > node.startPosition.column) {
+        if (
+            node?.type === "quoted_attribute_value" &&
+            point.column > node.startPosition.column
+        ) {
             return node.parent?.firstChild?.text === attributeName;
         } else {
             return false;
@@ -191,7 +235,9 @@ export class HTMLDoc extends Doc implements DocAnalysis {
         const ranges = this.embeddingCSSRanges();
         if (ranges.length > 0) {
             this.parser.setLanguage(CSS);
-            this.cssTree = this.parser.parse(code, null, { includedRanges: ranges });
+            this.cssTree = this.parser.parse(code, null, {
+                includedRanges: ranges
+            });
         } else {
             this.cssTree = null;
         }
@@ -208,13 +254,20 @@ export class HTMLDoc extends Doc implements DocAnalysis {
 
         this.htmlTree.edit(delta);
         this.parser.setLanguage(HTML);
-        this.htmlTree = this.parser.parse(this.document.getText(), this.htmlTree);
+        this.htmlTree = this.parser.parse(
+            this.document.getText(),
+            this.htmlTree
+        );
 
         const ranges = this.embeddingCSSRanges();
         if (ranges.length > 0) {
             this.cssTree?.edit(delta);
             this.parser.setLanguage(CSS);
-            this.cssTree = this.parser.parse(this.document.getText(), this.cssTree, { includedRanges: ranges });
+            this.cssTree = this.parser.parse(
+                this.document.getText(),
+                this.cssTree,
+                { includedRanges: ranges }
+            );
         } else {
             this.cssTree = null;
         }

@@ -1,8 +1,13 @@
 .vscode/**
 node_modules/**
-!node_modules/tree-sitter/**
-!node_modules/tree-sitter-css/**
-!node_modules/tree-sitter-html/**
+!node_modules/tree-sitter/index.js
+!node_modules/tree-sitter/build/Release/tree_sitter_runtime_binding.node
+!node_modules/tree-sitter-css/index.js
+!node_modules/tree-sitter-css/build/Release/tree_sitter_css_binding.node
+!node_modules/tree-sitter-css/src/node-types.json
+!node_modules/tree-sitter-html/index.js
+!node_modules/tree-sitter-html/build/Release/tree_sitter_html_binding.node
+!node_modules/tree-sitter-html/src/node-types.json
 out/**
 src/**
 .gitignore

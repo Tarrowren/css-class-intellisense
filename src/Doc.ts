@@ -10,7 +10,7 @@ export interface DocAnalysis {
 export abstract class Doc {
     protected cssTree: Parser.Tree | null = null;
 
-    constructor(protected document: TextDocument, protected parser: Parser) { }
+    constructor(protected document: TextDocument, protected parser: Parser) {}
 
     isSameDoc(document: TextDocument): boolean {
         return this.document === document;
@@ -21,7 +21,10 @@ export abstract class Doc {
     }
 }
 
-export function cssTreeAnalysis(tree: Parser.Tree | null, detail: string): CompletionItem[] {
+export function cssTreeAnalysis(
+    tree: Parser.Tree | null,
+    detail: string
+): CompletionItem[] {
     if (tree) {
         const completionItems = <CompletionItem[]>[];
         const obj: any = {};
@@ -29,7 +32,11 @@ export function cssTreeAnalysis(tree: Parser.Tree | null, detail: string): Compl
             const className = node.lastChild?.text;
             if (className && !obj[className]) {
                 obj[className] = 1;
-                completionItems.push({ label: className, detail: detail, kind: CompletionItemKind.Class });
+                completionItems.push({
+                    label: className,
+                    detail: detail,
+                    kind: CompletionItemKind.Class
+                });
             }
         });
         return completionItems;
