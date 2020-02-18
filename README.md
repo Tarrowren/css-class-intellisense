@@ -18,6 +18,11 @@ Remote CSS Cache is off by default. You can enable it by setting "Remote CSSCach
 
 ## Release Notes
 
+### 2.0.1
+
+缩小插件体积。  
+Reduce the size.
+
 ### 2.0.0
 
 使用 **tree-sitter** ，实时监测文件更改。  
