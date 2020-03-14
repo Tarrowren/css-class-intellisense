@@ -18,6 +18,11 @@ Remote CSS Cache is off by default. You can enable it by setting "Remote CSSCach
 
 ## Release Notes
 
+### 2.0.2
+
+electron 更新至 7.1.11  
+update electron to 7.1.11
+
 ### 2.0.1
 
 缩小插件体积。  
