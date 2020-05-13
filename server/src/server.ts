@@ -1,8 +1,5 @@
 import {
-    CompletionItem,
-    CompletionItemKind,
     createConnection,
-    Diagnostic,
     DidChangeConfigurationNotification,
     InitializeParams,
     InitializeResult,
@@ -11,16 +8,46 @@ import {
     TextDocumentSyncKind,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { getLanguageModes, LanguageModes } from "./languageModes";
 
-let connection = createConnection(ProposedFeatures.all);
-let documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+interface CSSClassIntellisenseSettings {
+    remoteCSSCachePath: string;
+}
+
+const connection = createConnection(ProposedFeatures.all);
+const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+let languageModes: LanguageModes;
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 let hasDiagnosticRelatedInformationCapability: boolean = false;
 
+const defaultSettings: CSSClassIntellisenseSettings = {
+    remoteCSSCachePath: "",
+};
+let globalSettings: CSSClassIntellisenseSettings = defaultSettings;
+let documentSettings: Map<
+    string,
+    Thenable<CSSClassIntellisenseSettings>
+> = new Map();
+
 connection.onInitialize((params: InitializeParams) => {
-    let capabilities = params.capabilities;
+    languageModes = getLanguageModes();
+
+    documents.onDidClose((e) => {
+        languageModes.onDocumentRemoved(e.document);
+        documentSettings.delete(e.document.uri);
+    });
+
+    documents.onDidChangeContent((e) => {
+        languageModes.onChangeCSSDoc(e.document);
+    });
+
+    connection.onShutdown(() => {
+        languageModes.dispose();
+    });
+
+    const capabilities = params.capabilities;
     hasConfigurationCapability = !!(
         capabilities.workspace && !!capabilities.workspace.configuration
     );
@@ -37,7 +64,7 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Full,
             completionProvider: {
-                resolveProvider: true,
+                resolveProvider: false,
             },
         },
     };
@@ -65,19 +92,6 @@ connection.onInitialized(() => {
     }
 });
 
-interface CSSClassIntellisenseSettings {
-    remoteCSSCachePath: string;
-}
-
-const defaultSettings: CSSClassIntellisenseSettings = {
-    remoteCSSCachePath: "",
-};
-let globalSettings: CSSClassIntellisenseSettings = defaultSettings;
-let documentSettings: Map<
-    string,
-    Thenable<CSSClassIntellisenseSettings>
-> = new Map();
-
 connection.onDidChangeConfiguration((change) => {
     if (hasConfigurationCapability) {
         documentSettings.clear();
@@ -86,76 +100,24 @@ connection.onDidChangeConfiguration((change) => {
             (change.settings.cssClassIntellisense || defaultSettings)
         );
     }
-
-    documents.all().forEach(validateTextDocument);
 });
 
-function getDocumentSettings(
-    resource: string
-): Thenable<CSSClassIntellisenseSettings> {
-    if (!hasConfigurationCapability) {
-        return Promise.resolve(globalSettings);
+connection.onCompletion((textDocumentPosition) => {
+    const document = documents.get(textDocumentPosition.textDocument.uri);
+    if (!document) {
+        return null;
     }
-    let result = documentSettings.get(resource);
-    if (!result) {
-        result = connection.workspace.getConfiguration({
-            scopeUri: resource,
-            section: "cssClassIntellisense",
-        });
-        documentSettings.set(resource, result);
+    const mode = languageModes.getModeAtPosition(
+        document,
+        textDocumentPosition.position
+    );
+    if (!mode || !mode.doComplete) {
+        return [];
     }
-    return result;
-}
+    const doComplete = mode.doComplete!;
 
-documents.onDidClose((e) => {
-    documentSettings.delete(e.document.uri);
+    return doComplete(document, textDocumentPosition.position);
 });
-
-documents.onDidChangeContent((change) => {
-    validateTextDocument(change.document);
-});
-
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-    let settings = await getDocumentSettings(textDocument.uri);
-    let text = textDocument.getText();
-
-    let problems = 0;
-    let diagnostics: Diagnostic[] = [];
-
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
-
-connection.onDidChangeWatchedFiles(() => {
-    connection.console.log("We received an file change event");
-});
-
-connection.onCompletion((): CompletionItem[] => {
-    return [
-        {
-            label: "TypeScript",
-            kind: CompletionItemKind.Text,
-            data: 1,
-        },
-        {
-            label: "JavaScript",
-            kind: CompletionItemKind.Text,
-            data: 2,
-        },
-    ];
-});
-
-connection.onCompletionResolve(
-    (item: CompletionItem): CompletionItem => {
-        if (item.data === 1) {
-            item.detail = "TypeScript details";
-            item.documentation = "TypeScript documentation";
-        } else if (item.data === 2) {
-            item.detail = "JavaScript details";
-            item.documentation = "JavaScript documentation";
-        }
-        return item;
-    }
-);
 
 documents.listen(connection);
 connection.listen();
