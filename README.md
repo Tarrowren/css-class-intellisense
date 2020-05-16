@@ -21,6 +21,11 @@ Silent download off by default.
 
 ## Release Notes
 
+### 3.0.1
+
+修复当 link 的 rel 不为 stylesheet 时也进行读取的问题
+当输入错误的链接时进行弹窗提示
+
 ### 3.0.0
 
 do not use **tree-sitter** anymore  

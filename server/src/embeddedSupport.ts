@@ -38,7 +38,8 @@ export function getDocumentRegions(
     let regions: EmbeddedRegion[] = [];
     let urls: string[] = [];
     let scanner = languageService.createScanner(document.getText());
-    let lastTagName: string = "";
+    let lastTagName = "";
+    const linkRelHref = { rel: "", href: "" };
     let lastAttributeName: string | null = null;
     let token = scanner.scan();
     while (token !== TokenType.EOS) {
@@ -58,16 +59,34 @@ export function getDocumentRegions(
                 lastAttributeName = scanner.getTokenText();
                 break;
             case TokenType.AttributeValue:
-                if (
-                    lastAttributeName === "href" &&
-                    lastTagName.toLowerCase() === "link"
-                ) {
-                    const value = scanner.getTokenText();
-                    if (value.length > 2) {
-                        urls.push(value.substr(1, value.length - 2));
+                if (lastTagName.toLowerCase() === "link") {
+                    if (lastAttributeName === "rel") {
+                        const value = scanner.getTokenText();
+                        if (value.length > 2) {
+                            linkRelHref.rel = value.substr(1, value.length - 2);
+                        }
+                    } else if (lastAttributeName === "href") {
+                        const value = scanner.getTokenText();
+                        if (value.length > 2) {
+                            linkRelHref.href = value.substr(
+                                1,
+                                value.length - 2
+                            );
+                        }
                     }
                 }
                 lastAttributeName = null;
+                break;
+            case TokenType.StartTagSelfClose:
+            case TokenType.StartTagClose:
+                if (
+                    linkRelHref.href !== "" &&
+                    (linkRelHref.rel === "" || linkRelHref.rel === "stylesheet")
+                ) {
+                    urls.push(linkRelHref.href);
+                }
+                linkRelHref.rel = "";
+                linkRelHref.href = "";
                 break;
         }
         token = scanner.scan();
