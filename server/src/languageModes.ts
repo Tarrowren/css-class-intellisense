@@ -61,7 +61,7 @@ export function getLanguageModes(): LanguageModes {
         (document) => getDocumentRegions(htmlLanguageService, document)
     );
     const documentLinks = getImportDocCache(10, 60, async (uri) => {
-        let text = "";
+        let text: string | undefined;
         switch (nodeURL.parse(uri).protocol) {
             case "https:":
                 text = await downloadText(uri, "https");
@@ -73,7 +73,7 @@ export function getLanguageModes(): LanguageModes {
                 text = (await fs.promises.readFile(uri)).toString();
                 break;
         }
-        if (text.length > 0) {
+        if (text !== undefined) {
             return TextDocument.create(uri, "css", 0, text);
         }
     });

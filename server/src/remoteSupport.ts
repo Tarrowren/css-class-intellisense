@@ -13,7 +13,7 @@ interface CacheFileResult {
 export async function downloadText(
     uri: string,
     mode: "http" | "https"
-): Promise<string> {
+): Promise<string | undefined> {
     const cachePath = globalSettings.remoteCSSCachePath;
     let cacheFile: CacheFileResult | undefined;
     if (cachePath !== "") {
@@ -65,7 +65,7 @@ export async function downloadText(
                         }
                         resolve(temp);
                     } else {
-                        resolve("");
+                        resolve();
                     }
                 });
 
