@@ -18,10 +18,12 @@ let languageModes: LanguageModes;
 let hasConfigurationCapability: boolean = false;
 
 interface CSSClassIntellisenseSettings {
+    silentDownload: boolean;
     remoteCSSCachePath: string;
 }
 
 const defaultSettings: CSSClassIntellisenseSettings = {
+    silentDownload: false,
     remoteCSSCachePath: "",
 };
 export let globalSettings: CSSClassIntellisenseSettings = defaultSettings;

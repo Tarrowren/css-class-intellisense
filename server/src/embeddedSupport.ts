@@ -252,7 +252,6 @@ function substituteWithWhitespace(
     for (let i = start + before.length; i < end; i++) {
         let ch = oldContent[i];
         if (ch === "\n" || ch === "\r") {
-            // only write new lines, skip the whitespace
             accumulatedWS = 0;
             result += ch;
         } else {

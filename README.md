@@ -12,11 +12,19 @@ Watch HTML file in real time and give intellisense.
 ## Instructions
 
 默认关闭远程 CSS 缓存，要开启该功能需要进行设置。  
-Remote CSS Cache is off by default. You can enable it by setting "Remote CSSCache Path".
+Remote CSS Cache off by default. You can enable it by setting "Remote CSSCache Path".
 
-![setting](./resources/readme/setting.png)
+![setting](./resources/readme/setting-cache.png)
+
+默认关闭静默下载。  
+Silent download off by default.
 
 ## Release Notes
+
+### 3.0.0
+
+do not use **tree-sitter** anymore  
+不再使用 **tree-sitter**
 
 ### 2.0.2
 
