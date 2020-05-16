@@ -19,6 +19,7 @@ import {
 } from "./languageModelCache";
 import { getCSSMode } from "./modes/cssMode";
 import { getHTMLMode } from "./modes/htmlMode";
+import { downloadText } from "./remoteSupport";
 
 export interface LanguageMode {
     getId(): string;
@@ -26,7 +27,7 @@ export interface LanguageMode {
     doComplete?: (
         document: TextDocument,
         position: Position
-    ) => CompletionItem[] | Promise<CompletionItem[]>;
+    ) => CompletionItem[];
     onDocumentRemoved(document: TextDocument): void;
     dispose(): void;
 }
@@ -60,10 +61,20 @@ export function getLanguageModes(): LanguageModes {
         (document) => getDocumentRegions(htmlLanguageService, document)
     );
     const documentLinks = getImportDocCache(10, 60, async (uri) => {
-        if (nodeURL.parse(uri).protocol !== "https:") {
-            const text = await fs.promises.readFile(uri);
-            return TextDocument.create(uri, "css", 0, text.toString());
-        } else {
+        let text = "";
+        switch (nodeURL.parse(uri).protocol) {
+            case "https:":
+                text = await downloadText(uri, "https");
+                break;
+            case "http:":
+                text = await downloadText(uri, "http");
+                break;
+            default:
+                text = (await fs.promises.readFile(uri)).toString();
+                break;
+        }
+        if (text.length > 0) {
+            return TextDocument.create(uri, "css", 0, text);
         }
     });
 

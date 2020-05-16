@@ -1,8 +1,13 @@
 import * as nodeURL from "url";
 import { TextDocument } from "vscode-css-languageservice";
 
+interface TextDocumentInfo {
+    doc: TextDocument;
+    info: string;
+}
+
 export interface ImportDocCache {
-    get(uri: string): Promise<TextDocument | undefined>;
+    get(uri: string): TextDocumentInfo | undefined;
     onChangeCSSDoc(doc: TextDocument): void;
     dispose(): void;
 }
@@ -15,7 +20,7 @@ export function getImportDocCache(
     let importDocs: {
         [uri: string]: {
             cTime: number;
-            importDoc?: TextDocument;
+            importDoc?: TextDocumentInfo;
         };
     } = {};
     let nDocs = 0;
@@ -36,7 +41,7 @@ export function getImportDocCache(
     }
 
     return {
-        async get(uri: string): Promise<TextDocument | undefined> {
+        get(uri: string): TextDocumentInfo | undefined {
             if (!nodeURL.parse(uri).protocol) {
                 uri = nodeURL.fileURLToPath(nodeURL.pathToFileURL(uri).href);
             }
@@ -50,35 +55,39 @@ export function getImportDocCache(
                 cTime: Date.now(),
             };
 
-            const importDoc = await openDoc(uri);
+            openDoc(uri).then((importDoc) => {
+                if (!importDoc) {
+                    delete importDocs[uri];
+                    return;
+                }
 
-            importDocs[uri] = {
-                cTime: Date.now(),
-                importDoc,
-            };
-            nDocs++;
+                importDocs[uri] = {
+                    cTime: Date.now(),
+                    importDoc: { doc: importDoc, info: uri },
+                };
+                nDocs++;
 
-            if (nDocs === maxEntries) {
-                let oldestTime = Number.MAX_VALUE;
-                let oldestUri = null;
-                for (const uri in importDocs) {
-                    const importDocInfo = importDocs[uri];
-                    if (importDocInfo.cTime < oldestTime) {
-                        oldestUri = uri;
-                        oldestTime = importDocInfo.cTime;
+                if (nDocs === maxEntries) {
+                    let oldestTime = Number.MAX_VALUE;
+                    let oldestUri = null;
+                    for (const uri in importDocs) {
+                        const importDocInfo = importDocs[uri];
+                        if (importDocInfo.cTime < oldestTime) {
+                            oldestUri = uri;
+                            oldestTime = importDocInfo.cTime;
+                        }
+                    }
+                    if (oldestUri) {
+                        delete importDocs[oldestUri];
+                        nDocs--;
                     }
                 }
-                if (oldestUri) {
-                    delete importDocs[oldestUri];
-                    nDocs--;
-                }
-            }
-            return importDoc;
+            });
         },
         onChangeCSSDoc(doc: TextDocument) {
             const uri = nodeURL.fileURLToPath(doc.uri);
-            if (importDocs[uri]) {
-                importDocs[uri].importDoc = doc;
+            if (importDocs[uri] && importDocs[uri].importDoc) {
+                importDocs[uri].importDoc!.doc = doc;
             }
         },
         dispose() {

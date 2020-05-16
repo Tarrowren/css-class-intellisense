@@ -10,33 +10,27 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { getLanguageModes, LanguageModes } from "./languageModes";
 
-interface CSSClassIntellisenseSettings {
-    remoteCSSCachePath: string;
-}
+export const connection = createConnection(ProposedFeatures.all);
 
-const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let languageModes: LanguageModes;
 
 let hasConfigurationCapability: boolean = false;
-let hasWorkspaceFolderCapability: boolean = false;
-let hasDiagnosticRelatedInformationCapability: boolean = false;
+
+interface CSSClassIntellisenseSettings {
+    remoteCSSCachePath: string;
+}
 
 const defaultSettings: CSSClassIntellisenseSettings = {
     remoteCSSCachePath: "",
 };
-let globalSettings: CSSClassIntellisenseSettings = defaultSettings;
-let documentSettings: Map<
-    string,
-    Thenable<CSSClassIntellisenseSettings>
-> = new Map();
+export let globalSettings: CSSClassIntellisenseSettings = defaultSettings;
 
 connection.onInitialize((params: InitializeParams) => {
     languageModes = getLanguageModes();
 
     documents.onDidClose((e) => {
         languageModes.onDocumentRemoved(e.document);
-        documentSettings.delete(e.document.uri);
     });
 
     documents.onDidChangeContent((e) => {
@@ -51,14 +45,6 @@ connection.onInitialize((params: InitializeParams) => {
     hasConfigurationCapability = !!(
         capabilities.workspace && !!capabilities.workspace.configuration
     );
-    hasWorkspaceFolderCapability = !!(
-        capabilities.workspace && !!capabilities.workspace.workspaceFolders
-    );
-    hasDiagnosticRelatedInformationCapability = !!(
-        capabilities.textDocument &&
-        capabilities.textDocument.publishDiagnostics &&
-        capabilities.textDocument.publishDiagnostics.relatedInformation
-    );
 
     const result: InitializeResult = {
         capabilities: {
@@ -68,38 +54,25 @@ connection.onInitialize((params: InitializeParams) => {
             },
         },
     };
-    if (hasWorkspaceFolderCapability) {
-        result.capabilities.workspace = {
-            workspaceFolders: {
-                supported: true,
-            },
-        };
-    }
+
     return result;
 });
 
-connection.onInitialized(() => {
+connection.onInitialized(async () => {
     if (hasConfigurationCapability) {
-        connection.client.register(
-            DidChangeConfigurationNotification.type,
-            undefined
-        );
-    }
-    if (hasWorkspaceFolderCapability) {
-        connection.workspace.onDidChangeWorkspaceFolders(() => {
-            connection.console.log("Workspace folder change event received.");
+        globalSettings = await connection.workspace.getConfiguration({
+            section: "cssClassIntellisense",
+        });
+        connection.client.register(DidChangeConfigurationNotification.type, {
+            section: "cssClassIntellisense",
         });
     }
 });
 
-connection.onDidChangeConfiguration((change) => {
-    if (hasConfigurationCapability) {
-        documentSettings.clear();
-    } else {
-        globalSettings = <CSSClassIntellisenseSettings>(
-            (change.settings.cssClassIntellisense || defaultSettings)
-        );
-    }
+connection.onDidChangeConfiguration(async () => {
+    globalSettings = await connection.workspace.getConfiguration({
+        section: "cssClassIntellisense",
+    });
 });
 
 connection.onCompletion((textDocumentPosition) => {
@@ -114,7 +87,7 @@ connection.onCompletion((textDocumentPosition) => {
     if (!mode || !mode.doComplete) {
         return [];
     }
-    const doComplete = mode.doComplete!;
+    const doComplete = mode.doComplete;
 
     return doComplete(document, textDocumentPosition.position);
 });

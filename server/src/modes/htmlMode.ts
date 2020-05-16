@@ -49,7 +49,7 @@ export function getHTMLMode(
         getId() {
             return "html";
         },
-        async doComplete(document: TextDocument, position: Position) {
+        doComplete(document: TextDocument, position: Position) {
             const offset = document.offsetAt(position);
             const node = htmlDocuments.get(document).findNodeAt(offset);
             if (node.attributes && node.attributes["class"]) {
@@ -83,13 +83,13 @@ export function getHTMLMode(
                         );
 
                         for (const url of urls.get(document)) {
-                            const linked = await documentLinks.get(url);
+                            const linked = documentLinks.get(url);
                             if (linked) {
                                 completeItems = completeItems.concat(
                                     parse(
-                                        linked,
-                                        cssStylesheets.get(linked),
-                                        linked.uri
+                                        linked.doc,
+                                        cssStylesheets.get(linked.doc),
+                                        linked.info
                                     )
                                 );
                             }
@@ -119,13 +119,17 @@ export function getHTMLMode(
 
 function parse(
     textDocument: TextDocument,
-    cssStylesheets: Stylesheet,
+    cssStylesheets: any,
     url: string
 ): CompletionItem[] {
     const completeItems = <CompletionItem[]>[];
     const completeItemsCache: {
         [label: string]: CompletionItem;
     } = {};
+
+    if (!(cssStylesheets as any).children) {
+        return completeItems;
+    }
 
     for (const stylesheet of (cssStylesheets as any).children) {
         if (stylesheet.type === 3) {
@@ -136,16 +140,6 @@ function parse(
                     parseCache(textDocument, ss, completeItemsCache);
                 }
             }
-        } else {
-            // console.log(
-            //     stylesheet,
-            //     textDocument.getText(
-            //         Range.create(
-            //             textDocument.positionAt(stylesheet.offset),
-            //             textDocument.positionAt(stylesheet.end)
-            //         )
-            //     )
-            // );
         }
     }
     for (const label in completeItemsCache) {

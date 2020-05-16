@@ -18,9 +18,10 @@
             "title": "CSS Class Intellisense",
             "properties": {
                 "cssClassIntellisense.remoteCSSCachePath": {
+                    "scope": "window",
                     "type": "string",
                     "default": "",
-                    "description": "If the field is empty, caching is not used."
+                    "description": "Caching disabled if the field is empty."
                 }
             }
         }
