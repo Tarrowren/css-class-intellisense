@@ -42,9 +42,6 @@ export function getImportDocCache(
 
     return {
         get(uri: string): TextDocumentInfo | undefined {
-            if (!nodeURL.parse(uri).protocol) {
-                uri = nodeURL.fileURLToPath(nodeURL.pathToFileURL(uri).href);
-            }
             const importDocInfo = importDocs[uri];
             if (importDocInfo) {
                 importDocInfo.cTime = Date.now();

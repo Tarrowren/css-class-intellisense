@@ -1,3 +1,4 @@
+import * as nodeURL from "url";
 import {
     CompletionItem,
     CompletionItemKind,
@@ -18,7 +19,6 @@ import {
     LanguageModelCache,
 } from "../languageModelCache";
 import { LanguageMode } from "../languageModes";
-import * as nodeURL from "url";
 
 export function getHTMLMode(
     htmlLanguageService: HTMLLanguageService,
@@ -81,7 +81,13 @@ export function getHTMLMode(
                             "Embedded"
                         );
 
-                        for (const url of urls.get(document)) {
+                        for (let url of urls.get(document)) {
+                            if (!nodeURL.parse(url).protocol) {
+                                url = nodeURL.fileURLToPath(
+                                    nodeURL.resolve(document.uri, url)
+                                );
+                            }
+
                             const linked = documentLinks.get(url);
                             if (linked) {
                                 completionItems = completionItems.concat(

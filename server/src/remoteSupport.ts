@@ -14,7 +14,14 @@ export async function downloadText(
     uri: string,
     mode: "http" | "https"
 ): Promise<string | undefined> {
-    const cachePath = globalSettings.remoteCSSCachePath;
+    let cachePath = globalSettings.remoteCSSCachePath;
+    if (cachePath !== "" && !nodeURL.parse(cachePath).protocol) {
+        connection.window.showErrorMessage(
+            "Relative paths are not allowed in RemoteCSSCachePath setting"
+        );
+        cachePath = "";
+    }
+
     let cacheFile: CacheFileResult | undefined;
     if (cachePath !== "") {
         cacheFile = await getCacheFile(uri, cachePath);

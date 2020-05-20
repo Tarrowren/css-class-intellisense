@@ -2,11 +2,12 @@
 
 CSS Class 智能提示。
 
-![demo](./resources/readme/demo.gif)
+![demo](./resources/readme/demo.gif)  
+![css](./resources/readme/css.png)
 
 ## Features
 
-实时监测 HTML 文件，对引入的 CSS 文件进行智能提示，包括本地和远程文件。  
+实时监测 HTML 文件，对引入的 CSS 文件进行智能提示，包括本地和远程文件。并对内嵌的 CSS 提示 HTML 标签内的 class。  
 Watch HTML file in real time and give intellisense.
 
 ## Instructions
@@ -21,10 +22,15 @@ Silent download off by default.
 
 ## Release Notes
 
+### 3.1.0
+
+增加编辑内嵌 CSS 时提示 HTML 标签内 class 的功能。  
+修复打开 CSS 文件错误问题。
+
 ### 3.0.1
 
-修复当 link 的 rel 不为 stylesheet 时也进行读取的问题  
-当输入错误的链接时进行弹窗提示
+修复当 link 的 rel 不为 stylesheet 时也进行读取的问题。  
+当输入错误的链接时进行弹窗提示。
 
 ### 3.0.0
 
