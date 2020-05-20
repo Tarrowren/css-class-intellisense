@@ -52,16 +52,18 @@ export async function downloadText(
                     progress.done();
                     if (res.complete) {
                         if (cacheFile && cacheFile.type === "path") {
-                            await fs.promises.mkdir(
-                                path.dirname(cacheFile.content),
-                                {
-                                    recursive: true,
-                                }
-                            );
-                            await fs.promises.writeFile(
-                                cacheFile.content,
-                                temp
-                            );
+                            try {
+                                await fs.promises.mkdir(
+                                    path.dirname(cacheFile.content),
+                                    { recursive: true }
+                                );
+                                await fs.promises.writeFile(
+                                    cacheFile.content,
+                                    temp
+                                );
+                            } catch (err) {
+                                reject(err);
+                            }
                         }
                         resolve(temp);
                     } else {

@@ -20,6 +20,7 @@ export interface HTMLDocumentRegions {
     getLanguageAtPosition(position: Position): string | undefined;
     getLanguagesInDocument(): string[];
     getLinkingCSSUrl(): string[];
+    getHTMLClass(): string[];
 }
 
 export const CSS_STYLE_RULE = "__";
@@ -37,10 +38,11 @@ export function getDocumentRegions(
 ): HTMLDocumentRegions {
     let regions: EmbeddedRegion[] = [];
     let urls: string[] = [];
+    let htmlClasses: string[] = [];
     let scanner = languageService.createScanner(document.getText());
     let lastTagName = "";
-    const linkRelHref = { rel: "", href: "" };
     let lastAttributeName: string | null = null;
+    let relHref = { rel: "", href: "" };
     let token = scanner.scan();
     while (token !== TokenType.EOS) {
         switch (token) {
@@ -63,16 +65,24 @@ export function getDocumentRegions(
                     if (lastAttributeName === "rel") {
                         const value = scanner.getTokenText();
                         if (value.length > 2) {
-                            linkRelHref.rel = value.substr(1, value.length - 2);
+                            relHref.rel = value.substr(1, value.length - 2);
                         }
                     } else if (lastAttributeName === "href") {
                         const value = scanner.getTokenText();
                         if (value.length > 2) {
-                            linkRelHref.href = value.substr(
-                                1,
-                                value.length - 2
-                            );
+                            relHref.href = value.substr(1, value.length - 2);
                         }
+                    }
+                }
+                if (lastAttributeName === "class") {
+                    const value = scanner.getTokenText();
+                    if (value.length > 2) {
+                        htmlClasses = htmlClasses.concat(
+                            value
+                                .substr(1, value.length - 2)
+                                .trim()
+                                .split(/\s+/)
+                        );
                     }
                 }
                 lastAttributeName = null;
@@ -80,13 +90,12 @@ export function getDocumentRegions(
             case TokenType.StartTagSelfClose:
             case TokenType.StartTagClose:
                 if (
-                    linkRelHref.href !== "" &&
-                    (linkRelHref.rel === "" || linkRelHref.rel === "stylesheet")
+                    relHref.href !== "" &&
+                    (relHref.rel === "" || relHref.rel === "stylesheet")
                 ) {
-                    urls.push(linkRelHref.href);
+                    urls.push(relHref.href);
                 }
-                linkRelHref.rel = "";
-                linkRelHref.href = "";
+                relHref = { rel: "", href: "" };
                 break;
         }
         token = scanner.scan();
@@ -108,6 +117,7 @@ export function getDocumentRegions(
             getLanguageAtPosition(document, regions, position),
         getLanguagesInDocument: () => getLanguagesInDocument(document, regions),
         getLinkingCSSUrl: () => urls,
+        getHTMLClass: () => htmlClasses,
     };
 }
 

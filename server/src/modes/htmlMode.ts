@@ -3,7 +3,6 @@ import {
     CompletionItemKind,
     LanguageService as CSSLanguageService,
     Position,
-    Range,
     Stylesheet,
     TextDocument,
 } from "vscode-css-languageservice";
@@ -19,6 +18,7 @@ import {
     LanguageModelCache,
 } from "../languageModelCache";
 import { LanguageMode } from "../languageModes";
+import * as nodeURL from "url";
 
 export function getHTMLMode(
     htmlLanguageService: HTMLLanguageService,
@@ -76,8 +76,7 @@ export function getHTMLMode(
                         offset < scanner.getTokenEnd()
                     ) {
                         const embedded = embeddedCSSDocuments.get(document);
-                        let completeItems = parse(
-                            embedded,
+                        let completionItems = parse(
                             cssStylesheets.get(embedded),
                             "Embedded"
                         );
@@ -85,9 +84,8 @@ export function getHTMLMode(
                         for (const url of urls.get(document)) {
                             const linked = documentLinks.get(url);
                             if (linked) {
-                                completeItems = completeItems.concat(
+                                completionItems = completionItems.concat(
                                     parse(
-                                        linked.doc,
                                         cssStylesheets.get(linked.doc),
                                         linked.info
                                     )
@@ -95,7 +93,7 @@ export function getHTMLMode(
                             }
                         }
 
-                        return completeItems;
+                        return completionItems;
                     }
                 }
             }
@@ -117,63 +115,30 @@ export function getHTMLMode(
     };
 }
 
-function parse(
-    textDocument: TextDocument,
-    cssStylesheets: any,
-    url: string
-): CompletionItem[] {
-    const completeItems = <CompletionItem[]>[];
-    const completeItemsCache: {
+function parse(cssStylesheets: any, info: string): CompletionItem[] {
+    const completionItems = <CompletionItem[]>[];
+    const completionItemsCache: {
         [label: string]: CompletionItem;
     } = {};
 
-    if (!(cssStylesheets as any).children) {
-        return completeItems;
-    }
-
-    for (const stylesheet of (cssStylesheets as any).children) {
-        if (stylesheet.type === 3) {
-            parseCache(textDocument, stylesheet, completeItemsCache);
-        } else if (stylesheet.type === 50 || stylesheet.type === 68) {
-            for (const ss of stylesheet.children[1].children) {
-                if (ss.type === 3) {
-                    parseCache(textDocument, ss, completeItemsCache);
-                }
+    cssStylesheets.accept((node: any) => {
+        if (node.type === 14) {
+            const label = node.getText().substr(1);
+            if (!completionItemsCache[label]) {
+                completionItemsCache[label] = {
+                    label: label,
+                    kind: CompletionItemKind.Class,
+                    detail: info,
+                };
             }
+            return false;
         }
-    }
-    for (const label in completeItemsCache) {
-        const item = completeItemsCache[label];
-        item.detail = url;
-        completeItems.push(item);
-    }
-    return completeItems;
-}
+        return true;
+    });
 
-function parseCache(
-    textDocument: TextDocument,
-    stylesheet: any,
-    completeItemsCache: {
-        [label: string]: CompletionItem;
+    for (const label in completionItemsCache) {
+        const item = completionItemsCache[label];
+        completionItems.push(item);
     }
-) {
-    for (const selector of stylesheet.children[0].children) {
-        for (const node of selector.children[0].children) {
-            if (node.nodeType === 14) {
-                const label = textDocument.getText(
-                    Range.create(
-                        textDocument.positionAt(node.children[0].offset),
-                        textDocument.positionAt(node.children[0].end)
-                    )
-                );
-
-                if (!completeItemsCache[label]) {
-                    completeItemsCache[label] = {
-                        label: label,
-                        kind: CompletionItemKind.Class,
-                    };
-                }
-            }
-        }
-    }
+    return completionItems;
 }

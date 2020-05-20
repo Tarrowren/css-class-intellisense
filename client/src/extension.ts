@@ -7,13 +7,10 @@ import {
     TransportKind,
 } from "vscode-languageclient";
 
-let client: LanguageClient;
-
 export function activate(context: ExtensionContext) {
     const serverModule = context.asAbsolutePath(
         path.join("server", "out", "server.js")
     );
-
     const serverOptions: ServerOptions = {
         run: { module: serverModule, transport: TransportKind.ipc },
         debug: {
@@ -29,18 +26,12 @@ export function activate(context: ExtensionContext) {
             { scheme: "file", language: "css" },
         ],
     };
-    client = new LanguageClient(
+    const client = new LanguageClient(
         "cssClassIntellisense",
         "CSS Class Intellisense",
         serverOptions,
         clientOptions
     );
 
-    client.start();
-}
-
-export function deactivate(): Thenable<void> | undefined {
-    if (client) {
-        return client.stop();
-    }
+    context.subscriptions.push(client.start());
 }
