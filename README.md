@@ -22,6 +22,10 @@ Silent download off by default.
 
 ## Release Notes
 
+### 3.2.0
+
+增加编辑内嵌 CSS 时提示 HTML 标签内 id 的功能。
+
 ### 3.1.0
 
 增加编辑内嵌 CSS 时提示 HTML 标签内 class 的功能。  

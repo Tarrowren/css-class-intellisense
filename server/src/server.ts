@@ -53,7 +53,7 @@ connection.onInitialize((params: InitializeParams) => {
             textDocumentSync: TextDocumentSyncKind.Full,
             completionProvider: {
                 resolveProvider: false,
-                triggerCharacters: ["."],
+                triggerCharacters: [".", "#"],
             },
         },
     };

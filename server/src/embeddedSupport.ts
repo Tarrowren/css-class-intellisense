@@ -21,6 +21,7 @@ export interface HTMLDocumentRegions {
     getLanguagesInDocument(): string[];
     getLinkingCSSUrl(): string[];
     getHTMLClass(): string[];
+    getHTMLID(): string[];
 }
 
 export const CSS_STYLE_RULE = "__";
@@ -39,6 +40,7 @@ export function getDocumentRegions(
     let regions: EmbeddedRegion[] = [];
     let urls: string[] = [];
     let htmlClasses: string[] = [];
+    let htmlID: string[] = [];
     let scanner = languageService.createScanner(document.getText());
     let lastTagName = "";
     let lastAttributeName: string | null = null;
@@ -75,14 +77,15 @@ export function getDocumentRegions(
                     }
                 }
                 if (lastAttributeName === "class") {
+                    let value = scanner.getTokenText();
+                    value = value.substr(1, value.length - 2).trim();
+                    if (value.length > 0) {
+                        htmlClasses = htmlClasses.concat(value.split(/\s+/));
+                    }
+                } else if (lastAttributeName === "id") {
                     const value = scanner.getTokenText();
                     if (value.length > 2) {
-                        htmlClasses = htmlClasses.concat(
-                            value
-                                .substr(1, value.length - 2)
-                                .trim()
-                                .split(/\s+/)
-                        );
+                        htmlID.push(value.substr(1, value.length - 2));
                     }
                 }
                 lastAttributeName = null;
@@ -118,6 +121,7 @@ export function getDocumentRegions(
         getLanguagesInDocument: () => getLanguagesInDocument(document, regions),
         getLinkingCSSUrl: () => urls,
         getHTMLClass: () => htmlClasses,
+        getHTMLID: () => htmlID,
     };
 }
 

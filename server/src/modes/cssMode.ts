@@ -32,6 +32,9 @@ export function getCSSMode(
     const htmlClasses = getLanguageModelCache<string[]>(10, 60, (document) =>
         documentRegions.get(document).getHTMLClass()
     );
+    const htmlID = getLanguageModelCache<string[]>(10, 60, (document) =>
+        documentRegions.get(document).getHTMLID()
+    );
 
     return {
         getId() {
@@ -51,26 +54,44 @@ export function getCSSMode(
                 node = node.parent;
             }
 
-            const completionItemsCache: {
+            const completionItemsClassCache: {
                 [selector: string]: CompletionItem;
             } = {};
 
             for (const selector of htmlClasses.get(document)) {
-                if (!completionItemsCache[selector]) {
-                    completionItemsCache[selector] = {
+                if (!completionItemsClassCache[selector]) {
+                    completionItemsClassCache[selector] = {
                         label: "." + selector,
                         textEdit: TextEdit.replace(
                             editRange(node, embedded, position),
                             "." + selector
                         ),
+                        kind: CompletionItemKind.Color,
+                        detail: "Embedded",
+                    };
+                }
+            }
+
+            for (const selector in completionItemsClassCache) {
+                completionItems.push(completionItemsClassCache[selector]);
+            }
+
+            const completionItemsIDCache: {
+                [selector: string]: CompletionItem;
+            } = {};
+
+            for (const selector of htmlID.get(document)) {
+                if (!completionItemsIDCache[selector]) {
+                    completionItemsIDCache[selector] = {
+                        label: "#" + selector,
                         kind: CompletionItemKind.EnumMember,
                         detail: "Embedded",
                     };
                 }
             }
 
-            for (const selector in completionItemsCache) {
-                completionItems.push(completionItemsCache[selector]);
+            for (const selector in completionItemsIDCache) {
+                completionItems.push(completionItemsIDCache[selector]);
             }
 
             return completionItems;
@@ -80,11 +101,13 @@ export function getCSSMode(
             embeddedCSSDocuments.onDocumentRemoved(document);
             cssStylesheets.onDocumentRemoved(document);
             htmlClasses.onDocumentRemoved(document);
+            htmlID.onDocumentRemoved(document);
         },
         dispose() {
             embeddedCSSDocuments.dispose();
             cssStylesheets.dispose();
             htmlClasses.dispose();
+            htmlID.dispose();
         },
     };
 }
