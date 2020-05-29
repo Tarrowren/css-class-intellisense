@@ -29,7 +29,7 @@ export function getCSSMode(
         60,
         (document) => cssLanguageService.parseStylesheet(document)
     );
-    const htmlClasses = getLanguageModelCache<string[]>(10, 60, (document) =>
+    const htmlClass = getLanguageModelCache<string[]>(10, 60, (document) =>
         documentRegions.get(document).getHTMLClass()
     );
     const htmlID = getLanguageModelCache<string[]>(10, 60, (document) =>
@@ -58,7 +58,7 @@ export function getCSSMode(
                 [selector: string]: CompletionItem;
             } = {};
 
-            for (const selector of htmlClasses.get(document)) {
+            for (const selector of htmlClass.get(document)) {
                 if (!completionItemsClassCache[selector]) {
                     completionItemsClassCache[selector] = {
                         label: "." + selector,
@@ -96,17 +96,15 @@ export function getCSSMode(
 
             return completionItems;
         },
-
         onDocumentRemoved(document: TextDocument) {
             embeddedCSSDocuments.onDocumentRemoved(document);
-            cssStylesheets.onDocumentRemoved(document);
-            htmlClasses.onDocumentRemoved(document);
+            htmlClass.onDocumentRemoved(document);
             htmlID.onDocumentRemoved(document);
         },
         dispose() {
             embeddedCSSDocuments.dispose();
             cssStylesheets.dispose();
-            htmlClasses.dispose();
+            htmlClass.dispose();
             htmlID.dispose();
         },
     };

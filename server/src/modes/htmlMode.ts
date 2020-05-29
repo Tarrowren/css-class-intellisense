@@ -110,7 +110,6 @@ export function getHTMLMode(
             htmlDocuments.onDocumentRemoved(document);
             embeddedCSSDocuments.onDocumentRemoved(document);
             urls.onDocumentRemoved(document);
-            cssStylesheets.onDocumentRemoved(document);
         },
         dispose() {
             htmlDocuments.dispose();
