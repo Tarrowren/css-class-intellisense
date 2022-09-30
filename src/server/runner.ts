@@ -3,25 +3,26 @@ import {
   Disposable,
   LSPErrorCodes,
   ResponseError,
-} from "vscode-languageserver/node";
+} from "vscode-languageserver";
 
-const timer = {
-  setImmediate<TArgs extends any[]>(
-    callback: (...args: TArgs) => void,
-    ...args: TArgs
-  ): Disposable {
-    const handle = setImmediate(callback, ...args);
-    return { dispose: () => clearImmediate(handle) };
-  },
-  setTimeout<TArgs extends any[]>(
-    callback: (...args: TArgs) => void,
-    ms?: number,
-    ...args: TArgs
-  ): Disposable {
-    const handle = setTimeout(callback, ms, ...args);
-    return { dispose: () => clearTimeout(handle) };
-  },
-};
+export interface RuntimeEnvironment {
+  request: RequestService;
+  readonly timer: {
+    setImmediate<TArgs extends any[]>(
+      callback: (...args: TArgs) => void,
+      ...args: TArgs
+    ): Disposable;
+    setTimeout<TArgs extends any[]>(
+      callback: (...args: TArgs) => void,
+      ms?: number,
+      ...args: TArgs
+    ): Disposable;
+  };
+}
+
+export interface RequestService {
+  getContent(uri: string): Promise<string>;
+}
 
 export function formatError(message: string, err: any): string {
   if (err instanceof Error) {
@@ -34,37 +35,64 @@ export function formatError(message: string, err: any): string {
   return message;
 }
 
-export function runSafe<T>(
+export function runSafeAsync<T, E>(
+  runtime: RuntimeEnvironment,
   func: () => Promise<T>,
   errorVal: T,
   errorMessage: string,
   token: CancellationToken
-): Promise<T | ResponseError<any>> {
-  return new Promise<T | ResponseError<any>>((resolve) => {
-    timer.setImmediate(() => {
+): Promise<T | ResponseError<E>> {
+  return new Promise<T | ResponseError<E>>((resolve) => {
+    runtime.timer.setImmediate(async () => {
       if (token.isCancellationRequested) {
         resolve(cancelValue());
-        return;
-      }
-      return func().then(
-        (result) => {
+      } else {
+        try {
+          const result = await func();
           if (token.isCancellationRequested) {
             resolve(cancelValue());
-            return;
           } else {
             resolve(result);
           }
-        },
-        (e) => {
+        } catch (e) {
           console.error(formatError(errorMessage, e));
           resolve(errorVal);
         }
-      );
+      }
+    });
+  });
+}
+
+export function runSafe<T, E>(
+  runtime: RuntimeEnvironment,
+  func: () => T,
+  errorVal: T,
+  errorMessage: string,
+  token: CancellationToken
+): Promise<T | ResponseError<E>> {
+  return new Promise<T | ResponseError<E>>((resolve) => {
+    runtime.timer.setImmediate(() => {
+      if (token.isCancellationRequested) {
+        resolve(cancelValue());
+      } else {
+        try {
+          const result = func();
+          if (token.isCancellationRequested) {
+            resolve(cancelValue());
+          } else {
+            resolve(result);
+          }
+        } catch (e) {
+          console.error(formatError(errorMessage, e));
+          resolve(errorVal);
+        }
+      }
     });
   });
 }
 
 function cancelValue<E>() {
+  console.log("cancelled");
   return new ResponseError<E>(
     LSPErrorCodes.RequestCancelled,
     "Request cancelled"
