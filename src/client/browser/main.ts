@@ -1,7 +1,9 @@
-import { ExtensionContext, Uri } from "vscode";
+import { ExtensionContext, Uri, workspace } from "vscode";
 import {
   BaseLanguageClient,
   LanguageClient,
+  RequestType,
+  ResponseError,
 } from "vscode-languageclient/browser";
 import { startClient } from "../client";
 
@@ -12,6 +14,15 @@ declare const Worker: {
 declare function fetch(uri: string, options: any): any;
 
 let client: BaseLanguageClient | null | undefined;
+
+namespace VSCodeContentRequest {
+  export const file_content: RequestType<string, string, any> = new RequestType(
+    "vscode/file-content"
+  );
+  export const http_content: RequestType<string, string, any> = new RequestType(
+    "vscode/http-content"
+  );
+}
 
 export async function activate(context: ExtensionContext) {
   const serverModule = Uri.joinPath(
@@ -26,13 +37,24 @@ export async function activate(context: ExtensionContext) {
     (id, name, clientOptions) => {
       return new LanguageClient(id, name, clientOptions, worker);
     },
-    {
-      request: {
-        getContent: async (uri: string) => {
-          const response = await fetch(uri, { mode: "cors" });
-          return response.text();
-        },
-      },
+    (client) => {
+      client.onRequest(VSCodeContentRequest.file_content, async (path) => {
+        try {
+          const uri = Uri.parse(path);
+          const doc = await workspace.openTextDocument(uri);
+          return doc.getText();
+        } catch (e: any) {
+          return new ResponseError(1, e.toString());
+        }
+      });
+      client.onRequest(VSCodeContentRequest.http_content, async (url) => {
+        try {
+          const resp = await fetch(url, { mode: "cors" });
+          return resp.text();
+        } catch (e: any) {
+          return new ResponseError(2, e.toString());
+        }
+      });
     }
   );
 }

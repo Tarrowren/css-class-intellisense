@@ -16,15 +16,21 @@ const messageWriter = new BrowserMessageWriter(self);
 const connection = createConnection(messageReader, messageWriter);
 
 namespace VSCodeContentRequest {
-  export const type: RequestType<string, string, any> = new RequestType(
-    "vscode/content"
+  export const file_content: RequestType<string, string, any> = new RequestType(
+    "vscode/file-content"
+  );
+  export const http_content: RequestType<string, string, any> = new RequestType(
+    "vscode/http-content"
   );
 }
 
 const runtime: RuntimeEnvironment = {
   request: {
-    getContent(uri) {
-      return connection.sendRequest(VSCodeContentRequest.type, uri);
+    getFileContent(path) {
+      return connection.sendRequest(VSCodeContentRequest.file_content, path);
+    },
+    getHttpContent(url) {
+      return connection.sendRequest(VSCodeContentRequest.http_content, url);
     },
   },
   timer: {

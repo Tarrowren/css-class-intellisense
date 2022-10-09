@@ -1,6 +1,6 @@
 import { Connection, TextDocumentSyncKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { doComplete } from "./languageFeatures/completion";
+import { getLanguageModes, isCompletionItemData } from "./modes/languageModes";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
 
 export function startServer(
@@ -9,14 +9,14 @@ export function startServer(
 ) {
   const documents = new Map<string, TextDocument>();
 
+  const languageModes = getLanguageModes(runtime.request, documents);
+
   connection.onInitialize((params) => {
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         completionProvider: {
-          completionItem: {
-            labelDetailsSupport: true,
-          },
+          resolveProvider: true,
         },
         workspace: {
           workspaceFolders: {
@@ -39,14 +39,21 @@ export function startServer(
         return;
       }
 
-      const old = documents.get(uri)!;
+      const outdated = documents.get(uri);
+      if (!outdated) {
+        return;
+      }
 
-      const doc = TextDocument.update(old, contentChanges, version);
+      const doc = TextDocument.update(outdated, contentChanges, version);
       documents.set(uri, doc);
     }
   );
   connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
-    documents.delete(uri);
+    const document = documents.get(uri);
+    if (document) {
+      documents.delete(uri);
+      languageModes.onDocumentRemoved(document);
+    }
   });
 
   connection.onCompletion(({ textDocument, position }, token) => {
@@ -58,7 +65,12 @@ export function startServer(
           return null;
         }
 
-        return await doComplete(document, position);
+        const mode = languageModes.getMode(document.languageId);
+        if (!mode) {
+          return null;
+        }
+
+        return await mode.doComplete(document, position);
       },
       null,
       `Error while computing completions for ${textDocument.uri}`,
@@ -66,7 +78,29 @@ export function startServer(
     );
   });
 
-  connection.onShutdown(() => {});
+  connection.onCompletionResolve((item, token) => {
+    return runSafeAsync(
+      runtime,
+      async () => {
+        const data = item.data;
+        if (isCompletionItemData(data)) {
+          const mode = languageModes.getMode(data.languageId);
+          const document = documents.get(data.uri);
+          if (mode && mode.doResolve && document) {
+            return await mode.doResolve(document, item);
+          }
+        }
+        return item;
+      },
+      item,
+      `Error while resolving completion proposal`,
+      token
+    );
+  });
+
+  connection.onShutdown(() => {
+    languageModes.dispose();
+  });
 
   connection.listen();
 }

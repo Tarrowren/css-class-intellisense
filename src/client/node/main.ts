@@ -21,19 +21,9 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  client = await startClient(
-    context,
-    (id, name, clientOptions) => {
-      return new LanguageClient(id, name, serverOptions, clientOptions);
-    },
-    {
-      request: {
-        getContent: async (_uri) => {
-          throw new Error("Unimplemented");
-        },
-      },
-    }
-  );
+  client = await startClient(context, (id, name, clientOptions) => {
+    return new LanguageClient(id, name, serverOptions, clientOptions);
+  });
 }
 
 export async function deactivate() {

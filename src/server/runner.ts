@@ -21,7 +21,8 @@ export interface RuntimeEnvironment {
 }
 
 export interface RequestService {
-  getContent(uri: string): Promise<string>;
+  getFileContent(path: string): Promise<string>;
+  getHttpContent(url: string): Promise<string>;
 }
 
 export function formatError(message: string, err: any): string {

@@ -1,8 +1,7 @@
-import { readFile } from "fs";
-import { getErrorStatusDescription, xhr, XHRResponse } from "request-light";
+import { readFile } from "fs/promises";
+import { getErrorStatusDescription, xhr } from "request-light";
 import { format } from "util";
 import { createConnection, Disposable } from "vscode-languageserver/node";
-import { URI } from "vscode-uri";
 import { formatError, RuntimeEnvironment } from "../runner";
 import { startServer } from "../server";
 
@@ -21,36 +20,18 @@ process.on("unhandledRejection", (e: any) => {
 
 const runtime: RuntimeEnvironment = {
   request: {
-    getContent: (url) => {
-      const uri = URI.parse(url);
-      const protocol = uri.scheme;
-
-      if (protocol === "file") {
-        return new Promise((resolve, reject) => {
-          readFile(uri.fsPath, "utf8", (err, buf) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(buf);
-            }
-          });
-        });
-      } else if (protocol === "http" || protocol === "https") {
-        const headers = { "Accept-Encoding": "gzip, deflate" };
-        return xhr({ url: url, followRedirects: 5, headers }).then(
-          (response) => {
-            return response.responseText;
-          },
-          (error: XHRResponse) => {
-            throw new Error(
-              error.responseText ||
-                getErrorStatusDescription(error.status) ||
-                error.toString()
-            );
-          }
+    async getFileContent(path) {
+      return await readFile(path, "utf8");
+    },
+    async getHttpContent(url) {
+      const headers = { "Accept-Encoding": "gzip, deflate" };
+      try {
+        const resp = await xhr({ url, followRedirects: 5, headers });
+        return resp.responseText;
+      } catch (e: any) {
+        throw new Error(
+          e.responseText ?? getErrorStatusDescription(e.status) ?? e.toString()
         );
-      } else {
-        throw new Error("Unimplemented");
       }
     },
   },

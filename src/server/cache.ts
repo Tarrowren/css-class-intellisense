@@ -1,50 +1,158 @@
-// import { parseMixed, SyntaxNodeRef, Tree } from "@lezer/common";
-// import * as css from "@lezer/css";
-// import * as html from "@lezer/html";
-// import { TextDocument } from "vscode-languageserver-textdocument";
-// import { getHtmlNodeType, HtmlNodeTypeId } from "./type";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
-// export function createCache(textDocument: TextDocument): Cache {
-//   let tree: Tree | null | undefined;
+export function getLanguageModelCache<T>(
+  maxEntries: number,
+  cleanupIntervalTimeInSec: number,
+  parse: (doc: TextDocument) => T
+): LanguageModelCache<T> {
+  const cache = new Map<
+    string,
+    {
+      version: number;
+      languageId: string;
+      cTime: number;
+      data: T;
+    }
+  >();
 
-//   return {
-//     doc: textDocument,
-//     get tree(): Tree {
-//       if (tree) {
-//         return tree;
-//       }
+  let intervalId: number | NodeJS.Timeout | null | undefined;
+  if (cleanupIntervalTimeInSec > 0) {
+    const ms = cleanupIntervalTimeInSec * 1000;
 
-//       return createTree(textDocument);
-//     },
-//     getText(node: SyntaxNodeRef) {
-//       return textDocument.getText().substring(node.from, node.to);
-//     },
-//   };
-// }
+    intervalId = setInterval(() => {
+      const cutoffTime = Date.now() - ms;
+      cache.forEach((v, k) => {
+        if (v.cTime < cutoffTime) {
+          cache.delete(k);
+        }
+      });
+    }, ms);
+  }
 
-// export interface Cache {
-//   doc: TextDocument;
-//   tree: Tree;
-//   getText(node: SyntaxNodeRef): string;
-// }
+  return {
+    get(document) {
+      const { uri, version, languageId } = document;
+      const info = cache.get(uri);
+      if (info && info.version === version && info.languageId === languageId) {
+        info.cTime = Date.now();
+        return info.data;
+      }
 
-// const HTML_CSS_PARSER = html.parser.configure({
-//   wrap: parseMixed((node) => {
-//     if (node.type === getHtmlNodeType(HtmlNodeTypeId.StyleText)) {
-//       return { parser: css.parser };
-//     }
+      const data = parse(document);
+      cache.set(uri, {
+        version,
+        languageId,
+        cTime: Date.now(),
+        data,
+      });
 
-//     return null;
-//   }),
-// });
+      if (cache.size >= maxEntries) {
+        let oldestTime = Number.MAX_VALUE;
+        let oldestUri = null;
 
-// function createTree(textDocument: TextDocument) {
-//   switch (textDocument.languageId) {
-//     case "html":
-//       return HTML_CSS_PARSER.parse(textDocument.getText());
-//     case "css":
-//       return css.parser.parse(textDocument.getText());
-//     default:
-//       throw new Error("");
-//   }
-// }
+        cache.forEach((v, k) => {
+          if (v.cTime < oldestTime) {
+            oldestUri = k;
+            oldestTime = v.cTime;
+          }
+        });
+
+        if (oldestUri) {
+          cache.delete(oldestUri);
+        }
+      }
+
+      return data;
+    },
+    onDocumentRemoved(document) {
+      cache.delete(document.uri);
+    },
+    dispose() {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+
+      cache.clear();
+    },
+  };
+}
+
+export interface LanguageModelCache<T> {
+  get(document: TextDocument): T;
+  onDocumentRemoved(document: TextDocument): void;
+  dispose(): void;
+}
+
+export function getCache<T>(
+  maxEntries: number,
+  cleanupIntervalTimeInSec: number,
+  parse: (key: string) => T
+): CommonCache<T> {
+  const cache = new Map<string, { cTime: number; data: T }>();
+
+  let intervalId: number | NodeJS.Timeout | null | undefined;
+  if (cleanupIntervalTimeInSec > 0) {
+    const ms = cleanupIntervalTimeInSec * 1000;
+
+    intervalId = setInterval(() => {
+      const cutoffTime = Date.now() - ms;
+      cache.forEach((v, k) => {
+        if (v.cTime < cutoffTime) {
+          cache.delete(k);
+        }
+      });
+    }, ms);
+  }
+
+  return {
+    get(key) {
+      const info = cache.get(key);
+      if (info) {
+        info.cTime = Date.now();
+        return info.data;
+      }
+
+      const data = parse(key);
+      cache.set(key, {
+        cTime: Date.now(),
+        data,
+      });
+
+      if (cache.size >= maxEntries) {
+        let oldestTime = Number.MAX_VALUE;
+        let oldestUri = null;
+
+        cache.forEach((v, k) => {
+          if (v.cTime < oldestTime) {
+            oldestUri = k;
+            oldestTime = v.cTime;
+          }
+        });
+
+        if (oldestUri) {
+          cache.delete(oldestUri);
+        }
+      }
+
+      return data;
+    },
+    delete(key: string) {
+      cache.delete(key);
+    },
+    dispose() {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+
+      cache.clear();
+    },
+  };
+}
+
+export interface CommonCache<T> {
+  get(key: string): T;
+  delete(key: string): void;
+  dispose(): void;
+}

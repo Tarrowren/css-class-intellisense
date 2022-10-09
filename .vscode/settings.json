@@ -1,0 +1,3 @@
+{
+  "npm.exclude": ["**/.vscode-test-web/**"]
+}
