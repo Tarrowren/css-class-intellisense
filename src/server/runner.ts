@@ -4,6 +4,7 @@ import {
   LSPErrorCodes,
   ResponseError,
 } from "vscode-languageserver";
+import { URI } from "vscode-uri";
 
 export interface RuntimeEnvironment {
   request: RequestService;
@@ -21,7 +22,7 @@ export interface RuntimeEnvironment {
 }
 
 export interface RequestService {
-  getFileContent(path: string): Promise<string>;
+  getFileContent(uri: URI): Promise<string>;
   getHttpContent(url: string): Promise<string>;
 }
 

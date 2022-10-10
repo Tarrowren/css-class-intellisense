@@ -20,8 +20,8 @@ process.on("unhandledRejection", (e: any) => {
 
 const runtime: RuntimeEnvironment = {
   request: {
-    async getFileContent(path) {
-      return await readFile(path, "utf8");
+    async getFileContent(uri) {
+      return await readFile(uri.fsPath, "utf8");
     },
     async getHttpContent(url) {
       const headers = { "Accept-Encoding": "gzip, deflate" };

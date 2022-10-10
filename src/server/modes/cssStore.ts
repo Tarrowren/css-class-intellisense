@@ -83,7 +83,7 @@ export function getCssStore(
 
       let document = documents.get(u);
       if (!document) {
-        const content = await requestService.getFileContent(uri.fsPath);
+        const content = await requestService.getFileContent(uri);
         document = TextDocument.create(u, "css", 0, content);
       }
 

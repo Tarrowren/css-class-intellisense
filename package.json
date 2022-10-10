@@ -19,9 +19,10 @@
     "onLanguage:typescriptreact"
   ],
   "main": "./out/client/node/main.js",
-  "browser": "./out/client/browser/main.js",
+  "browser": "./dist/client/browser/main.js",
   "scripts": {
     "watch": "tsc -w -p ./",
+    "package:browser": "node --experimental-import-meta-resolve ./scripts/browser.mjs",
     "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {
@@ -48,7 +49,10 @@
     "@typescript-eslint/parser": "^5.38.0",
     "@vscode/test-web": "^0.0.30",
     "eslint": "^8.24.0",
-    "typescript": "^4.8.3"
+    "path-browserify": "^1.0.1",
+    "ts-loader": "^9.4.1",
+    "typescript": "^4.8.3",
+    "webpack": "^5.74.0"
   },
   "dependencies": {
     "@lezer/common": "^1.0.1",

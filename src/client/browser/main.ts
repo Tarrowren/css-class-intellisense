@@ -27,7 +27,7 @@ namespace VSCodeContentRequest {
 export async function activate(context: ExtensionContext) {
   const serverModule = Uri.joinPath(
     context.extensionUri,
-    "out/server/browser/main.js"
+    "dist/server/browser/main.js"
   ).toString();
 
   const worker = new Worker(serverModule);

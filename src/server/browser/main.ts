@@ -26,8 +26,11 @@ namespace VSCodeContentRequest {
 
 const runtime: RuntimeEnvironment = {
   request: {
-    getFileContent(path) {
-      return connection.sendRequest(VSCodeContentRequest.file_content, path);
+    getFileContent(uri) {
+      return connection.sendRequest(
+        VSCodeContentRequest.file_content,
+        uri.toString()
+      );
     },
     getHttpContent(url) {
       return connection.sendRequest(VSCodeContentRequest.http_content, url);
