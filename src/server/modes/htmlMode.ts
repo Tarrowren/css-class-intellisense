@@ -79,7 +79,7 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
 
       let isIncomplete = false;
 
-      const others = await Promise.all(
+      await Promise.all(
         [...urls].map(async (url) => {
           const uri = URI.parse(url);
           if (uri.scheme === "file") {
@@ -87,26 +87,35 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
 
             const uri = Utils.joinPath(documentUri, "..", url);
 
-            return await cssStore.getFileContent(uri);
+            const result = await cssStore.getFileContent(uri);
+            result.forEach((item) => {
+              const label = item.label;
+              if (items.has(label)) {
+                // TODO
+              } else {
+                items.set(label, item);
+              }
+            });
           } else if (uri.scheme === "http" || uri.scheme === "https") {
             const r = await cssStore.getHttpContent(uri);
 
             if (r.isIncomplete) {
               isIncomplete = true;
+            } else {
+              r.items.forEach((item) => {
+                const label = item.label;
+                if (items.has(label)) {
+                  // TODO
+                } else {
+                  items.set(label, item);
+                }
+              });
             }
-
-            return r.items;
-          } else {
-            return [];
           }
         })
       );
 
-      const result: CompletionItem[] = [];
-      result.push(...items.values());
-      result.push(...others.flat());
-
-      return CompletionList.create(result, isIncomplete);
+      return CompletionList.create([...items.values()], isIncomplete);
     },
     async doResolve(document, item) {
       item.detail = item.label;

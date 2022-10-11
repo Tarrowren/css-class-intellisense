@@ -10,7 +10,7 @@ export function getCssStore(
   requestService: RequestService,
   documents: Map<string, TextDocument>
 ): CssStore {
-  const fileCache = getLanguageModelCache<CompletionItem[]>(
+  const languageModelCache = getLanguageModelCache<CompletionItem[]>(
     10,
     60,
     (textDocument) => {
@@ -22,52 +22,34 @@ export function getCssStore(
     let _items: CompletionItem[] = [];
     let _isIncomplete = true;
 
-    let resolves = new Set<() => void>();
-    let rejects = new Set<(reason?: any) => void>();
-
-    requestService
+    let _promise = requestService
       .getHttpContent(url)
       .then((content) => {
         _items = getCompletionItems(content);
         _isIncomplete = false;
-        resolves.forEach((resolve) => {
-          resolve();
-        });
       })
       .catch((e) => {
         httpCache.delete(url);
-        rejects.forEach((reject) => {
-          reject(e);
-        });
-      })
-      .finally(() => {
-        resolves.clear();
-        rejects.clear();
+        throw e;
       });
 
     return {
-      get isIncomplete() {
-        return _isIncomplete;
-      },
-      get items() {
-        return _items;
+      get value() {
+        return { isIncomplete: _isIncomplete, items: _items };
       },
       async wait(ms: number) {
         if (!_isIncomplete) {
           return;
         }
-        let timeoutId: number | NodeJS.Timeout | null | undefined = undefined;
-        try {
-          await new Promise<void>((resolve, reject) => {
-            resolves.add(resolve);
-            rejects.add(reject);
 
-            timeoutId = setTimeout(() => {
-              resolve();
-              resolves.delete(resolve);
-              rejects.delete(reject);
-            }, ms);
-          });
+        let timeoutId: number | NodeJS.Timeout | undefined;
+        try {
+          await Promise.race([
+            _promise,
+            new Promise<void>((resolve) => {
+              timeoutId = setTimeout(resolve, ms);
+            }),
+          ]);
         } finally {
           if (timeoutId) {
             clearTimeout(timeoutId);
@@ -78,7 +60,7 @@ export function getCssStore(
   });
 
   return {
-    async getFileContent(uri: URI) {
+    async getFileContent(uri) {
       const u = uri.toString();
 
       let document = documents.get(u);
@@ -87,17 +69,15 @@ export function getCssStore(
         document = TextDocument.create(u, "css", 0, content);
       }
 
-      return fileCache.get(document);
+      return languageModelCache.get(document);
     },
-    async getHttpContent(uri: URI) {
-      const data = httpCache.get(uri.toString());
-
-      await data.wait(200);
-
-      return data;
+    async getHttpContent(uri) {
+      const result = httpCache.get(uri.toString());
+      await result.wait(200);
+      return result.value;
     },
     dispose() {
-      fileCache.dispose();
+      languageModelCache.dispose();
       httpCache.dispose();
     },
   };

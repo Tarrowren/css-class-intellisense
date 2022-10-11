@@ -4,6 +4,7 @@ import { format } from "util";
 import { createConnection, Disposable } from "vscode-languageserver/node";
 import { formatError, RuntimeEnvironment } from "../runner";
 import { startServer } from "../server";
+import { getGlobalStorage, GlobalStorage } from "./globalStorage";
 
 const connection = createConnection();
 
@@ -24,15 +25,29 @@ const runtime: RuntimeEnvironment = {
       return await readFile(uri.fsPath, "utf8");
     },
     async getHttpContent(url) {
-      const headers = { "Accept-Encoding": "gzip, deflate" };
-      try {
-        const resp = await xhr({ url, followRedirects: 5, headers });
-        return resp.responseText;
-      } catch (e: any) {
-        throw new Error(
-          e.responseText ?? getErrorStatusDescription(e.status) ?? e.toString()
-        );
+      const globalStorage = await lazyGlobalStorage();
+      let content = await globalStorage.get(url);
+      if (!content) {
+        const headers = { "Accept-Encoding": "gzip, deflate" };
+        try {
+          const resp = await xhr({
+            url,
+            followRedirects: 5,
+            headers,
+            timeout: 10000,
+          });
+          content = resp.responseText;
+        } catch (e: any) {
+          throw new Error(
+            e.responseText ??
+              getErrorStatusDescription(e.status) ??
+              e.toString()
+          );
+        }
+
+        await globalStorage.update(url, content);
       }
+      return content;
     },
   },
   timer: {
@@ -48,3 +63,19 @@ const runtime: RuntimeEnvironment = {
 };
 
 startServer(connection, runtime);
+
+const lazyGlobalStorage = (() => {
+  let _globalStoragePromise: Promise<GlobalStorage> | undefined;
+  let _globalStorage: GlobalStorage | undefined;
+
+  return async () => {
+    if (!_globalStorage) {
+      if (!_globalStoragePromise) {
+        _globalStoragePromise = getGlobalStorage(connection);
+      }
+      _globalStorage = await _globalStoragePromise;
+    }
+
+    return _globalStorage;
+  };
+})();

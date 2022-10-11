@@ -4,10 +4,6 @@ import webpack from "webpack";
 
 const OUT_PATH = resolve("dist");
 
-const path_browserify = fileURLToPath(
-  await import.meta.resolve("path-browserify")
-);
-
 webpack(
   [
     {
@@ -18,7 +14,9 @@ webpack(
       },
       resolve: {
         extensions: [".ts", "..."],
-        fallback: { path: path_browserify },
+        fallback: {
+          path: fileURLToPath(await import.meta.resolve("path-browserify")),
+        },
       },
       module: {
         rules: [

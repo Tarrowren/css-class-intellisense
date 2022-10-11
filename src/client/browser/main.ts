@@ -38,10 +38,9 @@ export async function activate(context: ExtensionContext) {
       return new LanguageClient(id, name, clientOptions, worker);
     },
     (client) => {
-      client.onRequest(VSCodeContentRequest.file_content, async (path) => {
+      client.onRequest(VSCodeContentRequest.file_content, async (uri) => {
         try {
-          const uri = Uri.parse(path);
-          const doc = await workspace.openTextDocument(uri);
+          const doc = await workspace.openTextDocument(Uri.parse(uri));
           return doc.getText();
         } catch (e: any) {
           return new ResponseError(1, e.toString());
@@ -50,7 +49,7 @@ export async function activate(context: ExtensionContext) {
       client.onRequest(VSCodeContentRequest.http_content, async (url) => {
         try {
           const resp = await fetch(url, { mode: "cors" });
-          return resp.text();
+          return await resp.text();
         } catch (e: any) {
           return new ResponseError(2, e.toString());
         }

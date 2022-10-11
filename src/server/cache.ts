@@ -88,7 +88,7 @@ export function getCache<T>(
   maxEntries: number,
   cleanupIntervalTimeInSec: number,
   parse: (key: string) => T
-): CommonCache<T> {
+): Cache<T> {
   const cache = new Map<string, { cTime: number; data: T }>();
 
   let intervalId: number | NodeJS.Timeout | null | undefined;
@@ -151,7 +151,7 @@ export function getCache<T>(
   };
 }
 
-export interface CommonCache<T> {
+export interface Cache<T> {
   get(key: string): T;
   delete(key: string): void;
   dispose(): void;
