@@ -16,10 +16,10 @@ const messageWriter = new BrowserMessageWriter(self);
 const connection = createConnection(messageReader, messageWriter);
 
 namespace VSCodeContentRequest {
-  export const file_content: RequestType<string, string, any> = new RequestType(
+  export const FILE_CONTENT: RequestType<string, string, any> = new RequestType(
     "vscode/file-content"
   );
-  export const http_content: RequestType<string, string, any> = new RequestType(
+  export const HTTP_CONTENT: RequestType<string, string, any> = new RequestType(
     "vscode/http-content"
   );
 }
@@ -28,12 +28,15 @@ const runtime: RuntimeEnvironment = {
   request: {
     getFileContent(uri) {
       return connection.sendRequest(
-        VSCodeContentRequest.file_content,
+        VSCodeContentRequest.FILE_CONTENT,
         uri.toString()
       );
     },
-    getHttpContent(url) {
-      return connection.sendRequest(VSCodeContentRequest.http_content, url);
+    getHttpContent(uri) {
+      return {
+        isDownloaded: false,
+        content: connection.sendRequest(VSCodeContentRequest.HTTP_CONTENT, uri),
+      };
     },
   },
   timer: {

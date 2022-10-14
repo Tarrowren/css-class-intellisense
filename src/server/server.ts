@@ -1,17 +1,21 @@
 import { Connection, TextDocumentSyncKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { getLanguageModes, isCompletionItemData } from "./modes/languageModes";
-import { runSafeAsync, RuntimeEnvironment } from "./runner";
+import { AsyncDisposable, runSafeAsync, RuntimeEnvironment } from "./runner";
 
 export function startServer(
   connection: Connection,
-  runtime: RuntimeEnvironment
+  runtime: RuntimeEnvironment,
+  onInitialize?: (options: any) => Promise<AsyncDisposable>
 ) {
   const documents = new Map<string, TextDocument>();
 
   const languageModes = getLanguageModes(runtime.request, documents);
 
-  connection.onInitialize((params) => {
+  let onInitializeDisposable: AsyncDisposable | undefined;
+  connection.onInitialize(async (params) => {
+    onInitializeDisposable = await onInitialize?.(params.initializationOptions);
+
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -66,7 +70,7 @@ export function startServer(
         }
 
         const mode = languageModes.getMode(document.languageId);
-        if (!mode) {
+        if (!mode || !mode.doComplete) {
           return null;
         }
 
@@ -83,14 +87,22 @@ export function startServer(
       runtime,
       async () => {
         const data = item.data;
-        if (isCompletionItemData(data)) {
-          const mode = languageModes.getMode(data.languageId);
-          const document = documents.get(data.uri);
-          if (mode && mode.doResolve && document) {
-            return await mode.doResolve(document, item);
-          }
+        if (!isCompletionItemData(data)) {
+          return item;
         }
-        return item;
+
+        const document = documents.get(data.uri);
+        if (!document) {
+          return item;
+        }
+
+        const mode = languageModes.getMode(data.languageId);
+
+        if (!mode || !mode.doResolve) {
+          return item;
+        }
+
+        return await mode.doResolve(document, item);
       },
       item,
       `Error while resolving completion proposal`,
@@ -98,8 +110,10 @@ export function startServer(
     );
   });
 
-  connection.onShutdown(() => {
+  connection.onShutdown(async () => {
+    documents.clear();
     languageModes.dispose();
+    await onInitializeDisposable?.dispose();
   });
 
   connection.listen();

@@ -12,25 +12,28 @@ export function getLanguageModes(
   requestService: RequestService,
   documents: Map<string, TextDocument>
 ): LanguageModes {
-  let cssStore = getCssStore(requestService, documents);
-  let modes: { [languageId: string]: LanguageMode } = {
-    html: getHTMLMode(cssStore),
-  };
+  const cssStore = getCssStore(requestService, documents);
+
+  const html = getHTMLMode(cssStore);
+
+  const modes = new Map<string, LanguageMode>();
+  modes.set(html.getId(), html);
 
   return {
     getMode(languageId) {
-      return modes[languageId];
+      return modes.get(languageId);
     },
     onDocumentRemoved(document) {
-      for (const mode in modes) {
-        modes[mode].onDocumentRemoved(document);
+      for (const mode of modes.values()) {
+        mode.onDocumentRemoved(document);
       }
+      cssStore.onDocumentRemoved(document);
     },
     dispose() {
-      for (const mode in modes) {
-        modes[mode].dispose();
+      for (const mode of modes.values()) {
+        mode.dispose();
       }
-      modes = {};
+      modes.clear();
       cssStore.dispose();
     },
   };
@@ -38,14 +41,14 @@ export function getLanguageModes(
 
 export interface LanguageMode {
   getId(): string;
-  doComplete(
+  doComplete?(
     document: TextDocument,
     position: Position
   ): Promise<CompletionList | null>;
-  doResolve?: (
+  doResolve?(
     document: TextDocument,
     item: CompletionItem
-  ) => Promise<CompletionItem>;
+  ): Promise<CompletionItem>;
   onDocumentRemoved(document: TextDocument): void;
   dispose(): void;
 }

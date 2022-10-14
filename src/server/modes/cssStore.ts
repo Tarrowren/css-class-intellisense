@@ -1,98 +1,129 @@
 import * as LEZER_CSS from "@lezer/css";
-import { CompletionItem, CompletionItemKind } from "vscode-languageserver";
+import {
+  CompletionItem,
+  CompletionItemKind,
+  CompletionList,
+} from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
-import { getCache, getLanguageModelCache } from "../cache";
 import { CssNodeType, LEZER_CSS_NODE_TYPES } from "../nodetype";
-import { RequestService } from "../runner";
+import { formatError, RequestService } from "../runner";
+import { getFileCache, getLanguageModelCache } from "./cache";
 
 export function getCssStore(
   requestService: RequestService,
   documents: Map<string, TextDocument>
 ): CssStore {
-  const languageModelCache = getLanguageModelCache<CompletionItem[]>(
-    10,
+  const languageModelCache = getLanguageModelCache(10, 60, (document) => {
+    return getCompletionItems(document.getText());
+  });
+  const fileCache = getFileCache(
     60,
-    (textDocument) => {
-      return getCompletionItems(textDocument.getText());
+    (uri) => {
+      let doc: Promise<TextDocument> | TextDocument | undefined;
+
+      const uriString = uri.toString();
+      if (uri.scheme === "http" || uri.scheme === "https") {
+        const result = requestService.getHttpContent(uriString);
+        if (result.isDownloaded) {
+          doc = result.content.then((content) => {
+            return createTextDocument(uri, content);
+          });
+        } else {
+          result.content
+            .then((content) => {
+              doc = createTextDocument(uri, content);
+            })
+            .catch((e) => {
+              doc = e;
+            });
+        }
+      } else {
+        const document = documents.get(uriString);
+        if (document) {
+          doc = document;
+        } else {
+          doc = requestService.getFileContent(uri).then((content) => {
+            return createTextDocument(uri, content);
+          });
+        }
+      }
+
+      return {
+        uriString,
+        get value() {
+          const document = documents.get(uriString);
+          if (document) {
+            doc = document;
+          }
+          return doc;
+        },
+        update(document: TextDocument) {
+          doc = document;
+        },
+      };
+    },
+    (uri) => {
+      languageModelCache.onDocumentRemoved(uri);
     }
   );
 
-  const httpCache = getCache(10, 60, (url) => {
-    let _items: CompletionItem[] = [];
-    let _isIncomplete = true;
-
-    let _promise = requestService
-      .getHttpContent(url)
-      .then((content) => {
-        _items = getCompletionItems(content);
-        _isIncomplete = false;
-      })
-      .catch((e) => {
-        httpCache.delete(url);
-        throw e;
-      });
-
-    return {
-      get value() {
-        return { isIncomplete: _isIncomplete, items: _items };
-      },
-      async wait(ms: number) {
-        if (!_isIncomplete) {
-          return;
-        }
-
-        let timeoutId: number | NodeJS.Timeout | undefined;
-        try {
-          await Promise.race([
-            _promise,
-            new Promise<void>((resolve) => {
-              timeoutId = setTimeout(resolve, ms);
-            }),
-          ]);
-        } finally {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-        }
-      },
-    };
-  });
-
   return {
-    async getFileContent(uri) {
-      const u = uri.toString();
-
-      let document = documents.get(u);
-      if (!document) {
-        const content = await requestService.getFileContent(uri);
-        document = TextDocument.create(u, "css", 0, content);
-      }
-
-      return languageModelCache.get(document);
+    async getCompletionLists(uris, ref) {
+      return await Promise.all(
+        fileCache.getAndRecordRef(uris, ref).map(async (result) => {
+          const promise = result.value;
+          if (promise) {
+            try {
+              const document = await promise;
+              return CompletionList.create(
+                languageModelCache.get(document),
+                false
+              );
+            } catch (e) {
+              console.error(formatError("Open file failed", e));
+              fileCache.onDocumentRemoved(result.uriString);
+              return CompletionList.create(undefined, false);
+            }
+          } else {
+            return CompletionList.create(undefined, true);
+          }
+        })
+      );
     },
-    async getHttpContent(uri) {
-      const result = httpCache.get(uri.toString());
-      await result.wait(200);
-      return result.value;
+    onDocumentRemoved(document) {
+      const uri = document.uri;
+      switch (document.languageId) {
+        case "css": {
+          fileCache.get(uri)?.update(document);
+          break;
+        }
+        case "html": {
+          fileCache.onRefRemoved(uri);
+          break;
+        }
+      }
     },
     dispose() {
       languageModelCache.dispose();
-      httpCache.dispose();
+      fileCache.dispose();
     },
   };
 }
 
 export interface CssStore {
-  getFileContent(uri: URI): Promise<CompletionItem[]>;
-  getHttpContent(uri: URI): Promise<{
-    readonly isIncomplete: boolean;
-    readonly items: CompletionItem[];
-  }>;
+  getCompletionLists(uris: URI[], ref: string): Promise<CompletionList[]>;
+  onDocumentRemoved(document: TextDocument): void;
   dispose(): void;
 }
 
-function getCompletionItems(content: string) {
+function createTextDocument(uri: URI, content: string): TextDocument {
+  // TODO
+  const languageId = "css";
+  return TextDocument.create(uri.toString(), languageId, 0, content);
+}
+
+function getCompletionItems(content: string): CompletionItem[] {
   const tree = LEZER_CSS.parser.parse(content);
 
   const items = new Map<string, CompletionItem>();

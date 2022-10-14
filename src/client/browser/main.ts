@@ -16,10 +16,10 @@ declare function fetch(uri: string, options: any): any;
 let client: BaseLanguageClient | null | undefined;
 
 namespace VSCodeContentRequest {
-  export const file_content: RequestType<string, string, any> = new RequestType(
+  export const FILE_CONTENT: RequestType<string, string, any> = new RequestType(
     "vscode/file-content"
   );
-  export const http_content: RequestType<string, string, any> = new RequestType(
+  export const HTTP_CONTENT: RequestType<string, string, any> = new RequestType(
     "vscode/http-content"
   );
 }
@@ -38,7 +38,7 @@ export async function activate(context: ExtensionContext) {
       return new LanguageClient(id, name, clientOptions, worker);
     },
     (client) => {
-      client.onRequest(VSCodeContentRequest.file_content, async (uri) => {
+      client.onRequest(VSCodeContentRequest.FILE_CONTENT, async (uri) => {
         try {
           const doc = await workspace.openTextDocument(Uri.parse(uri));
           return doc.getText();
@@ -46,7 +46,7 @@ export async function activate(context: ExtensionContext) {
           return new ResponseError(1, e.toString());
         }
       });
-      client.onRequest(VSCodeContentRequest.http_content, async (url) => {
+      client.onRequest(VSCodeContentRequest.HTTP_CONTENT, async (url) => {
         try {
           const resp = await fetch(url, { mode: "cors" });
           return await resp.text();

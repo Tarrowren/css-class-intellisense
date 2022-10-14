@@ -8,13 +8,13 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
-import { getLanguageModelCache } from "../cache";
 import {
   CssNodeType,
   HtmlNodeType,
   LEZER_CSS_NODE_TYPES,
   LEZER_HTML_NODE_TYPES,
 } from "../nodetype";
+import { getLanguageModelCache } from "./cache";
 import { CssStore } from "./cssStore";
 import { LanguageMode } from "./languageModes";
 
@@ -29,7 +29,7 @@ const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
 });
 
 export function getHTMLMode(cssStore: CssStore): LanguageMode {
-  const htmlTrees = getLanguageModelCache(10, 60, (textDocument) =>
+  const trees = getLanguageModelCache(10, 60, (textDocument) =>
     HTML_CSS_PARSER.parse(textDocument.getText())
   );
 
@@ -38,7 +38,7 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
       return "html";
     },
     async doComplete(document, position) {
-      const tree = htmlTrees.get(document);
+      const tree = trees.get(document);
 
       const cursor = tree.cursorAt(document.offsetAt(position));
 
@@ -79,41 +79,32 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
 
       let isIncomplete = false;
 
-      await Promise.all(
-        [...urls].map(async (url) => {
-          const uri = URI.parse(url);
-          if (uri.scheme === "file") {
-            // TODO check node module and tsconfig.json/jsconfig.json compilerOptions.paths
+      const uris: URI[] = [];
+      for (const url of urls) {
+        const uri = URI.parse(url);
+        if (uri.scheme === "file") {
+          const uri = Utils.joinPath(documentUri, "..", url);
+          uris.push(uri);
+        } else if (uri.scheme === "http" || uri.scheme === "https") {
+          uris.push(uri);
+        }
+      }
 
-            const uri = Utils.joinPath(documentUri, "..", url);
-
-            const result = await cssStore.getFileContent(uri);
-            result.forEach((item) => {
-              const label = item.label;
-              if (items.has(label)) {
-                // TODO
-              } else {
-                items.set(label, item);
-              }
-            });
-          } else if (uri.scheme === "http" || uri.scheme === "https") {
-            const r = await cssStore.getHttpContent(uri);
-
-            if (r.isIncomplete) {
-              isIncomplete = true;
+      const results = await cssStore.getCompletionLists(uris, document.uri);
+      for (const result of results) {
+        if (result.isIncomplete) {
+          isIncomplete = true;
+        } else {
+          result.items.forEach((item) => {
+            const label = item.label;
+            if (items.has(label)) {
+              // TODO
             } else {
-              r.items.forEach((item) => {
-                const label = item.label;
-                if (items.has(label)) {
-                  // TODO
-                } else {
-                  items.set(label, item);
-                }
-              });
+              items.set(label, item);
             }
-          }
-        })
-      );
+          });
+        }
+      }
 
       return CompletionList.create([...items.values()], isIncomplete);
     },
@@ -122,10 +113,10 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
       return item;
     },
     onDocumentRemoved(document) {
-      htmlTrees.onDocumentRemoved(document);
+      trees.onDocumentRemoved(document.uri);
     },
     dispose() {
-      htmlTrees.dispose();
+      trees.dispose();
     },
   };
 }

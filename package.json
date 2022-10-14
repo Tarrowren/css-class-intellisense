@@ -36,7 +36,7 @@
     "intellisense"
   ],
   "author": "Tarrowren",
-  "publisher": "Tarrow",
+  "publisher": "tarrow",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Tarrowren/css-class-intellisense/issues"
@@ -58,6 +58,7 @@
     "@lezer/common": "^1.0.1",
     "@lezer/css": "^1.0.0",
     "@lezer/html": "^1.0.1",
+    "level": "^8.0.0",
     "request-light": "^0.5.8",
     "vscode-languageclient": "^8.0.2",
     "vscode-languageserver": "^8.0.2",

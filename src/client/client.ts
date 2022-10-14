@@ -10,12 +10,12 @@ export type LanguageClientConstructor = (
   clientOptions: LanguageClientOptions
 ) => BaseLanguageClient;
 
-export type onLanguageClientBeforeStart = (client: BaseLanguageClient) => void;
+export type onLanguageClientInitialize = (client: BaseLanguageClient) => void;
 
 export async function startClient(
   _context: ExtensionContext,
   newLanguageClient: LanguageClientConstructor,
-  onBeforeStart?: onLanguageClientBeforeStart
+  onInitialize?: onLanguageClientInitialize
 ): Promise<BaseLanguageClient> {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -37,7 +37,7 @@ export async function startClient(
     clientOptions
   );
 
-  onBeforeStart?.(client);
+  onInitialize?.(client);
 
   await client.start();
 

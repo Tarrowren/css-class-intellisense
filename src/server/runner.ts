@@ -23,7 +23,10 @@ export interface RuntimeEnvironment {
 
 export interface RequestService {
   getFileContent(uri: URI): Promise<string>;
-  getHttpContent(url: string): Promise<string>;
+  getHttpContent(uri: string): {
+    isDownloaded: boolean;
+    content: Promise<string>;
+  };
 }
 
 export function formatError(message: string, err: any): string {
@@ -91,6 +94,18 @@ export function runSafe<T, E>(
       }
     });
   });
+}
+
+export interface AsyncDisposable {
+  dispose(): Promise<void>;
+}
+
+export namespace AsyncDisposable {
+  export function create(func: () => Promise<void>): AsyncDisposable {
+    return {
+      dispose: func,
+    };
+  }
 }
 
 function cancelValue<E>() {
