@@ -5,22 +5,17 @@ import {
   RequestType,
   ResponseError,
 } from "vscode-languageclient/browser";
-import { startClient } from "../client";
-
-declare const Worker: {
-  new (stringUrl: string): any;
-};
-
-declare function fetch(uri: string, options: any): any;
+import {
+  LanguageClientConstructor,
+  onLanguageClientInitialize,
+  startClient,
+} from "../client";
 
 let client: BaseLanguageClient | null | undefined;
 
 namespace VSCodeContentRequest {
-  export const FILE_CONTENT: RequestType<string, string, any> = new RequestType(
-    "vscode/file-content"
-  );
-  export const HTTP_CONTENT: RequestType<string, string, any> = new RequestType(
-    "vscode/http-content"
+  export const type: RequestType<string, string, void> = new RequestType(
+    "vscode/content"
   );
 }
 
@@ -32,30 +27,26 @@ export async function activate(context: ExtensionContext) {
 
   const worker = new Worker(serverModule);
 
-  client = await startClient(
-    context,
-    (id, name, clientOptions) => {
-      return new LanguageClient(id, name, clientOptions, worker);
-    },
-    (client) => {
-      client.onRequest(VSCodeContentRequest.FILE_CONTENT, async (uri) => {
-        try {
-          const doc = await workspace.openTextDocument(Uri.parse(uri));
-          return doc.getText();
-        } catch (e: any) {
-          return new ResponseError(1, e.toString());
-        }
-      });
-      client.onRequest(VSCodeContentRequest.HTTP_CONTENT, async (url) => {
-        try {
-          const resp = await fetch(url, { mode: "cors" });
-          return await resp.text();
-        } catch (e: any) {
-          return new ResponseError(2, e.toString());
-        }
-      });
-    }
-  );
+  const newLanguageClient: LanguageClientConstructor = (
+    id,
+    name,
+    clientOptions
+  ) => {
+    return new LanguageClient(id, name, clientOptions, worker);
+  };
+
+  const onInitialize: onLanguageClientInitialize = (client) => {
+    client.onRequest(VSCodeContentRequest.type, async (uri) => {
+      try {
+        const doc = await workspace.openTextDocument(Uri.parse(uri));
+        return doc.getText();
+      } catch (e: any) {
+        return new ResponseError(1, e.toString());
+      }
+    });
+  };
+
+  client = await startClient(context, newLanguageClient, onInitialize);
 }
 
 export async function deactivate() {

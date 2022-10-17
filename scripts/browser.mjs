@@ -3,11 +3,12 @@ import { fileURLToPath } from "url";
 import webpack from "webpack";
 
 const OUT_PATH = resolve("dist");
+const MODE = "development";
 
 webpack(
   [
     {
-      mode: "none",
+      mode: MODE,
       target: "webworker",
       entry: {
         "client/browser/main": resolve("src", "client", "browser", "main.ts"),
@@ -36,7 +37,7 @@ webpack(
       },
     },
     {
-      mode: "none",
+      mode: MODE,
       target: "webworker",
       entry: {
         "server/browser/main": resolve("src", "server", "browser", "main.ts"),

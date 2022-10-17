@@ -8,34 +8,26 @@ import {
 import { RuntimeEnvironment } from "../runner";
 import { startServer } from "../server";
 
-declare let self: any;
-
 const messageReader = new BrowserMessageReader(self);
 const messageWriter = new BrowserMessageWriter(self);
 
 const connection = createConnection(messageReader, messageWriter);
 
 namespace VSCodeContentRequest {
-  export const FILE_CONTENT: RequestType<string, string, any> = new RequestType(
-    "vscode/file-content"
-  );
-  export const HTTP_CONTENT: RequestType<string, string, any> = new RequestType(
-    "vscode/http-content"
+  export const type: RequestType<string, string, void> = new RequestType(
+    "vscode/content"
   );
 }
 
 const runtime: RuntimeEnvironment = {
   request: {
     getFileContent(uri) {
-      return connection.sendRequest(
-        VSCodeContentRequest.FILE_CONTENT,
-        uri.toString()
-      );
+      return connection.sendRequest(VSCodeContentRequest.type, uri.toString());
     },
     getHttpContent(uri) {
       return {
         isDownloaded: false,
-        content: connection.sendRequest(VSCodeContentRequest.HTTP_CONTENT, uri),
+        content: fetch(uri, { mode: "cors" }).then((res) => res.text()),
       };
     },
   },
