@@ -1,37 +1,19 @@
 import { ExtensionContext, Uri, workspace } from "vscode";
-import {
-  BaseLanguageClient,
-  LanguageClient,
-  RequestType,
-  ResponseError,
-} from "vscode-languageclient/browser";
-import {
-  LanguageClientConstructor,
-  onLanguageClientInitialize,
-  startClient,
-} from "../client";
+import { BaseLanguageClient, LanguageClient, RequestType, ResponseError } from "vscode-languageclient/browser";
+import { LanguageClientConstructor, onLanguageClientInitialize, startClient } from "../client";
 
 let client: BaseLanguageClient | null | undefined;
 
 namespace VSCodeContentRequest {
-  export const type: RequestType<string, string, void> = new RequestType(
-    "vscode/content"
-  );
+  export const type: RequestType<string, string, void> = new RequestType("vscode/content");
 }
 
 export async function activate(context: ExtensionContext) {
-  const serverModule = Uri.joinPath(
-    context.extensionUri,
-    "dist/server/browser/main.js"
-  ).toString();
+  const serverModule = Uri.joinPath(context.extensionUri, "dist/server/browser/main.js").toString();
 
   const worker = new Worker(serverModule);
 
-  const newLanguageClient: LanguageClientConstructor = (
-    id,
-    name,
-    clientOptions
-  ) => {
+  const newLanguageClient: LanguageClientConstructor = (id, name, clientOptions) => {
     return new LanguageClient(id, name, clientOptions, worker);
   };
 

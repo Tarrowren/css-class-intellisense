@@ -18,5 +18,5 @@ export enum HtmlNodeType {
   SelfClosingTag = 37,
 }
 
-export const LEZER_CSS_NODE_TYPES = LEZER_CSS.parser.nodeSet.types;
-export const LEZER_HTML_NODE_TYPES = LEZER_HTML.parser.nodeSet.types;
+export const cssNodeTypes = LEZER_CSS.parser.nodeSet.types;
+export const htmlNodeTypes = LEZER_HTML.parser.nodeSet.types;

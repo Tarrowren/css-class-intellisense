@@ -1,10 +1,5 @@
 import { ExtensionContext } from "vscode";
-import {
-  BaseLanguageClient,
-  LanguageClient,
-  ServerOptions,
-  TransportKind,
-} from "vscode-languageclient/node";
+import { BaseLanguageClient, LanguageClient, ServerOptions, TransportKind } from "vscode-languageclient/node";
 import { LanguageClientConstructor, startClient } from "../client";
 
 let client: BaseLanguageClient | null | undefined;
@@ -21,11 +16,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  const newLanguageClient: LanguageClientConstructor = (
-    id,
-    name,
-    clientOptions
-  ) => {
+  const newLanguageClient: LanguageClientConstructor = (id, name, clientOptions) => {
     clientOptions.initializationOptions = {
       globalStoragePath: context.globalStorageUri.fsPath,
     };

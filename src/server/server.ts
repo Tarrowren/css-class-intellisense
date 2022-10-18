@@ -1,21 +1,27 @@
-import { Connection, TextDocumentSyncKind } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Connection, ResponseError, TextDocumentSyncKind } from "vscode-languageserver";
+import { getDocumentStore } from "./document/store";
 import { getLanguageModes, isCompletionItemData } from "./modes/languageModes";
-import { AsyncDisposable, runSafeAsync, RuntimeEnvironment } from "./runner";
+import { RequestService, runSafeAsync, RuntimeEnvironment } from "./runner";
 
-export function startServer(
-  connection: Connection,
-  runtime: RuntimeEnvironment,
-  onInitialize?: (options: any) => Promise<AsyncDisposable>
-) {
-  const documents = new Map<string, TextDocument>();
+export function startServer(connection: Connection, runtime: RuntimeEnvironment) {
+  const request: RequestService = {
+    getContent(uri) {
+      if (uri.scheme === "untitled") {
+        throw new ResponseError(3, `Unable to load ${uri.toString()}`);
+      }
 
-  const languageModes = getLanguageModes(runtime.request, documents);
+      if (uri.scheme === "http" || uri.scheme === "https") {
+        return runtime.http.getContent(uri);
+      } else {
+        return runtime.file.getContent(uri);
+      }
+    },
+  };
 
-  let onInitializeDisposable: AsyncDisposable | undefined;
-  connection.onInitialize(async (params) => {
-    onInitializeDisposable = await onInitialize?.(params.initializationOptions);
+  const store = getDocumentStore(request);
+  const languageModes = getLanguageModes(runtime, store);
 
+  connection.onInitialize((params) => {
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -31,32 +37,20 @@ export function startServer(
     };
   });
 
-  connection.onDidOpenTextDocument(
-    ({ textDocument: { languageId, text, uri, version } }) => {
-      const doc = TextDocument.create(uri, languageId, version, text);
-      documents.set(uri, doc);
+  connection.onDidOpenTextDocument(({ textDocument: { languageId, text, uri, version } }) => {
+    store.open(uri, languageId, version, text);
+  });
+  connection.onDidChangeTextDocument(({ textDocument: { uri, version }, contentChanges }) => {
+    if (contentChanges.length === 0) {
+      return;
     }
-  );
-  connection.onDidChangeTextDocument(
-    ({ textDocument: { uri, version }, contentChanges }) => {
-      if (contentChanges.length === 0) {
-        return;
-      }
-
-      const outdated = documents.get(uri);
-      if (!outdated) {
-        return;
-      }
-
-      const doc = TextDocument.update(outdated, contentChanges, version);
-      documents.set(uri, doc);
-    }
-  );
+    store.update(uri, contentChanges, version);
+  });
   connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
-    const document = documents.get(uri);
-    if (document) {
-      documents.delete(uri);
-      languageModes.onDocumentRemoved(document);
+    const doc = store.getMainTextDocument(uri);
+    store.delete(uri);
+    if (doc) {
+      languageModes.onDocumentRemoved(doc);
     }
   });
 
@@ -64,7 +58,7 @@ export function startServer(
     return runSafeAsync(
       runtime,
       async () => {
-        const document = documents.get(textDocument.uri);
+        const document = store.getMainTextDocument(textDocument.uri);
         if (!document) {
           return null;
         }
@@ -91,7 +85,7 @@ export function startServer(
           return item;
         }
 
-        const document = documents.get(data.uri);
+        const document = store.getMainTextDocument(data.uri);
         if (!document) {
           return item;
         }
@@ -110,10 +104,9 @@ export function startServer(
     );
   });
 
-  connection.onShutdown(async () => {
-    documents.clear();
+  connection.onShutdown(() => {
+    store.dispose();
     languageModes.dispose();
-    await onInitializeDisposable?.dispose();
   });
 
   connection.listen();

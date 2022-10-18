@@ -1,26 +1,18 @@
 import { parseMixed, SyntaxNodeRef } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
-import {
-  CompletionItem,
-  CompletionItemKind,
-  CompletionList,
-} from "vscode-languageserver";
+import { CompletionItem, CompletionItemKind, CompletionList } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
-import {
-  CssNodeType,
-  HtmlNodeType,
-  LEZER_CSS_NODE_TYPES,
-  LEZER_HTML_NODE_TYPES,
-} from "../nodetype";
-import { getLanguageModelCache } from "./cache";
-import { CssStore } from "./cssStore";
+import { DocumentStore } from "../document/store";
+import { CssNodeType, cssNodeTypes, HtmlNodeType, htmlNodeTypes } from "../nodetype";
+import { RuntimeEnvironment } from "../runner";
+import { getLanguageModelCache, LanguageModelCache } from "./cache";
 import { LanguageMode } from "./languageModes";
 
 const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
   wrap: parseMixed((node) => {
-    if (node.type === LEZER_HTML_NODE_TYPES[HtmlNodeType.StyleText]) {
+    if (node.type === htmlNodeTypes[HtmlNodeType.StyleText]) {
       return { parser: LEZER_CSS.parser };
     }
 
@@ -28,10 +20,12 @@ const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
   }),
 });
 
-export function getHTMLMode(cssStore: CssStore): LanguageMode {
-  const trees = getLanguageModelCache(10, 60, (textDocument) =>
-    HTML_CSS_PARSER.parse(textDocument.getText())
-  );
+export function getHTMLMode(
+  runtime: RuntimeEnvironment,
+  store: DocumentStore,
+  cssCompletionItems: LanguageModelCache<CompletionItem[]>
+): LanguageMode {
+  const trees = getLanguageModelCache(10, 60, runtime, (textDocument) => HTML_CSS_PARSER.parse(textDocument.getText()));
 
   return {
     getId() {
@@ -43,11 +37,11 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
       const cursor = tree.cursorAt(document.offsetAt(position));
 
       if (
-        cursor.type !== LEZER_HTML_NODE_TYPES[HtmlNodeType.AttributeValue] ||
+        cursor.type !== htmlNodeTypes[HtmlNodeType.AttributeValue] ||
         !cursor.prevSibling() ||
-        cursor.type !== LEZER_HTML_NODE_TYPES[HtmlNodeType.Is] ||
+        cursor.type !== htmlNodeTypes[HtmlNodeType.Is] ||
         !cursor.prevSibling() ||
-        cursor.type !== LEZER_HTML_NODE_TYPES[HtmlNodeType.AttributeName] ||
+        cursor.type !== htmlNodeTypes[HtmlNodeType.AttributeName] ||
         getText(document, cursor) !== "class"
       ) {
         return null;
@@ -57,10 +51,10 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
       let items = new Map<string, CompletionItem>();
 
       tree.cursor().iterate((ref) => {
-        if (ref.type === LEZER_HTML_NODE_TYPES[HtmlNodeType.SelfClosingTag]) {
+        if (ref.type === htmlNodeTypes[HtmlNodeType.SelfClosingTag]) {
           getUrlForLinks(document, ref, urls);
           return false;
-        } else if (ref.type === LEZER_CSS_NODE_TYPES[CssNodeType.ClassName]) {
+        } else if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
           const label = getText(document, ref);
           if (label) {
             if (items.has(label)) {
@@ -75,36 +69,29 @@ export function getHTMLMode(cssStore: CssStore): LanguageMode {
         }
       });
 
-      const documentUri = URI.parse(document.uri);
-
       let isIncomplete = false;
 
-      const uris: URI[] = [];
-      for (const url of urls) {
-        const uri = URI.parse(url);
-        if (uri.scheme === "file") {
-          const uri = Utils.joinPath(documentUri, "..", url);
-          uris.push(uri);
-        } else if (uri.scheme === "http" || uri.scheme === "https") {
-          uris.push(uri);
-        }
-      }
+      const refDocs = store.changeRef(document.uri, urls);
 
-      const results = await cssStore.getCompletionLists(uris, document.uri);
-      for (const result of results) {
-        if (result.isIncomplete) {
-          isIncomplete = true;
-        } else {
-          result.items.forEach((item) => {
-            const label = item.label;
-            if (items.has(label)) {
-              // TODO
-            } else {
-              items.set(label, item);
-            }
-          });
-        }
-      }
+      await Promise.all(
+        refDocs.map(async (refDoc) => {
+          if (!refDoc.isOpened && !refDoc.isLocal) {
+            isIncomplete = true;
+          } else {
+            try {
+              const doc = await refDoc.doc;
+              cssCompletionItems.get(doc).forEach((item) => {
+                const label = item.label;
+                if (items.has(label)) {
+                  // TODO
+                } else {
+                  items.set(label, item);
+                }
+              });
+            } catch (e) {}
+          }
+        })
+      );
 
       return CompletionList.create([...items.values()], isIncomplete);
     },
@@ -125,26 +112,22 @@ function getText(document: TextDocument, node: SyntaxNodeRef) {
   return document.getText().substring(node.from, node.to);
 }
 
-function getUrlForLinks(
-  document: TextDocument,
-  ref: SyntaxNodeRef,
-  urls: Set<string>
-) {
+function getUrlForLinks(document: TextDocument, ref: SyntaxNodeRef, urls: Set<string>) {
   const node = ref.node;
   const tagNameNode = node.getChild(HtmlNodeType.TagName);
   if (!tagNameNode || getText(document, tagNameNode) !== "link") {
     return;
   }
 
+  const documentUri = URI.parse(document.uri);
   const attrs = node.getChildren(HtmlNodeType.Attribute);
 
   for (const attr of attrs) {
     if (
       attr.firstChild &&
-      attr.firstChild.type ===
-        LEZER_HTML_NODE_TYPES[HtmlNodeType.AttributeName] &&
+      attr.firstChild.type === htmlNodeTypes[HtmlNodeType.AttributeName] &&
       attr.lastChild &&
-      attr.lastChild.type === LEZER_HTML_NODE_TYPES[HtmlNodeType.AttributeValue]
+      attr.lastChild.type === htmlNodeTypes[HtmlNodeType.AttributeValue]
     ) {
       if (
         getText(document, attr.firstChild) === "rel" &&
@@ -156,7 +139,15 @@ function getUrlForLinks(
       if (getText(document, attr.firstChild) === "href") {
         const href = getText(document, attr.lastChild).slice(1, -1);
         if (href) {
-          urls.add(href);
+          let uri = URI.parse(href);
+          if (uri.scheme === "http" || uri.scheme === "https") {
+            urls.add(uri.toString());
+          } else if (uri.scheme === "file") {
+            uri = Utils.joinPath(documentUri, "..", href);
+            urls.add(uri.toString());
+          } else if (uri.scheme !== "untitled") {
+            urls.add(uri.toString());
+          }
         }
       }
     }

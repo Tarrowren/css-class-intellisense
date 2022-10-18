@@ -1,8 +1,5 @@
 import { ExtensionContext } from "vscode";
-import {
-  BaseLanguageClient,
-  LanguageClientOptions,
-} from "vscode-languageclient";
+import { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
 
 export type LanguageClientConstructor = (
   id: string,
@@ -31,11 +28,7 @@ export async function startClient(
     ],
   };
 
-  const client = newLanguageClient(
-    "cssClassIntellisense",
-    "CSS Class Intellisense",
-    clientOptions
-  );
+  const client = newLanguageClient("cssClassIntellisense", "CSS Class Intellisense", clientOptions);
 
   onInitialize?.(client);
 

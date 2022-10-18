@@ -1,10 +1,9 @@
 import { readFile } from "fs/promises";
-import { getErrorStatusDescription, xhr, XHRResponse } from "request-light";
+import fetch from "node-fetch";
 import { format } from "util";
 import { createConnection, Disposable } from "vscode-languageserver/node";
-import { AsyncDisposable, formatError, RuntimeEnvironment } from "../runner";
+import { formatError, RuntimeEnvironment } from "../runner";
 import { startServer } from "../server";
-import { getRemoteFileCache, RemoteFileCache } from "./remoteFileCache";
 
 const connection = createConnection();
 
@@ -19,20 +18,35 @@ process.on("unhandledRejection", (e: any) => {
   console.error(formatError(`Unhandled exception`, e));
 });
 
-let remoteFileCache: RemoteFileCache | null | undefined;
-
 const runtime: RuntimeEnvironment = {
-  request: {
-    async getFileContent(uri) {
-      return await readFile(uri.fsPath, "utf8");
+  file: {
+    getContent(uri) {
+      const controller = new AbortController();
+
+      return {
+        isLocal: true,
+        content: readFile(uri.fsPath, { encoding: "utf8", signal: controller.signal }),
+        dispose() {
+          controller.abort();
+        },
+      };
     },
-    getHttpContent(uri) {
-      const content = remoteFileCache?.get(uri);
-      if (content) {
-        return { isDownloaded: true, content };
-      } else {
-        return { isDownloaded: false, content: downloadFile(uri) };
-      }
+  },
+  http: {
+    getContent(uri) {
+      const controller = new AbortController();
+
+      return {
+        isLocal: false,
+        content: fetch(uri.toString(), {
+          redirect: "follow",
+          follow: 5,
+          signal: controller.signal as any,
+        }).then((res) => res.text()),
+        dispose() {
+          controller.abort();
+        },
+      };
     },
   },
   timer: {
@@ -44,45 +58,24 @@ const runtime: RuntimeEnvironment = {
       const handle = setTimeout(callback, ms, ...args);
       return Disposable.create(() => clearTimeout(handle));
     },
+    setInterval(callback, ms, ...args) {
+      const handle = setInterval(callback, ms, ...args);
+      return Disposable.create(() => clearInterval(handle));
+    },
   },
 };
 
-startServer(connection, runtime, async (options) => {
-  if (
-    !options ||
-    !options.globalStoragePath ||
-    typeof options.globalStoragePath !== "string"
-  ) {
-    throw new Error('The "globalStoragePath" field is required');
-  }
+// , async (options) => {
+//   if (!options || !options.globalStoragePath || typeof options.globalStoragePath !== "string") {
+//     throw new Error('The "globalStoragePath" field is required');
+//   }
 
-  remoteFileCache = await getRemoteFileCache(options.globalStoragePath);
+//   remoteFileCache = await getRemoteFileCache(options.globalStoragePath);
 
-  return AsyncDisposable.create(async () => {
-    await remoteFileCache?.dispose();
-    remoteFileCache = null;
-  });
-});
+//   return AsyncDisposable.create(async () => {
+//     await remoteFileCache?.dispose();
+//     remoteFileCache = null;
+//   });
+// }
 
-async function downloadFile(url: string) {
-  const headers = { "Accept-Encoding": "gzip, deflate" };
-
-  let resp: XHRResponse | undefined;
-  try {
-    resp = await xhr({
-      url,
-      followRedirects: 5,
-      headers,
-      timeout: 10000,
-    });
-  } catch (e: any) {
-    throw new Error(
-      e.responseText ?? getErrorStatusDescription(e.status) ?? e.toString()
-    );
-  }
-
-  const content = resp.responseText;
-  await remoteFileCache?.update(url, content);
-
-  return content;
-}
+startServer(connection, runtime);

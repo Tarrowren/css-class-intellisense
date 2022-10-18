@@ -1,6 +1,7 @@
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
+  CancellationTokenSource,
   createConnection,
   Disposable,
   RequestType,
@@ -14,20 +15,38 @@ const messageWriter = new BrowserMessageWriter(self);
 const connection = createConnection(messageReader, messageWriter);
 
 namespace VSCodeContentRequest {
-  export const type: RequestType<string, string, void> = new RequestType(
-    "vscode/content"
-  );
+  export const type: RequestType<string, string, void> = new RequestType("vscode/content");
 }
 
 const runtime: RuntimeEnvironment = {
-  request: {
-    getFileContent(uri) {
-      return connection.sendRequest(VSCodeContentRequest.type, uri.toString());
-    },
-    getHttpContent(uri) {
+  file: {
+    getContent(uri) {
+      const source = new CancellationTokenSource();
+
       return {
-        isDownloaded: false,
-        content: fetch(uri, { mode: "cors" }).then((res) => res.text()),
+        isLocal: true,
+        content: connection.sendRequest(VSCodeContentRequest.type, uri.toString(), source.token),
+        dispose() {
+          source.cancel();
+        },
+      };
+    },
+  },
+  http: {
+    getContent(uri) {
+      const controller = new AbortController();
+
+      return {
+        isLocal: false,
+        content: fetch(uri.toString(), {
+          mode: "cors",
+          redirect: "follow",
+          signal: controller.signal,
+        }).then((res) => res.text()),
+        dispose() {
+          // see https://github.com/microsoft/TypeScript/issues/49609
+          (controller as any).abort();
+        },
       };
     },
   },
@@ -39,6 +58,10 @@ const runtime: RuntimeEnvironment = {
     setTimeout: (callback, ms, ...args) => {
       const handle = setTimeout(callback, ms, ...args);
       return Disposable.create(() => clearTimeout(handle));
+    },
+    setInterval(callback, ms?, ...args) {
+      const handle = setInterval(callback, ms, ...args);
+      return Disposable.create(() => clearInterval(handle));
     },
   },
 };

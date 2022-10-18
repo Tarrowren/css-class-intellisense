@@ -1,31 +1,22 @@
-import {
-  CancellationToken,
-  Disposable,
-  LSPErrorCodes,
-  ResponseError,
-} from "vscode-languageserver";
+import { CancellationToken, Disposable, LSPErrorCodes, ResponseError } from "vscode-languageserver";
 import { URI } from "vscode-uri";
 
-export interface RuntimeEnvironment {
-  request: RequestService;
-  readonly timer: {
-    setImmediate<TArgs extends any[]>(
-      callback: (...args: TArgs) => void,
-      ...args: TArgs
-    ): Disposable;
-    setTimeout<TArgs extends any[]>(
-      callback: (...args: TArgs) => void,
-      ms?: number,
-      ...args: TArgs
-    ): Disposable;
-  };
+export interface RequestContentResult extends Disposable {
+  isLocal: boolean;
+  content: Promise<string>;
 }
 
 export interface RequestService {
-  getFileContent(uri: URI): Promise<string>;
-  getHttpContent(uri: string): {
-    isDownloaded: boolean;
-    content: Promise<string>;
+  getContent(uri: URI): RequestContentResult;
+}
+
+export interface RuntimeEnvironment {
+  file: RequestService;
+  http: RequestService;
+  readonly timer: {
+    setImmediate<TArgs extends any[]>(callback: (...args: TArgs) => void, ...args: TArgs): Disposable;
+    setTimeout<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
+    setInterval<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
   };
 }
 
@@ -96,22 +87,7 @@ export function runSafe<T, E>(
   });
 }
 
-export interface AsyncDisposable {
-  dispose(): Promise<void>;
-}
-
-export namespace AsyncDisposable {
-  export function create(func: () => Promise<void>): AsyncDisposable {
-    return {
-      dispose: func,
-    };
-  }
-}
-
 function cancelValue<E>() {
   console.log("cancelled");
-  return new ResponseError<E>(
-    LSPErrorCodes.RequestCancelled,
-    "Request cancelled"
-  );
+  return new ResponseError<E>(LSPErrorCodes.RequestCancelled, "Request cancelled");
 }
