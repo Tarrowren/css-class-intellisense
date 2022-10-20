@@ -1,9 +1,15 @@
-import { Connection, ResponseError, TextDocumentSyncKind } from "vscode-languageserver";
+import { Connection, Disposable, ResponseError, TextDocumentSyncKind } from "vscode-languageserver";
 import { getDocumentStore } from "./document/store";
-import { getLanguageModes, isCompletionItemData } from "./modes/languageModes";
+import { getLanguageModes, isCompletionItemData } from "./modes/language-modes";
 import { RequestService, runSafeAsync, RuntimeEnvironment } from "./runner";
 
-export function startServer(connection: Connection, runtime: RuntimeEnvironment) {
+export type onLanguageServerInitialize = (options: any) => Promise<Disposable>;
+
+export function startServer(
+  connection: Connection,
+  runtime: RuntimeEnvironment,
+  onInitialize?: onLanguageServerInitialize
+) {
   const request: RequestService = {
     getContent(uri) {
       if (uri.scheme === "untitled") {
@@ -21,7 +27,11 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
   const store = getDocumentStore(request);
   const languageModes = getLanguageModes(runtime, store);
 
-  connection.onInitialize((params) => {
+  let disposable: Disposable | undefined;
+
+  connection.onInitialize(async (params) => {
+    disposable = await onInitialize?.(params.initializationOptions);
+
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -107,6 +117,7 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
   connection.onShutdown(() => {
     store.dispose();
     languageModes.dispose();
+    disposable?.dispose();
   });
 
   connection.listen();

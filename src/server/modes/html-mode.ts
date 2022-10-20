@@ -8,7 +8,7 @@ import { DocumentStore } from "../document/store";
 import { CssNodeType, cssNodeTypes, HtmlNodeType, htmlNodeTypes } from "../nodetype";
 import { RuntimeEnvironment } from "../runner";
 import { getLanguageModelCache, LanguageModelCache } from "./cache";
-import { LanguageMode } from "./languageModes";
+import { LanguageMode } from "./language-modes";
 
 const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
   wrap: parseMixed((node) => {

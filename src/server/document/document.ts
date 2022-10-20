@@ -1,5 +1,6 @@
 import { Disposable } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { noop } from "../runner";
 
 export type Document = MainDocument | RefDocument;
 
@@ -97,7 +98,7 @@ export namespace RefDocument {
         if (count <= 0) {
           onDelete(uri);
         } else {
-          return createUnopened(uri, { isLocal: true, content: Promise.resolve(doc), dispose() {} }, onDelete, count);
+          return createUnopened(uri, { isLocal: true, content: Promise.resolve(doc), dispose: noop }, onDelete, count);
         }
       },
     };

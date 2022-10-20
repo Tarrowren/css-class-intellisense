@@ -5,7 +5,7 @@ import { DocumentStore } from "../document/store";
 import { CssNodeType, cssNodeTypes } from "../nodetype";
 import { RuntimeEnvironment } from "../runner";
 import { getLanguageModelCache } from "./cache";
-import { getHTMLMode } from "./htmlMode";
+import { getHTMLMode } from "./html-mode";
 
 export function getLanguageModes(runtime: RuntimeEnvironment, store: DocumentStore): LanguageModes {
   const cssCompletionItems = getLanguageModelCache(10, 60, runtime, (document) => {

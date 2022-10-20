@@ -1,6 +1,8 @@
 import { CancellationToken, Disposable, LSPErrorCodes, ResponseError } from "vscode-languageserver";
 import { URI } from "vscode-uri";
 
+export const noop = () => {};
+
 export interface RequestContentResult extends Disposable {
   isLocal: boolean;
   content: Promise<string>;
