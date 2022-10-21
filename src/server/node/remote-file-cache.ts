@@ -1,6 +1,8 @@
+import { JTDSchemaType } from "ajv/dist/jtd";
 import { createHash } from "crypto";
 import { mkdir, readdir, readFile, rm, unlink, writeFile } from "fs/promises";
 import { join } from "path";
+import { ajv } from "./ajv";
 import { getKVStore } from "./kv-store";
 
 export interface RemoteFileCache {
@@ -15,7 +17,7 @@ export interface RemoteFileCache {
 export async function getRemoteFileCache(globalStoragePath: string): Promise<RemoteFileCache> {
   const location = join(globalStoragePath, "file-cache");
   await mkdir(location, { recursive: true });
-  const store = await getKVStore<string, CacheEntry>(join(globalStoragePath, "file-cache.db"));
+  const store = await getKVStore<CacheEntry>(join(globalStoragePath, "file-cache.json"), serialize, deserialize);
 
   async function loadFile(uri: string, cacheEntry: CacheEntry, isUpdated: boolean): Promise<string> {
     const cacheLocation = join(location, cacheEntry.fileName);
@@ -97,3 +99,16 @@ interface CacheEntry {
   fileName: string;
   updateTime: number;
 }
+
+const schema: JTDSchemaType<Record<string, CacheEntry>> = {
+  values: {
+    properties: {
+      etag: { type: "string" },
+      fileName: { type: "string" },
+      updateTime: { type: "float64" },
+    },
+  },
+};
+
+const serialize = ajv.compileSerializer(schema);
+const deserialize = ajv.compileParser(schema);

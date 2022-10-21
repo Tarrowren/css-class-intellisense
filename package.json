@@ -59,6 +59,7 @@
     "@lezer/common": "^1.0.1",
     "@lezer/css": "^1.0.0",
     "@lezer/html": "^1.0.1",
+    "ajv": "^8.11.0",
     "node-fetch": "^2.6.7",
     "request-light": "^0.5.8",
     "vscode-languageclient": "^8.0.2",

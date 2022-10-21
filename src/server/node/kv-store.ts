@@ -1,35 +1,39 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname } from "path";
-import { deserialize, serialize } from "v8";
 
-export interface KVStore<K, V> {
+export interface KVStore<V> {
   clear(): void;
-  delete(key: K): void;
-  entries(): IterableIterator<[K, V]>;
-  get(key: K): V | undefined;
-  has(key: K): boolean;
-  set(key: K, value: V): void;
+  delete(key: string): void;
+  get(key: string): V | undefined;
+  has(key: string): boolean;
+  set(key: string, value: V): void;
   readonly size: number;
   close(): Promise<void>;
 }
 
-export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
-  let cache: Map<K, V>;
+export async function getKVStore<V>(
+  fsPath: string,
+  serialize: (data: Record<string, V>) => string,
+  deserialize: (json: string) => Record<string, V> | undefined
+): Promise<KVStore<V>> {
+  let size = 0;
+  let cache: Record<string, V>;
   let immediate: NodeJS.Immediate | null | undefined;
   let controller: AbortController | null | undefined;
 
   await mkdir(dirname(fsPath), { recursive: true });
 
   try {
-    const buf = await readFile(fsPath);
-    const obj = deserialize(buf);
-    if (obj instanceof Map) {
-      cache = obj;
+    const json = await readFile(fsPath, "utf8");
+    const data = deserialize(json);
+    if (data) {
+      cache = data;
+      size = Object.keys(data).length;
     } else {
-      cache = new Map();
+      cache = {};
     }
   } catch (e) {
-    cache = new Map();
+    cache = {};
   }
 
   async function write() {
@@ -60,35 +64,35 @@ export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
 
   return {
     clear() {
-      cache.clear();
+      cache = {};
+      size = 0;
       lazyWrite();
     },
     delete(key) {
-      if (cache.has(key)) {
-        cache.delete(key);
+      if (cache[key]) {
+        delete cache[key];
+        size--;
         lazyWrite();
       }
     },
-    entries() {
-      return cache.entries();
-    },
     get(key) {
-      return cache.get(key);
+      return cache[key];
     },
     has(key) {
-      return cache.has(key);
+      return !!cache[key];
     },
     set(key, value) {
-      cache.set(key, value);
+      cache[key] = value;
+      size++;
       lazyWrite();
     },
     get size() {
-      return cache.size;
+      return size;
     },
     async close() {
       clear();
       await writeFile(fsPath, serialize(cache));
-      cache.clear();
+      cache = {};
     },
   };
 }
