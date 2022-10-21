@@ -2,27 +2,33 @@ import { Emitter, Event } from "vscode-languageserver";
 import { TextDocument, TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import { formatError, RequestService } from "../runner";
-import { Document, MainDocument, RefDocument } from "./document";
+import {
+  Document,
+  MainDocument,
+  OpenedReferenceDocument,
+  ReferenceDocument,
+  UnopenedReferenceDocument,
+} from "./document";
 
 export function getDocumentStore(request: RequestService): DocumentStore {
-  const emitter = new Emitter<string>();
   const cache = new Map<string, Document>();
+  const emitter = new Emitter<string>();
 
-  function getMainDoc(uri: string): MainDocument | undefined {
+  function getMainDocument(uri: string): MainDocument | undefined {
     const doc = cache.get(uri);
     if (doc && !doc.isReferenced) {
       return doc;
     }
   }
 
-  function getRefDoc(uri: string): RefDocument | undefined {
+  function getReferenceDocument(uri: string): ReferenceDocument | undefined {
     const doc = cache.get(uri);
     if (doc && doc.isReferenced) {
       return doc;
     }
   }
 
-  function onDelete(uri: string) {
+  function deleteDocument(uri: string) {
     cache.delete(uri);
     emitter.fire(uri);
   }
@@ -36,10 +42,10 @@ export function getDocumentStore(request: RequestService): DocumentStore {
         return;
       }
 
-      const outdated = getRefDoc(uri);
+      const outdated = getReferenceDocument(uri);
 
       if (!outdated) {
-        cache.set(uri, RefDocument.createOpened(uri, doc, onDelete));
+        cache.set(uri, OpenedReferenceDocument.create(uri, doc, deleteDocument));
         return;
       }
 
@@ -54,7 +60,7 @@ export function getDocumentStore(request: RequestService): DocumentStore {
         return false;
       }
 
-      const doc = TextDocument.update(outdated.doc, changes, version);
+      const doc = TextDocument.update(outdated.textDocument, changes, version);
 
       cache.set(uri, outdated.update(doc));
 
@@ -68,13 +74,13 @@ export function getDocumentStore(request: RequestService): DocumentStore {
       }
 
       if (doc.isReferenced) {
-        const refDoc = doc.close();
-        if (refDoc) {
-          cache.set(uri, refDoc);
+        const unopenedReferenceDocument = doc.close();
+        if (unopenedReferenceDocument) {
+          cache.set(uri, unopenedReferenceDocument);
         }
       } else {
         for (const ref of doc.references) {
-          getRefDoc(ref)?.delRefCount();
+          getReferenceDocument(ref)?.deleteReference();
         }
         cache.delete(uri);
       }
@@ -82,12 +88,12 @@ export function getDocumentStore(request: RequestService): DocumentStore {
       return true;
     },
     getMainTextDocument(uri) {
-      return getMainDoc(uri)?.doc;
+      return getMainDocument(uri)?.textDocument;
     },
-    changeRef(uri, refs) {
-      const mainDoc = getMainDoc(uri);
+    changeReferenceDocument(uri, refs) {
+      const mainDoc = getMainDocument(uri);
       if (!mainDoc) {
-        throw new Error(`Not found ${uri}`);
+        return [];
       }
 
       const oldRefs = mainDoc.references;
@@ -95,24 +101,24 @@ export function getDocumentStore(request: RequestService): DocumentStore {
 
       for (const uri of oldRefs) {
         if (!refs.has(uri)) {
-          getRefDoc(uri)?.delRefCount();
+          getReferenceDocument(uri)?.deleteReference();
         }
       }
 
-      const result: RefDocument[] = [];
+      const result: ReferenceDocument[] = [];
       for (const uri of refs) {
-        let refDoc = getRefDoc(uri);
+        let referenceDocument = getReferenceDocument(uri);
 
         if (oldRefs.has(uri)) {
-          if (!refDoc) {
-            throw new Error("Missing document cache");
+          if (!referenceDocument) {
+            console.error(`Missing cache, uri: ${uri}`);
+          } else {
+            result.push(referenceDocument);
           }
-
-          result.push(refDoc);
         } else {
-          if (!refDoc) {
+          if (!referenceDocument) {
             const result = request.getContent(URI.parse(uri));
-            refDoc = RefDocument.createUnopened(
+            referenceDocument = UnopenedReferenceDocument.create(
               uri,
               {
                 isLocal: result.isLocal,
@@ -121,20 +127,20 @@ export function getDocumentStore(request: RequestService): DocumentStore {
                     return TextDocument.create(uri, "css", 0, text);
                   })
                   .catch((e) => {
-                    console.error(formatError("Open file failed", e));
-                    throw e;
+                    console.error(formatError("Load file failed", e));
+                    return null;
                   }),
                 dispose() {
                   result.dispose();
                 },
               },
-              onDelete
+              deleteDocument
             );
-            cache.set(uri, refDoc);
+            cache.set(uri, referenceDocument);
           }
 
-          refDoc.addRefCount();
-          result.push(refDoc);
+          referenceDocument.addReference();
+          result.push(referenceDocument);
         }
       }
 
@@ -158,7 +164,7 @@ export interface DocumentStore {
   update(uri: string, changes: TextDocumentContentChangeEvent[], version: number): boolean;
   delete(uri: string): boolean;
   getMainTextDocument(uri: string): TextDocument | undefined;
-  changeRef(uri: string, refs: Set<string>): RefDocument[];
+  changeReferenceDocument(uri: string, refs: Set<string>): ReferenceDocument[];
   addEventListener: Event<string>;
   dispose(): void;
 }

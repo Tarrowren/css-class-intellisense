@@ -1,14 +1,14 @@
 import { readFile } from "fs/promises";
-import fetch, { HeadersInit, Response } from "node-fetch";
+import fetch, { Headers } from "node-fetch";
 import { format } from "util";
-import { createConnection, Disposable } from "vscode-languageserver/node";
+import { createConnection, Disposable, ResponseError } from "vscode-languageserver/node";
 import { formatError, noop, RuntimeEnvironment } from "../runner";
 import { onLanguageServerInitialize, startServer } from "../server";
 import { getRemoteFileCache, RemoteFileCache } from "./remote-file-cache";
 
 let cache: RemoteFileCache | null | undefined;
 
-const retryTimeoutInHours = 2 * 24; // 2 days
+const retryTimeoutInHours = 7 * 24; // 7 days
 
 const connection = createConnection();
 
@@ -75,61 +75,53 @@ const runtime: RuntimeEnvironment = {
 
 const onInitialize: onLanguageServerInitialize = async (options) => {
   if (!options || !options.globalStoragePath || typeof options.globalStoragePath !== "string") {
-    throw new Error('The "globalStoragePath" field is required');
+    throw new ResponseError(1, 'The "globalStoragePath" field is required');
   }
 
   cache = await getRemoteFileCache(options.globalStoragePath);
 
-  return Disposable.create(() => {
-    cache?.dispose();
-    cache = null;
-  });
+  return async () => {
+    if (cache) {
+      await cache.close();
+      cache = null;
+    }
+  };
 };
 
 startServer(connection, runtime, onInitialize);
 
 async function request(uri: string, etag: string | undefined, signal: AbortSignal): Promise<string> {
-  const headers: HeadersInit = { "Accept-Encoding": "gzip, deflate" };
+  const headers = new Headers();
+  headers.set("Accept-Encoding", "gzip, deflate");
   if (etag) {
-    headers["If-None-Match"] = etag;
+    headers.set("If-None-Match", etag);
   }
 
-  try {
-    const res = await fetch(uri, {
-      redirect: "follow",
-      follow: 5,
-      signal: signal as any,
-      headers,
-    });
+  const res = await fetch(uri, {
+    headers,
+    follow: 5,
+    signal: signal as any,
+  });
 
-    const content = await res.text();
+  if (res.ok) {
+    const text = await res.text();
 
     if (cache) {
       const etag = res.headers.get("etag");
       if (typeof etag === "string") {
-        await cache.put(uri, etag, content);
+        await cache.put(uri, etag, text);
       }
     }
 
-    return content;
-  } catch (error: any) {
-    if (error instanceof Response) {
-      if (error.status === 304 && etag && cache) {
-        const content = cache.get(uri, etag, true);
-        return content ? content : request(uri, undefined, signal);
-      }
-
-      let message = error.statusText;
-      const text = await error.text();
-      if (error.statusText && text) {
-        message = `${error.statusText}\n${text.substring(0, 200)}`;
-      }
-      if (!message) {
-        message = error.toString();
-      }
-
-      throw new Error(message);
-    }
-    throw error;
+    return text;
   }
+
+  if (res.status === 304 && etag && cache) {
+    const content = cache.get(uri, etag, true);
+    return content ? content : await request(uri, undefined, signal);
+  }
+
+  const statusText = res.statusText;
+  const text = await res.text();
+  throw new Error(text ? `${statusText}: ${text}` : statusText);
 }

@@ -1,26 +1,22 @@
-import { writeFileSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname } from "path";
 import { deserialize, serialize } from "v8";
-import { Disposable } from "vscode-languageserver";
 
-export interface KVStore<K, V> extends Disposable {
+export interface KVStore<K, V> {
   clear(): void;
   delete(key: K): void;
   entries(): IterableIterator<[K, V]>;
   get(key: K): V | undefined;
   has(key: K): boolean;
-  keys(): IterableIterator<K>;
   set(key: K, value: V): void;
   readonly size: number;
-  values(): IterableIterator<V>;
+  close(): Promise<void>;
 }
 
 export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
   let cache: Map<K, V>;
-
-  let immediate: NodeJS.Immediate | null = null;
-  let controller: AbortController | null = null;
+  let immediate: NodeJS.Immediate | null | undefined;
+  let controller: AbortController | null | undefined;
 
   await mkdir(dirname(fsPath), { recursive: true });
 
@@ -46,14 +42,19 @@ export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
     }
   }
 
-  function lazyWrite() {
+  function clear() {
     if (immediate) {
       clearImmediate(immediate);
+      immediate = null;
     }
     if (controller) {
       controller.abort();
+      controller = null;
     }
+  }
 
+  function lazyWrite() {
+    clear();
     immediate = setImmediate(write);
   }
 
@@ -77,9 +78,6 @@ export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
     has(key) {
       return cache.has(key);
     },
-    keys() {
-      return cache.keys();
-    },
     set(key, value) {
       cache.set(key, value);
       lazyWrite();
@@ -87,17 +85,9 @@ export async function getKVStore<K, V>(fsPath: string): Promise<KVStore<K, V>> {
     get size() {
       return cache.size;
     },
-    values() {
-      return cache.values();
-    },
-    dispose() {
-      if (immediate) {
-        clearImmediate(immediate);
-      }
-      if (controller) {
-        controller.abort();
-      }
-      writeFileSync(fsPath, serialize(cache));
+    async close() {
+      clear();
+      await writeFile(fsPath, serialize(cache));
       cache.clear();
     },
   };

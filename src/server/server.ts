@@ -1,9 +1,10 @@
-import { Connection, Disposable, ResponseError, TextDocumentSyncKind } from "vscode-languageserver";
+import { Connection, ResponseError, TextDocumentSyncKind } from "vscode-languageserver";
 import { getDocumentStore } from "./document/store";
 import { getLanguageModes, isCompletionItemData } from "./modes/language-modes";
 import { RequestService, runSafeAsync, RuntimeEnvironment } from "./runner";
 
-export type onLanguageServerInitialize = (options: any) => Promise<Disposable>;
+export type DestroyHandler = () => Promise<void>;
+export type onLanguageServerInitialize = (options: any) => Promise<DestroyHandler>;
 
 export function startServer(
   connection: Connection,
@@ -27,10 +28,10 @@ export function startServer(
   const store = getDocumentStore(request);
   const languageModes = getLanguageModes(runtime, store);
 
-  let disposable: Disposable | undefined;
+  let destroy: DestroyHandler | null | undefined;
 
   connection.onInitialize(async (params) => {
-    disposable = await onInitialize?.(params.initializationOptions);
+    destroy = await onInitialize?.(params.initializationOptions);
 
     return {
       capabilities: {
@@ -114,10 +115,13 @@ export function startServer(
     );
   });
 
-  connection.onShutdown(() => {
+  connection.onShutdown(async () => {
     store.dispose();
     languageModes.dispose();
-    disposable?.dispose();
+    if (destroy) {
+      await destroy();
+      destroy = null;
+    }
   });
 
   connection.listen();

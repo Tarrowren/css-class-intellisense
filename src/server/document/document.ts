@@ -2,24 +2,24 @@ import { Disposable } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { noop } from "../runner";
 
-export type Document = MainDocument | RefDocument;
+export type Document = MainDocument | ReferenceDocument;
 
 export interface MainDocument {
   readonly isReferenced: false;
-  readonly doc: TextDocument;
+  readonly textDocument: TextDocument;
   references: Set<string>;
-  update(doc: TextDocument): MainDocument;
+  update(textDocument: TextDocument): MainDocument;
 }
 
 export namespace MainDocument {
-  export function create(doc: TextDocument, references = new Set<string>()): MainDocument {
+  export function create(textDocument: TextDocument, references = new Set<string>()): MainDocument {
     let _references = references;
     return {
       get isReferenced(): false {
         return false;
       },
-      get doc() {
-        return doc;
+      get textDocument() {
+        return textDocument;
       },
       get references() {
         return _references;
@@ -27,89 +27,92 @@ export namespace MainDocument {
       set references(references: Set<string>) {
         _references = references;
       },
-      update(doc) {
-        return create(doc, _references);
+      update(textDocument) {
+        return create(textDocument, _references);
       },
     };
   }
 }
 
-interface BaseRefDocument {
+interface BaseReferenceDocument {
   readonly isReferenced: true;
-  addRefCount(): void;
-  delRefCount(): void;
-  readonly referenceCount: number;
+  addReference(): void;
+  deleteReference(): void;
 }
 
-export interface OpenedRefDocument extends BaseRefDocument {
+export interface OpenedReferenceDocument extends BaseReferenceDocument {
   readonly isOpened: true;
-  readonly doc: TextDocument;
-  update(doc: TextDocument): OpenedRefDocument;
-  close(): UnopenedRefDocument | undefined;
+  readonly textDocument: TextDocument;
+  update(textDocument: TextDocument): OpenedReferenceDocument;
+  close(): UnopenedReferenceDocument | undefined;
 }
 
-export interface UnopenedRefDocument extends BaseRefDocument {
+export interface UnopenedReferenceDocument extends BaseReferenceDocument {
   readonly isOpened: false;
   readonly isLocal: boolean;
-  readonly doc: Promise<TextDocument>;
-  open(doc: TextDocument): OpenedRefDocument;
+  readonly textDocument: Promise<TextDocument | null>;
+  open(textDocument: TextDocument): OpenedReferenceDocument;
   dispose(): void;
 }
 
-export type RefDocument = OpenedRefDocument | UnopenedRefDocument;
+export type ReferenceDocument = OpenedReferenceDocument | UnopenedReferenceDocument;
 
 export interface RequestDocumentResult extends Disposable {
   isLocal: boolean;
-  content: Promise<TextDocument>;
+  content: Promise<TextDocument | null>;
 }
 
-export namespace RefDocument {
-  export function createOpened(
+export namespace OpenedReferenceDocument {
+  export function create(
     uri: string,
-    doc: TextDocument,
-    onDelete: (key: string) => void,
+    textDocument: TextDocument,
+    remove: (key: string) => void,
     referenceCount = 0
-  ): OpenedRefDocument {
+  ): OpenedReferenceDocument {
     let count = referenceCount;
 
     return {
       get isReferenced(): true {
         return true;
       },
-      addRefCount() {
+      addReference() {
         count++;
       },
-      delRefCount() {
+      deleteReference() {
         count--;
-      },
-      get referenceCount() {
-        return count;
       },
       get isOpened(): true {
         return true;
       },
-      get doc() {
-        return doc;
+      get textDocument() {
+        return textDocument;
       },
-      update(doc) {
-        return createOpened(uri, doc, onDelete, count);
+      update(textDocument) {
+        return create(uri, textDocument, remove, count);
       },
       close() {
         if (count <= 0) {
-          onDelete(uri);
+          remove(uri);
         } else {
-          return createUnopened(uri, { isLocal: true, content: Promise.resolve(doc), dispose: noop }, onDelete, count);
+          return UnopenedReferenceDocument.create(
+            uri,
+            { isLocal: true, content: Promise.resolve(textDocument), dispose: noop },
+            remove,
+            count
+          );
         }
       },
     };
   }
+}
 
-  export function createUnopened(
+export namespace UnopenedReferenceDocument {
+  export function create(
     uri: string,
     result: RequestDocumentResult,
-    onDelete: (key: string) => void,
+    remove: (key: string) => void,
     referenceCount = 0
-  ): UnopenedRefDocument {
+  ): UnopenedReferenceDocument {
     let _isLocal = result.isLocal;
     let _content = result.content;
 
@@ -125,31 +128,28 @@ export namespace RefDocument {
       get isReferenced(): true {
         return true;
       },
-      addRefCount() {
+      addReference() {
         count++;
       },
-      delRefCount() {
+      deleteReference() {
         count--;
         if (count <= 0) {
           result.dispose();
-          onDelete(uri);
+          remove(uri);
         }
-      },
-      get referenceCount() {
-        return count;
       },
       get isOpened(): false {
         return false;
       },
-      get doc() {
+      get textDocument() {
         return _content;
       },
       get isLocal() {
         return _isLocal;
       },
-      open(doc) {
+      open(textDocument) {
         result.dispose();
-        return createOpened(uri, doc, onDelete, count);
+        return OpenedReferenceDocument.create(uri, textDocument, remove, count);
       },
       dispose() {
         result.dispose();

@@ -71,15 +71,15 @@ export function getHTMLMode(
 
       let isIncomplete = false;
 
-      const refDocs = store.changeRef(document.uri, urls);
+      const referenceDocuments = store.changeReferenceDocument(document.uri, urls);
 
       await Promise.all(
-        refDocs.map(async (refDoc) => {
-          if (!refDoc.isOpened && !refDoc.isLocal) {
+        referenceDocuments.map(async (ref) => {
+          if (!ref.isOpened && !ref.isLocal) {
             isIncomplete = true;
           } else {
-            try {
-              const doc = await refDoc.doc;
+            const doc = await ref.textDocument;
+            if (doc) {
               cssCompletionItems.get(doc).forEach((item) => {
                 const label = item.label;
                 if (items.has(label)) {
@@ -88,7 +88,7 @@ export function getHTMLMode(
                   items.set(label, item);
                 }
               });
-            } catch (e) {}
+            }
           }
         })
       );

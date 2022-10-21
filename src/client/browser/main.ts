@@ -23,7 +23,7 @@ export async function activate(context: ExtensionContext) {
         const doc = await workspace.openTextDocument(Uri.parse(uri));
         return doc.getText();
       } catch (e: any) {
-        return new ResponseError(1, e.toString());
+        return new ResponseError(2, e.toString());
       }
     });
   };

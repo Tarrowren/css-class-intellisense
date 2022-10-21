@@ -24,7 +24,11 @@ export interface RuntimeEnvironment {
 
 export function formatError(message: string, err: any): string {
   if (err instanceof Error) {
-    return `${message}: ${err.message}\n${err.stack}`;
+    if (err.name === "AbortError") {
+      return `${message}: ${err.message}`;
+    } else {
+      return `${message}: ${err.message}\n${err.stack}`;
+    }
   } else if (typeof err === "string") {
     return `${message}: ${err}`;
   } else if (err) {
