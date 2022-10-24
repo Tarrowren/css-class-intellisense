@@ -90,6 +90,15 @@ export function getDocumentStore(request: RequestService): DocumentStore {
     getMainTextDocument(uri) {
       return getMainDocument(uri)?.textDocument;
     },
+    getOpenedReferenceTextDocument(uri) {
+      const doc = getReferenceDocument(uri);
+      if (doc && doc.isOpened) {
+        return doc.textDocument;
+      }
+    },
+    async getTextDocument(uri) {
+      return await cache.get(uri)?.textDocument;
+    },
     changeReferenceDocument(uri, refs) {
       const mainDoc = getMainDocument(uri);
       if (!mainDoc) {
@@ -128,7 +137,7 @@ export function getDocumentStore(request: RequestService): DocumentStore {
                   })
                   .catch((e) => {
                     console.error(formatError("Load file failed", e));
-                    return null;
+                    return undefined;
                   }),
                 dispose() {
                   result.dispose();
@@ -164,6 +173,8 @@ export interface DocumentStore {
   update(uri: string, changes: TextDocumentContentChangeEvent[], version: number): boolean;
   delete(uri: string): boolean;
   getMainTextDocument(uri: string): TextDocument | undefined;
+  getOpenedReferenceTextDocument(uri: string): TextDocument | undefined;
+  getTextDocument(uri: string): Promise<TextDocument | undefined>;
   changeReferenceDocument(uri: string, refs: Set<string>): ReferenceDocument[];
   addEventListener: Event<string>;
   dispose(): void;

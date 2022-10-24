@@ -1,5 +1,5 @@
 import * as LEZER_CSS from "@lezer/css";
-import { CompletionItem, CompletionItemKind, CompletionList, Position } from "vscode-languageserver";
+import { CompletionItem, CompletionList, Definition, Location, Position, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { DocumentStore } from "../document/store";
 import { CssNodeType, cssNodeTypes } from "../nodetype";
@@ -8,15 +8,13 @@ import { getLanguageModelCache } from "./cache";
 import { getHTMLMode } from "./html-mode";
 
 export function getLanguageModes(runtime: RuntimeEnvironment, store: DocumentStore): LanguageModes {
-  const cssCompletionItems = getLanguageModelCache(10, 60, runtime, (document) => {
-    return getCompletionItems(document.getText());
-  });
+  const cache = getLanguageModelCache(10, 60, runtime, getCssCacheEntry);
 
   store.addEventListener((uri) => {
-    cssCompletionItems.onDocumentRemoved(uri);
+    cache.onDocumentRemoved(uri);
   });
 
-  const html = getHTMLMode(runtime, store, cssCompletionItems);
+  const html = getHTMLMode(runtime, store, cache);
 
   const modes = new Map<string, LanguageMode>();
   modes.set(html.getId(), html);
@@ -31,7 +29,7 @@ export function getLanguageModes(runtime: RuntimeEnvironment, store: DocumentSto
       }
     },
     dispose() {
-      cssCompletionItems.dispose();
+      cache.dispose();
       for (const mode of modes.values()) {
         mode.dispose();
       }
@@ -44,6 +42,8 @@ export interface LanguageMode {
   getId(): string;
   doComplete?(document: TextDocument, position: Position): Promise<CompletionList | null>;
   doResolve?(document: TextDocument, item: CompletionItem): Promise<CompletionItem>;
+  findDefinition?(document: TextDocument, position: Position): Promise<Definition | null>;
+  findReferences?: (document: TextDocument, position: Position) => Promise<Location[]>;
   onDocumentRemoved(document: TextDocument): void;
   dispose(): void;
 }
@@ -66,26 +66,32 @@ export type CompletionItemData = {
   offset: number;
 };
 
-function getCompletionItems(content: string): CompletionItem[] {
+export interface CssCacheEntry {
+  readonly classNameData: Map<string, Range[]>;
+}
+
+function getCssCacheEntry(textDocument: TextDocument): CssCacheEntry {
+  const content = textDocument.getText();
   const tree = LEZER_CSS.parser.parse(content);
 
-  const items = new Map<string, CompletionItem>();
+  const classNameData = new Map<string, Range[]>();
 
   tree.cursor().iterate((ref) => {
     if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
       const label = content.substring(ref.from, ref.to);
       if (label) {
-        if (items.has(label)) {
-          // TODO
+        const range = Range.create(textDocument.positionAt(ref.from), textDocument.positionAt(ref.to));
+        const data = classNameData.get(label);
+        if (data) {
+          data.push(range);
         } else {
-          items.set(label, {
-            label,
-            kind: CompletionItemKind.Class,
-          });
+          classNameData.set(label, [range]);
         }
       }
     }
   });
 
-  return [...items.values()];
+  return {
+    classNameData,
+  };
 }

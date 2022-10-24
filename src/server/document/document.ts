@@ -50,7 +50,7 @@ export interface OpenedReferenceDocument extends BaseReferenceDocument {
 export interface UnopenedReferenceDocument extends BaseReferenceDocument {
   readonly isOpened: false;
   readonly isLocal: boolean;
-  readonly textDocument: Promise<TextDocument | null>;
+  readonly textDocument: Promise<TextDocument | undefined>;
   open(textDocument: TextDocument): OpenedReferenceDocument;
   dispose(): void;
 }
@@ -59,7 +59,7 @@ export type ReferenceDocument = OpenedReferenceDocument | UnopenedReferenceDocum
 
 export interface RequestDocumentResult extends Disposable {
   isLocal: boolean;
-  content: Promise<TextDocument | null>;
+  content: Promise<TextDocument | undefined>;
 }
 
 export namespace OpenedReferenceDocument {

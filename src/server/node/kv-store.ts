@@ -7,17 +7,15 @@ export interface KVStore<V> {
   get(key: string): V | undefined;
   has(key: string): boolean;
   set(key: string, value: V): void;
-  readonly size: number;
   close(): Promise<void>;
 }
 
-export async function getKVStore<V>(
-  fsPath: string,
-  serialize: (data: Record<string, V>) => string,
-  deserialize: (json: string) => Record<string, V> | undefined
-): Promise<KVStore<V>> {
-  let size = 0;
-  let cache: Record<string, V>;
+function serialize(value: any) {
+  return JSON.stringify(value);
+}
+
+export async function getKVStore<V>(fsPath: string, valid: (object: any) => object is V): Promise<KVStore<V>> {
+  let cache: Record<string, V> = {};
   let immediate: NodeJS.Immediate | null | undefined;
   let controller: AbortController | null | undefined;
 
@@ -25,15 +23,17 @@ export async function getKVStore<V>(
 
   try {
     const json = await readFile(fsPath, "utf8");
-    const data = deserialize(json);
-    if (data) {
-      cache = data;
-      size = Object.keys(data).length;
-    } else {
-      cache = {};
+    const data = JSON.parse(json);
+    if (typeof data === "object") {
+      for (const uri in data) {
+        const entry = data[uri];
+        if (valid(entry)) {
+          cache[uri] = entry;
+        }
+      }
     }
   } catch (e) {
-    cache = {};
+    // ignore
   }
 
   async function write() {
@@ -65,13 +65,11 @@ export async function getKVStore<V>(
   return {
     clear() {
       cache = {};
-      size = 0;
       lazyWrite();
     },
     delete(key) {
       if (cache[key]) {
         delete cache[key];
-        size--;
         lazyWrite();
       }
     },
@@ -83,11 +81,7 @@ export async function getKVStore<V>(
     },
     set(key, value) {
       cache[key] = value;
-      size++;
       lazyWrite();
-    },
-    get size() {
-      return size;
     },
     async close() {
       clear();

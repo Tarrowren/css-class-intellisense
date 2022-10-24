@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import fetch, { Headers } from "node-fetch";
 import { format } from "util";
-import { createConnection, Disposable, ResponseError } from "vscode-languageserver/node";
+import { createConnection, Disposable } from "vscode-languageserver/node";
 import { formatError, noop, RuntimeEnvironment } from "../runner";
 import { onLanguageServerInitialize, startServer } from "../server";
 import { getRemoteFileCache, RemoteFileCache } from "./remote-file-cache";
@@ -75,7 +75,7 @@ const runtime: RuntimeEnvironment = {
 
 const onInitialize: onLanguageServerInitialize = async (options) => {
   if (!options || !options.globalStoragePath || typeof options.globalStoragePath !== "string") {
-    throw new ResponseError(1, 'The "globalStoragePath" field is required');
+    throw new Error('The "globalStoragePath" field is required');
   }
 
   cache = await getRemoteFileCache(options.globalStoragePath);

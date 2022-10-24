@@ -1,14 +1,15 @@
-import { parseMixed, SyntaxNodeRef } from "@lezer/common";
+import { parseMixed, SyntaxNode, SyntaxNodeRef, Tree, TreeCursor } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
-import { CompletionItem, CompletionItemKind, CompletionList } from "vscode-languageserver";
+import { CompletionItem, CompletionItemKind, CompletionList, Definition, Location, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
 import { DocumentStore } from "../document/store";
 import { CssNodeType, cssNodeTypes, HtmlNodeType, htmlNodeTypes } from "../nodetype";
 import { RuntimeEnvironment } from "../runner";
+import { nearby } from "../utils/string";
 import { getLanguageModelCache, LanguageModelCache } from "./cache";
-import { LanguageMode } from "./language-modes";
+import { CssCacheEntry, LanguageMode } from "./language-modes";
 
 const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
   wrap: parseMixed((node) => {
@@ -23,93 +24,202 @@ const HTML_CSS_PARSER = LEZER_HTML.parser.configure({
 export function getHTMLMode(
   runtime: RuntimeEnvironment,
   store: DocumentStore,
-  cssCompletionItems: LanguageModelCache<CompletionItem[]>
+  cssLanguageModelCache: LanguageModelCache<CssCacheEntry>
 ): LanguageMode {
-  const trees = getLanguageModelCache(10, 60, runtime, (textDocument) => HTML_CSS_PARSER.parse(textDocument.getText()));
+  const cache = getLanguageModelCache(10, 60, runtime, getHtmlCacheEntry);
 
   return {
     getId() {
       return "html";
     },
     async doComplete(document, position) {
-      const tree = trees.get(document);
+      const entry = cache.get(document);
 
-      const cursor = tree.cursorAt(document.offsetAt(position));
+      const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-      if (
-        cursor.type !== htmlNodeTypes[HtmlNodeType.AttributeValue] ||
-        !cursor.prevSibling() ||
-        cursor.type !== htmlNodeTypes[HtmlNodeType.Is] ||
-        !cursor.prevSibling() ||
-        cursor.type !== htmlNodeTypes[HtmlNodeType.AttributeName] ||
-        getText(document, cursor) !== "class"
-      ) {
+      if (!isClassAttributeValue(document, cursor)) {
         return null;
       }
 
-      let urls = new Set<string>();
-      let items = new Map<string, CompletionItem>();
+      const items = new Map<string, CompletionItem>();
 
-      tree.cursor().iterate((ref) => {
-        if (ref.type === htmlNodeTypes[HtmlNodeType.SelfClosingTag]) {
-          getUrlForLinks(document, ref, urls);
-          return false;
-        } else if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
-          const label = getText(document, ref);
-          if (label) {
-            if (items.has(label)) {
-              // TODO
-            } else {
-              items.set(label, {
-                label,
-                kind: CompletionItemKind.Class,
-              });
-            }
-          }
+      entry.classNameData.forEach((_v, label) => {
+        if (!items.has(label)) {
+          items.set(label, {
+            label,
+            kind: CompletionItemKind.Class,
+          });
         }
       });
 
+      const referenceDocuments = store.changeReferenceDocument(document.uri, entry.urls);
       let isIncomplete = false;
-
-      const referenceDocuments = store.changeReferenceDocument(document.uri, urls);
 
       await Promise.all(
         referenceDocuments.map(async (ref) => {
           if (!ref.isOpened && !ref.isLocal) {
             isIncomplete = true;
-          } else {
-            const doc = await ref.textDocument;
-            if (doc) {
-              cssCompletionItems.get(doc).forEach((item) => {
-                const label = item.label;
-                if (items.has(label)) {
-                  // TODO
-                } else {
-                  items.set(label, item);
-                }
+            return;
+          }
+
+          const doc = await ref.textDocument;
+          if (!doc) {
+            return;
+          }
+
+          cssLanguageModelCache.get(doc).classNameData.forEach((_v, label) => {
+            if (!items.has(label)) {
+              items.set(label, {
+                label,
+                kind: CompletionItemKind.Class,
               });
             }
-          }
+          });
         })
       );
 
       return CompletionList.create([...items.values()], isIncomplete);
     },
-    async doResolve(document, item) {
-      item.detail = item.label;
-      return item;
+    async findDefinition(document, position) {
+      const entry = cache.get(document);
+
+      const offset = document.offsetAt(position);
+
+      const cursor = entry.tree.cursorAt(offset);
+
+      if (!isClassAttributeValue(document, cursor)) {
+        return null;
+      }
+
+      const text = getText(document, cursor).slice(1, -1);
+      if (!text) {
+        return null;
+      }
+
+      const className = nearby(text, offset - cursor.from - 1);
+      if (!className) {
+        return null;
+      }
+
+      const definition: Definition = [];
+
+      entry.classNameData.get(className)?.forEach((range) => {
+        definition.push(Location.create(document.uri, range));
+      });
+
+      const referenceDocuments = store.changeReferenceDocument(document.uri, entry.urls);
+      await Promise.all(
+        referenceDocuments.map(async (ref) => {
+          if (!ref.isOpened && !ref.isLocal) {
+            return;
+          }
+
+          const doc = await ref.textDocument;
+          if (!doc) {
+            return;
+          }
+
+          const uriObj = URI.parse(doc.uri);
+
+          let uri: string;
+          if (uriObj.scheme === "http" || uriObj.scheme === "https") {
+            uri = URI.parse("css-class-intellisense:" + doc.uri).toString();
+          } else {
+            uri = doc.uri;
+          }
+
+          cssLanguageModelCache
+            .get(doc)
+            .classNameData.get(className)
+            ?.forEach((range) => {
+              definition.push(Location.create(uri, range));
+            });
+        })
+      );
+
+      return definition;
     },
     onDocumentRemoved(document) {
-      trees.onDocumentRemoved(document.uri);
+      cache.onDocumentRemoved(document.uri);
     },
     dispose() {
-      trees.dispose();
+      cache.dispose();
     },
   };
 }
 
-function getText(document: TextDocument, node: SyntaxNodeRef) {
-  return document.getText().substring(node.from, node.to);
+function isClassAttributeValue(document: TextDocument, cursor: TreeCursor) {
+  let node: SyntaxNode | null = cursor.node;
+  if (
+    node.type !== htmlNodeTypes[HtmlNodeType.AttributeValue] ||
+    !(node = node.prevSibling) ||
+    node.type !== htmlNodeTypes[HtmlNodeType.Is] ||
+    !(node = node.prevSibling) ||
+    node.type !== htmlNodeTypes[HtmlNodeType.AttributeName] ||
+    getText(document, node) !== "class"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function getHtmlCacheEntry(textDocument: TextDocument): HtmlCacheEntry {
+  const content = textDocument.getText();
+  const tree = HTML_CSS_PARSER.parse(content);
+
+  let _classNameData: Map<string, Range[]> | undefined;
+  let _urls: Set<string> | undefined;
+
+  function init() {
+    const classNameData = new Map<string, Range[]>();
+    const urls = new Set<string>();
+
+    tree.cursor().iterate((ref) => {
+      if (ref.type === htmlNodeTypes[HtmlNodeType.SelfClosingTag]) {
+        getUrlForLinks(textDocument, ref, urls);
+        return false;
+      } else if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
+        const label = content.substring(ref.from, ref.to);
+        if (label) {
+          const range = Range.create(textDocument.positionAt(ref.from), textDocument.positionAt(ref.to));
+          const data = classNameData.get(label);
+          if (data) {
+            data.push(range);
+          } else {
+            classNameData.set(label, [range]);
+          }
+        }
+      }
+    });
+
+    _classNameData = classNameData;
+    _urls = urls;
+  }
+
+  return {
+    tree,
+    get classNameData() {
+      if (!_classNameData) {
+        init();
+      }
+
+      return _classNameData!;
+    },
+    get urls() {
+      if (!_urls) {
+        init();
+      }
+
+      return _urls!;
+    },
+  };
+}
+
+interface HtmlCacheEntry {
+  tree: Tree;
+  readonly classNameData: Map<string, Range[]>;
+  readonly urls: Set<string>;
 }
 
 function getUrlForLinks(document: TextDocument, ref: SyntaxNodeRef, urls: Set<string>) {
@@ -152,4 +262,8 @@ function getUrlForLinks(document: TextDocument, ref: SyntaxNodeRef, urls: Set<st
       }
     }
   }
+}
+
+function getText(document: TextDocument, node: SyntaxNodeRef) {
+  return document.getText().substring(node.from, node.to);
 }

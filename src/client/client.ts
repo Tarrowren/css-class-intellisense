@@ -1,5 +1,5 @@
-import { ExtensionContext } from "vscode";
-import { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
+import { ExtensionContext, Uri, workspace } from "vscode";
+import { BaseLanguageClient, LanguageClientOptions, RequestType } from "vscode-languageclient";
 
 export type LanguageClientConstructor = (
   id: string,
@@ -9,8 +9,12 @@ export type LanguageClientConstructor = (
 
 export type onLanguageClientInitialize = (client: BaseLanguageClient) => void;
 
+namespace VSCodeRemoteFileRequest {
+  export const type: RequestType<string, string, void> = new RequestType("vscode/remote-file");
+}
+
 export async function startClient(
-  _context: ExtensionContext,
+  context: ExtensionContext,
   newLanguageClient: LanguageClientConstructor,
   onInitialize?: onLanguageClientInitialize
 ): Promise<BaseLanguageClient> {
@@ -31,6 +35,14 @@ export async function startClient(
   const client = newLanguageClient("cssClassIntellisense", "CSS Class Intellisense", clientOptions);
 
   onInitialize?.(client);
+
+  context.subscriptions.push(
+    workspace.registerTextDocumentContentProvider("css-class-intellisense", {
+      provideTextDocumentContent(uri, token) {
+        return client.sendRequest(VSCodeRemoteFileRequest.type, Uri.parse(uri.path).toString(), token);
+      },
+    })
+  );
 
   await client.start();
 
