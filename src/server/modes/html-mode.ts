@@ -4,7 +4,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import { LanguageCaches } from "../caches/language-caches";
 import { DocumentStore } from "../document/store";
-import { HtmlNodeType, htmlNodeTypes } from "../nodetype";
+import { CssNodeType, cssNodeTypes, HtmlNodeType, htmlNodeTypes } from "../nodetype";
 import { getText, nearby } from "../utils/string";
 import { LanguageMode } from "./language-modes";
 
@@ -131,6 +131,28 @@ export function getHTMLMode(store: DocumentStore, caches: LanguageCaches): Langu
       }
 
       return definition;
+    },
+    async findReferences(document, position) {
+      const entry = cssCache.get(document);
+
+      const cursor = entry.tree.cursorAt(document.offsetAt(position));
+
+      if (cursor.type !== cssNodeTypes[CssNodeType.ClassName]) {
+        return null;
+      }
+
+      const className = getText(document, cursor);
+
+      const references: Location[] = [];
+
+      htmlCache
+        .get(document)
+        .classAttributeData?.get(className)
+        ?.forEach((range) => {
+          references.push(Location.create(document.uri, range));
+        });
+
+      return references;
     },
     onDocumentRemoved(document) {
       htmlCache.onDocumentRemoved(document.uri);

@@ -153,7 +153,8 @@ export function startServer(
     return runSafeAsync(
       runtime,
       async () => {
-        const document = store.getOpenedReferenceTextDocument(textDocument.uri);
+        const document =
+          store.getOpenedReferenceTextDocument(textDocument.uri) ?? store.getMainTextDocument(textDocument.uri);
         if (!document) {
           return null;
         }
