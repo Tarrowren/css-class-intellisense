@@ -1,10 +1,15 @@
+import { SyntaxNodeRef } from "@lezer/common";
+import { TextDocument } from "vscode-languageserver-textdocument";
+
 const HT = 0x09;
 const LF = 0x0a;
+const VT = 0x0b;
+const FF = 0x0c;
 const CR = 0x0d;
 const SPACE = 0x20;
 
-function isEmptyCode(code: number) {
-  return code === HT || code === LF || code === CR || code === SPACE;
+export function isEmptyCode(code: number) {
+  return code === HT || code === LF || code === VT || code === FF || code === CR || code === SPACE;
 }
 
 export function nearby(text: string, pos: number): string | undefined {
@@ -29,4 +34,8 @@ export function nearby(text: string, pos: number): string | undefined {
   if (start < end) {
     return text.substring(start, end);
   }
+}
+
+export function getText(document: TextDocument, node: SyntaxNodeRef) {
+  return document.getText().substring(node.from, node.to);
 }

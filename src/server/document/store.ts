@@ -87,6 +87,15 @@ export function getDocumentStore(request: RequestService): DocumentStore {
 
       return true;
     },
+    findAllMainTextDocument() {
+      const docs: TextDocument[] = [];
+      cache.forEach((doc) => {
+        if (!doc.isReferenced) {
+          docs.push(doc.textDocument);
+        }
+      });
+      return docs;
+    },
     getMainTextDocument(uri) {
       return getMainDocument(uri)?.textDocument;
     },
@@ -172,6 +181,7 @@ export interface DocumentStore {
   open(uri: string, languageId: string, version: number, content: string): void;
   update(uri: string, changes: TextDocumentContentChangeEvent[], version: number): boolean;
   delete(uri: string): boolean;
+  findAllMainTextDocument(): TextDocument[];
   getMainTextDocument(uri: string): TextDocument | undefined;
   getOpenedReferenceTextDocument(uri: string): TextDocument | undefined;
   getTextDocument(uri: string): Promise<TextDocument | undefined>;

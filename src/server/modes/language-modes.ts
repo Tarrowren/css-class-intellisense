@@ -1,23 +1,24 @@
-import * as LEZER_CSS from "@lezer/css";
-import { CompletionItem, CompletionList, Definition, Location, Position, Range } from "vscode-languageserver";
+import { CompletionItem, CompletionList, Definition, Location, Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { getLanguageCaches } from "../caches/language-caches";
 import { DocumentStore } from "../document/store";
-import { CssNodeType, cssNodeTypes } from "../nodetype";
 import { RuntimeEnvironment } from "../runner";
-import { getLanguageModelCache } from "./cache";
+import { getCSSMode } from "./css-mode";
 import { getHTMLMode } from "./html-mode";
 
 export function getLanguageModes(runtime: RuntimeEnvironment, store: DocumentStore): LanguageModes {
-  const cache = getLanguageModelCache(10, 60, runtime, getCssCacheEntry);
+  const cache = getLanguageCaches(runtime);
 
   store.addEventListener((uri) => {
     cache.onDocumentRemoved(uri);
   });
 
-  const html = getHTMLMode(runtime, store, cache);
+  const html = getHTMLMode(store, cache);
+  const css = getCSSMode(store, cache);
 
   const modes = new Map<string, LanguageMode>();
   modes.set(html.getId(), html);
+  modes.set(css.getId(), css);
 
   return {
     getMode(languageId) {
@@ -43,7 +44,7 @@ export interface LanguageMode {
   doComplete?(document: TextDocument, position: Position): Promise<CompletionList | null>;
   doResolve?(document: TextDocument, item: CompletionItem): Promise<CompletionItem>;
   findDefinition?(document: TextDocument, position: Position): Promise<Definition | null>;
-  findReferences?: (document: TextDocument, position: Position) => Promise<Location[]>;
+  findReferences?: (document: TextDocument, position: Position) => Promise<Location[] | null>;
   onDocumentRemoved(document: TextDocument): void;
   dispose(): void;
 }
@@ -65,33 +66,3 @@ export type CompletionItemData = {
   uri: string;
   offset: number;
 };
-
-export interface CssCacheEntry {
-  readonly classNameData: Map<string, Range[]>;
-}
-
-function getCssCacheEntry(textDocument: TextDocument): CssCacheEntry {
-  const content = textDocument.getText();
-  const tree = LEZER_CSS.parser.parse(content);
-
-  const classNameData = new Map<string, Range[]>();
-
-  tree.cursor().iterate((ref) => {
-    if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
-      const label = content.substring(ref.from, ref.to);
-      if (label) {
-        const range = Range.create(textDocument.positionAt(ref.from), textDocument.positionAt(ref.to));
-        const data = classNameData.get(label);
-        if (data) {
-          data.push(range);
-        } else {
-          classNameData.set(label, [range]);
-        }
-      }
-    }
-  });
-
-  return {
-    classNameData,
-  };
-}
