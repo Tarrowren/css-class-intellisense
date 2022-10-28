@@ -20,8 +20,9 @@ export async function activate(context: ExtensionContext) {
   const onInitialize: onLanguageClientInitialize = (client) => {
     client.onRequest(VSCodeContentRequest.type, async (uri) => {
       try {
-        const doc = await workspace.openTextDocument(Uri.parse(uri));
-        return doc.getText();
+        let decoder = new TextDecoder();
+        const buf = await workspace.fs.readFile(Uri.parse(uri));
+        return decoder.decode(buf);
       } catch (e: any) {
         return new ResponseError(1, e.toString());
       }

@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import fetch, { Headers } from "node-fetch";
+import { fetch, Headers } from "undici";
 import { format } from "util";
 import { createConnection, Disposable } from "vscode-languageserver/node";
 import { formatError, noop, RuntimeEnvironment } from "../runner";
@@ -92,15 +92,14 @@ startServer(connection, runtime, onInitialize);
 
 async function request(uri: string, etag: string | undefined, signal: AbortSignal): Promise<string> {
   const headers = new Headers();
-  headers.set("Accept-Encoding", "gzip, deflate");
   if (etag) {
     headers.set("If-None-Match", etag);
   }
 
   const res = await fetch(uri, {
     headers,
-    follow: 5,
-    signal: signal as any,
+    mode: "cors",
+    signal,
   });
 
   if (res.ok) {

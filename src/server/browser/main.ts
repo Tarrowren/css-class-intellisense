@@ -40,7 +40,7 @@ const runtime: RuntimeEnvironment = {
         isLocal: false,
         content: fetch(uri.toString(), {
           mode: "cors",
-          cache: "no-cache",
+          cache: "default",
           signal: controller.signal,
         }).then((res) => res.text()),
         dispose() {

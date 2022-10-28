@@ -10,8 +10,12 @@ export interface KVStore<V> {
   close(): Promise<void>;
 }
 
-function serialize(value: any) {
+function serialize(value: any): string {
   return JSON.stringify(value);
+}
+
+function deserialize(json: string): any {
+  return JSON.parse(json);
 }
 
 export async function getKVStore<V>(fsPath: string, valid: (object: any) => object is V): Promise<KVStore<V>> {
@@ -23,7 +27,7 @@ export async function getKVStore<V>(fsPath: string, valid: (object: any) => obje
 
   try {
     const json = await readFile(fsPath, "utf8");
-    const data = JSON.parse(json);
+    const data = deserialize(json);
     if (typeof data === "object") {
       for (const uri in data) {
         const entry = data[uri];
