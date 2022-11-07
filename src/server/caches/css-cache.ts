@@ -2,6 +2,7 @@ import * as LEZER_CSS from "@lezer/css";
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { CssNodeType, cssNodeTypes } from "../nodetype";
+import { getClassNameRange } from "../utils/css-class-name";
 import { LanguageCacheEntry } from "./language-caches";
 
 export function getCSSCacheEntry(textDocument: TextDocument): LanguageCacheEntry {
@@ -15,16 +16,7 @@ export function getCSSCacheEntry(textDocument: TextDocument): LanguageCacheEntry
 
     tree.cursor().iterate((ref) => {
       if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
-        const label = content.substring(ref.from, ref.to);
-        if (label) {
-          const range = Range.create(textDocument.positionAt(ref.from), textDocument.positionAt(ref.to));
-          const data = classNameData.get(label);
-          if (data) {
-            data.push(range);
-          } else {
-            classNameData.set(label, [range]);
-          }
-        }
+        getClassNameRange(textDocument, ref, classNameData);
       }
     });
 

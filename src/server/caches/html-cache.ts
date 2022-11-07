@@ -5,6 +5,7 @@ import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
 import { CssNodeType, cssNodeTypes, HtmlNodeType, htmlNodeTypes } from "../nodetype";
+import { getClassNameRange } from "../utils/css-class-name";
 import { getText, isEmptyCode } from "../utils/string";
 import { LanguageCacheEntry } from "./language-caches";
 
@@ -36,16 +37,7 @@ export function getHTMLCacheEntry(textDocument: TextDocument): LanguageCacheEntr
         getUrlForLinks(textDocument, ref, linkUrls);
         return false;
       } else if (ref.type === cssNodeTypes[CssNodeType.ClassName]) {
-        const label = content.substring(ref.from, ref.to);
-        if (label) {
-          const range = Range.create(textDocument.positionAt(ref.from), textDocument.positionAt(ref.to));
-          const data = classNameData.get(label);
-          if (data) {
-            data.push(range);
-          } else {
-            classNameData.set(label, [range]);
-          }
-        }
+        getClassNameRange(textDocument, ref, classNameData);
       } else if (ref.type === htmlNodeTypes[HtmlNodeType.Attribute]) {
         getClassAttributeValues(textDocument, ref, classAttributeData);
         return false;

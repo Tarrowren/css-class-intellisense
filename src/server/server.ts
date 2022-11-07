@@ -98,7 +98,6 @@ export function startServer(
       token
     );
   });
-
   connection.onCompletionResolve((item, token) => {
     return runSafeAsync(
       runtime,
