@@ -1,4 +1,5 @@
-.vscode-test-web/
-node_modules/
-out/
-dist/
+/.vscode-test-web
+/dist
+/node_modules
+/out
+/package-lock.json

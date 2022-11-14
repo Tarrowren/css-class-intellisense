@@ -1,16 +1,15 @@
-import { Disposable } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Disposable, TextDocument } from "vscode";
 import { RuntimeEnvironment } from "../runner";
 
-export function getLanguageModelCache<T>(
+export function createLanguageModelCache<T>(
+  runtime: RuntimeEnvironment,
   maxEntries: number,
   cleanupIntervalTimeInSec: number,
-  runtime: RuntimeEnvironment,
   parse: (doc: TextDocument) => T
 ): LanguageModelCache<T> {
   const cache = new Map<string, LanguageModelCacheInfo<T>>();
 
-  let disposable: Disposable | null | undefined;
+  let disposable: Disposable | null;
   if (cleanupIntervalTimeInSec > 0) {
     const ms = cleanupIntervalTimeInSec * 1000;
 
@@ -26,7 +25,8 @@ export function getLanguageModelCache<T>(
 
   return {
     get(document) {
-      const { uri, version, languageId } = document;
+      const { version, languageId } = document;
+      const uri = document.uri.toString();
       const info = cache.get(uri);
       if (info && info.version === version && info.languageId === languageId) {
         info.cTime = Date.now();
@@ -34,15 +34,10 @@ export function getLanguageModelCache<T>(
       }
 
       const data = parse(document);
-      cache.set(uri, {
-        version,
-        languageId,
-        cTime: Date.now(),
-        data,
-      });
+      cache.set(uri, { version, languageId, cTime: Date.now(), data });
 
       if (cache.size >= maxEntries) {
-        let oldestUri: string | null = null;
+        let oldestUri: string | undefined;
         let oldestTime = Number.MAX_VALUE;
 
         for (const [k, v] of cache) {
@@ -59,8 +54,8 @@ export function getLanguageModelCache<T>(
 
       return data;
     },
-    onDocumentRemoved(uri) {
-      cache.delete(uri);
+    onDocumentRemoved(document) {
+      cache.delete(document.uri.toString());
     },
     dispose() {
       if (disposable) {
@@ -82,6 +77,6 @@ interface LanguageModelCacheInfo<T> {
 
 export interface LanguageModelCache<T> {
   get(document: TextDocument): T;
-  onDocumentRemoved(uri: string): void;
+  onDocumentRemoved(document: TextDocument): void;
   dispose(): void;
 }

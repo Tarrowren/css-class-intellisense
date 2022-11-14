@@ -8,9 +8,8 @@
     "outDir": "out",
     "strict": true,
     "esModuleInterop": true,
-    "sourceMap": true,
-    "skipLibCheck": true
+    "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["src/client/browser", "src/server/browser"]
+  "exclude": ["src/browser"]
 }

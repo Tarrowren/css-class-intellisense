@@ -1,10 +1,10 @@
 {
   "name": "css-class-intellisense",
-  "displayName": "css-class-intellisense",
+  "displayName": "CSS Class Intellisense",
   "version": "3.2.0",
   "description": "CSS Class Intellisense",
   "engines": {
-    "vscode": "^1.71.0"
+    "vscode": "^1.73.0"
   },
   "categories": [
     "Programming Languages",
@@ -13,13 +13,12 @@
   "activationEvents": [
     "onLanguage:html",
     "onLanguage:vue",
-    "onLanguage:javascript",
-    "onLanguage:javascriptreact",
-    "onLanguage:typescript",
-    "onLanguage:typescriptreact"
+    "onLanguage:css",
+    "onLanguage:scss",
+    "onLanguage:less"
   ],
-  "main": "./out/client/node/main.js",
-  "browser": "./dist/client/browser/main.js",
+  "main": "out/node/main.js",
+  "browser": "dist/client/browser/main.js",
   "scripts": {
     "watch": "tsc -w -p ./",
     "package:browser": "node --experimental-import-meta-resolve ./scripts/browser.mjs",
@@ -31,7 +30,10 @@
   },
   "keywords": [
     "html",
+    "vue",
     "css",
+    "scss",
+    "less",
     "class",
     "intellisense"
   ],
@@ -44,24 +46,18 @@
   "homepage": "https://github.com/Tarrowren/css-class-intellisense#readme",
   "devDependencies": {
     "@types/node": "^16.18.3",
-    "@types/vscode": "^1.71.0",
-    "@typescript-eslint/eslint-plugin": "^5.42.0",
-    "@typescript-eslint/parser": "^5.42.0",
+    "@types/vscode": "^1.73.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.1",
+    "@typescript-eslint/parser": "^5.42.1",
     "@vscode/test-web": "^0.0.32",
     "eslint": "^8.27.0",
-    "path-browserify": "^1.0.1",
     "ts-loader": "^9.4.1",
-    "typescript": "^4.8.3",
-    "webpack": "^5.74.0"
+    "typescript": "^4.8.4",
+    "webpack": "^5.75.0"
   },
   "dependencies": {
     "@lezer/common": "^1.0.1",
     "@lezer/css": "^1.0.1",
-    "@lezer/html": "^1.0.1",
-    "undici": "^5.12.0",
-    "vscode-languageclient": "^8.0.2",
-    "vscode-languageserver": "^8.0.2",
-    "vscode-languageserver-textdocument": "^1.0.7",
-    "vscode-uri": "^3.0.6"
+    "@lezer/html": "^1.0.1"
   }
 }
