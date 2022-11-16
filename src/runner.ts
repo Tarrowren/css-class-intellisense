@@ -1,4 +1,6 @@
-import { CancellationToken, Disposable, FileStat, Uri } from "vscode";
+import { CancellationToken, Disposable, FileStat, Uri, window } from "vscode";
+
+export const outputChannel = window.createOutputChannel("CSS Class Intellisense");
 
 export interface RuntimeEnvironment {
   readonly request: {
@@ -46,7 +48,7 @@ export function runSafeAsync<T>(
             resolve(result);
           }
         } catch (e) {
-          console.error(formatError(errorMessage, e));
+          outputChannel.appendLine(formatError(errorMessage, e));
           resolve(errorVal);
         }
       }

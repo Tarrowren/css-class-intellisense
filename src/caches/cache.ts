@@ -5,9 +5,9 @@ export function createLanguageModelCache<T>(
   runtime: RuntimeEnvironment,
   maxEntries: number,
   cleanupIntervalTimeInSec: number,
-  parse: (doc: TextDocument) => T
+  parse: (document: TextDocument) => T
 ): LanguageModelCache<T> {
-  const cache = new Map<string, LanguageModelCacheInfo<T>>();
+  const cache = new Map<string, Info<T>>();
 
   let disposable: Disposable | null;
   if (cleanupIntervalTimeInSec > 0) {
@@ -26,7 +26,7 @@ export function createLanguageModelCache<T>(
   return {
     get(document) {
       const { version, languageId } = document;
-      const uri = document.uri.toString();
+      const uri = document.uri.toString(true);
       const info = cache.get(uri);
       if (info && info.version === version && info.languageId === languageId) {
         info.cTime = Date.now();
@@ -55,7 +55,7 @@ export function createLanguageModelCache<T>(
       return data;
     },
     onDocumentRemoved(document) {
-      cache.delete(document.uri.toString());
+      cache.delete(document.uri.toString(true));
     },
     dispose() {
       if (disposable) {
@@ -68,15 +68,14 @@ export function createLanguageModelCache<T>(
   };
 }
 
-interface LanguageModelCacheInfo<T> {
+interface Info<T> {
   version: number;
   languageId: string;
   cTime: number;
   data: T;
 }
 
-export interface LanguageModelCache<T> {
+export interface LanguageModelCache<T> extends Disposable {
   get(document: TextDocument): T;
   onDocumentRemoved(document: TextDocument): void;
-  dispose(): void;
 }

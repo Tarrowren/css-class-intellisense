@@ -11,11 +11,11 @@ export function createHttpFileSystemProvider(runtime: RuntimeEnvironment): FileS
     get onDidChangeFile() {
       return _onDidChangeFile.event;
     },
-    readFile(uri) {
-      return runtime.request.readFile(uri);
+    async readFile(uri) {
+      return await runtime.request.readFile(uri);
     },
-    stat(uri) {
-      return runtime.request.stat(uri);
+    async stat(uri) {
+      return await runtime.request.stat(uri);
     },
     watch(_uri, _options) {
       return EmptyDisposable;
@@ -46,6 +46,6 @@ export function convertToHttpScheme(uri: Uri): Uri {
   } else if (uri.scheme === CCI_HTTPS_SCHEME) {
     return uri.with({ scheme: "https" });
   } else {
-    throw new Error(`Unable to convert ${uri.toString()}`);
+    throw new Error(`Unable to convert ${uri.toString(true)}`);
   }
 }

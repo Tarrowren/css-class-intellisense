@@ -1,4 +1,5 @@
 import {
+  CancellationTokenSource,
   CompletionItemProvider,
   DefinitionProvider,
   Disposable,
@@ -7,31 +8,50 @@ import {
   ReferenceProvider,
   workspace,
 } from "vscode";
-import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME, createHttpFileSystemProvider } from "./file-system";
+import { createLanguageCaches } from "./caches/language-caches";
+import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME, createHttpFileSystemProvider } from "./http-file-system";
 import { createLanguageModes, LanguageModes } from "./modes/language-modes";
-import { runSafeAsync, RuntimeEnvironment } from "./runner";
+import { formatError, outputChannel, runSafeAsync, RuntimeEnvironment } from "./runner";
 
 export function createLanguageServer(context: ExtensionContext, runtime: RuntimeEnvironment): LanguageServer {
-  const languageModes = createLanguageModes(runtime);
-  const fileSystemProvider = createHttpFileSystemProvider(runtime);
+  const languageCaches = createLanguageCaches(runtime);
+  const languageModes = createLanguageModes(languageCaches);
 
+  const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
   context.subscriptions.push(
-    workspace.registerFileSystemProvider(CCI_HTTP_SCHEME, fileSystemProvider, {
-      isCaseSensitive: true,
-      isReadonly: true,
-    }),
-    workspace.registerFileSystemProvider(CCI_HTTPS_SCHEME, fileSystemProvider, {
-      isCaseSensitive: true,
-      isReadonly: true,
-    }),
+    workspace.registerFileSystemProvider(CCI_HTTP_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
+    workspace.registerFileSystemProvider(CCI_HTTPS_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
     languages.registerCompletionItemProvider(["html", "vue"], createCompletionItemProvider(runtime, languageModes)),
-    languages.registerDefinitionProvider(["html", "vue"], createDefinitionProvider()),
-    languages.registerReferenceProvider(["html", "vue", "css", "scss", "less"], createReferenceProvider())
+    languages.registerDefinitionProvider(["html", "vue"], createDefinitionProvider(runtime, languageModes)),
+    languages.registerReferenceProvider(
+      ["html", "vue", "css", "scss", "less"],
+      createReferenceProvider(runtime, languageModes)
+    )
   );
+
+  const source = new CancellationTokenSource();
+
+  (async () => {
+    const uris = await workspace.findFiles("**/*.{html,vue}", undefined, undefined, source.token);
+    if (uris.length > 0) {
+      await Promise.all(
+        uris.map(async (uri) => {
+          const document = await workspace.openTextDocument(uri);
+          const mode = languageModes.getMode(document.languageId);
+          if (mode) {
+          }
+        })
+      );
+    }
+  })().catch((e) => {
+    outputChannel.appendLine(formatError("start", e));
+  });
 
   return {
     dispose() {
+      languageCaches.dispose();
       languageModes.dispose();
+      source.cancel();
     },
   };
 }
@@ -62,18 +82,44 @@ function createCompletionItemProvider(
   };
 }
 
-function createDefinitionProvider(): DefinitionProvider {
+function createDefinitionProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): DefinitionProvider {
   return {
     provideDefinition(document, position, token) {
-      throw new Error("Method not implemented.");
+      return runSafeAsync(
+        runtime,
+        async () => {
+          const mode = languageModes.getMode(document.languageId);
+          if (!mode || !mode.findDefinition) {
+            return;
+          }
+
+          return await mode.findDefinition(document, position);
+        },
+        null,
+        "DefinitionProvider",
+        token
+      );
     },
   };
 }
 
-function createReferenceProvider(): ReferenceProvider {
+function createReferenceProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): ReferenceProvider {
   return {
-    provideReferences(document, position, context, token) {
-      throw new Error("Method not implemented.");
+    provideReferences(document, position, _context, token) {
+      return runSafeAsync(
+        runtime,
+        async () => {
+          const mode = languageModes.getMode(document.languageId);
+          if (!mode || !mode.findReferences) {
+            return;
+          }
+
+          return await mode.findReferences(document, position);
+        },
+        null,
+        "ReferenceProvider",
+        token
+      );
     },
   };
 }

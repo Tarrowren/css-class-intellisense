@@ -1,12 +1,18 @@
-import { CompletionItem, CompletionList, Disposable, Position, TextDocument } from "vscode";
-import { RuntimeEnvironment } from "../runner";
+import { CompletionItem, CompletionList, Disposable, Location, Position, ProviderResult, TextDocument } from "vscode";
+import { LanguageCaches } from "../caches/language-caches";
+import { createCssMode } from "./css-mode";
 import { createHtmlMode } from "./html-mode";
+import { createLessMode } from "./less-mode";
+import { createScssMode } from "./scss-mode";
+import { createVueMode } from "./vue-mode";
 
-export function createLanguageModes(runtime: RuntimeEnvironment): LanguageModes {
+export function createLanguageModes(caches: LanguageCaches): LanguageModes {
   const modes = new Map<string, LanguageMode>();
-
-  const html = createHtmlMode(runtime);
-  modes.set(html.id, html);
+  modes.set("html", createHtmlMode(caches));
+  modes.set("vue", createVueMode(caches));
+  modes.set("css", createCssMode(caches));
+  modes.set("less", createLessMode(caches));
+  modes.set("scss", createScssMode(caches));
 
   return {
     getMode(languageId) {
@@ -36,14 +42,8 @@ export interface LanguageModes extends Disposable {
 }
 
 export interface LanguageMode extends Disposable {
-  readonly id: string;
-  doComplete?(
-    document: TextDocument,
-    position: Position
-  ): Promise<CompletionList | CompletionItem[] | null | undefined>;
-  // doResolve?(document: TextDocument, item: CompletionItem): Promise<CompletionItem>;
-  // findDefinition?(document: TextDocument, position: Position): Promise<Location[] | null | undefined>;
-  // findReferences?(document: TextDocument, position: Position): Promise<Location[] | null | undefined>;
-  // doRename?(document: TextDocument, position: Position, newName: string): Promise<WorkspaceEdit | null | undefined>;
+  doComplete?(document: TextDocument, position: Position): ProviderResult<CompletionItem[] | CompletionList>;
+  findDefinition?(document: TextDocument, position: Position): ProviderResult<Location[]>;
+  findReferences?(document: TextDocument, position: Position): ProviderResult<Location[]>;
   onDocumentRemoved(document: TextDocument): void;
 }

@@ -1,5 +1,5 @@
 import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileType } from "vscode";
-import { convertToHttpScheme } from "../file-system";
+import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
 
@@ -13,7 +13,7 @@ export function activate(context: ExtensionContext) {
 
         const signal = toSignal(token);
 
-        const res = await fetch(uri.toString(), { method: "GET", mode: "cors", signal });
+        const res = await fetch(uri.toString(true), { method: "GET", mode: "cors", signal });
 
         if (res.ok) {
           return new Uint8Array(await res.arrayBuffer());
@@ -26,16 +26,15 @@ export function activate(context: ExtensionContext) {
 
         const signal = toSignal(token);
 
-        const res = await fetch(uri.toString(), { method: "HEAD", mode: "cors", signal });
+        const res = await fetch(uri.toString(true), { method: "HEAD", mode: "cors", signal });
 
         if (res.ok) {
-          const lastModified = res.headers.get("last-modified");
           const contentLength = res.headers.get("content-length");
 
           return {
             type: FileType.File,
             ctime: 0,
-            mtime: lastModified ? Date.parse(lastModified) : 0,
+            mtime: 0,
             size: contentLength ? Number.parseInt(contentLength) : 0,
             permissions: FilePermission.Readonly,
           };
@@ -70,6 +69,7 @@ export function activate(context: ExtensionContext) {
 
 export function deactivate() {
   if (server) {
+    server.dispose();
     server = null;
   }
 }

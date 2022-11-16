@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { FilePermission, FileStat, FileType, Memento } from "vscode";
+import { Memento } from "vscode";
 
 interface CacheEntry {
   etag: string;
   fileName: string;
   updateTime: number;
-  size: number;
 }
 
 type CacheInfo = Record<string, CacheEntry>;
@@ -21,14 +20,9 @@ export async function createRequestCache(globalStoragePath: string, globalState:
   const infos = globalState.get<CacheInfo>(MEMENTO_KEY, {});
   const validated: CacheInfo = {};
   for (const uri in infos) {
-    const { etag, fileName, updateTime, size } = infos[uri];
-    if (
-      typeof etag === "string" &&
-      typeof fileName === "string" &&
-      typeof updateTime === "number" &&
-      typeof size === "number"
-    ) {
-      validated[uri] = { etag, fileName, updateTime, size };
+    const { etag, fileName, updateTime } = infos[uri];
+    if (typeof etag === "string" && typeof fileName === "string" && typeof updateTime === "number") {
+      validated[uri] = { etag, fileName, updateTime };
     }
   }
 
@@ -99,7 +93,7 @@ export async function createRequestCache(globalStoragePath: string, globalState:
     getETag(uri) {
       return cacheInfo[uri]?.etag;
     },
-    async getFileIfUpdatedSince(uri, expirationDurationInHours) {
+    async getIfUpdatedSince(uri, expirationDurationInHours) {
       const cacheEntry = cacheInfo[uri];
       if (cacheEntry) {
         const lastUpdatedInHours = (Date.now() - cacheEntry.updateTime) / 1000 / 60 / 60;
@@ -108,26 +102,11 @@ export async function createRequestCache(globalStoragePath: string, globalState:
         }
       }
     },
-    getFileStatIfUpdatedSince(uri, expirationDurationInHours) {
-      const cacheEntry = cacheInfo[uri];
-      if (cacheEntry) {
-        const lastUpdatedInHours = (Date.now() - cacheEntry.updateTime) / 1000 / 60 / 60;
-        if (lastUpdatedInHours < expirationDurationInHours) {
-          return {
-            ctime: 0,
-            mtime: cacheEntry.updateTime,
-            size: cacheEntry.size,
-            type: FileType.File,
-            permissions: FilePermission.Readonly,
-          };
-        }
-      }
-    },
     async put(uri, etag, content) {
       try {
         const fileName = getCacheFileName(uri);
         await writeFile(join(cacheLocation, fileName), content);
-        const entry: CacheEntry = { etag, fileName, updateTime: Date.now(), size: content.length };
+        const entry: CacheEntry = { etag, fileName, updateTime: Date.now() };
         cacheInfo[uri] = entry;
       } catch (e) {
         delete cacheInfo[uri];
@@ -142,8 +121,7 @@ export interface RequestCache {
   clearCache(): Promise<string[]>;
   get(uri: string, etag: string, etagValid: boolean): Promise<Uint8Array | undefined>;
   getETag(uri: string): string | undefined;
-  getFileIfUpdatedSince(uri: string, expirationDurationInHours: number): Promise<Uint8Array | undefined>;
-  getFileStatIfUpdatedSince(uri: string, expirationDurationInHours: number): FileStat | undefined;
+  getIfUpdatedSince(uri: string, expirationDurationInHours: number): Promise<Uint8Array | undefined>;
   put(uri: string, etag: string, content: Uint8Array): Promise<void>;
 }
 

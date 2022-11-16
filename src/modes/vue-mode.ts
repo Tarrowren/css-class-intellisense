@@ -1,4 +1,6 @@
-import { SyntaxNode, TreeCursor } from "@lezer/common";
+import { parseMixed, SyntaxNode, TreeCursor } from "@lezer/common";
+import * as LEZER_CSS from "@lezer/css";
+import * as LEZER_HTML from "@lezer/html";
 import { CompletionItem, CompletionItemKind, CompletionList, Location, TextDocument } from "vscode";
 import { LanguageCaches } from "../caches/language-caches";
 import { CSS_NODE_TYPE } from "../lezer/css";
@@ -7,8 +9,18 @@ import { nearby } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
-export function createHtmlMode(caches: LanguageCaches): LanguageMode {
-  const cache = caches.getCache("html");
+const VUE_PARSER = LEZER_HTML.parser.configure({
+  wrap: parseMixed((node) => {
+    if (node.type === HTML_NODE_TYPE.StyleText) {
+      return { parser: LEZER_CSS.parser };
+    }
+
+    return null;
+  }),
+});
+
+export function createVueMode(caches: LanguageCaches): LanguageMode {
+  const cache = caches.getCache("vue");
 
   if (!cache) {
     throw new Error("Missing cache");

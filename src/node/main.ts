@@ -3,14 +3,14 @@ import https from "node:https";
 import { buffer } from "node:stream/consumers";
 import { TextDecoder } from "node:util";
 import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileType, Uri } from "vscode";
-import { convertToHttpScheme } from "../file-system";
+import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
 import { createRequestCache, RequestCache } from "./request-cache";
 
 let server: LanguageServer | null;
 
-const retryTimeoutInHours = 1 * 24;
+const retryTimeoutInHours = 3 * 24;
 
 export async function activate(context: ExtensionContext) {
   let cache: RequestCache | undefined;
@@ -22,7 +22,7 @@ export async function activate(context: ExtensionContext) {
 
   async function request(uri: Uri, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
     uri = convertToHttpScheme(uri);
-    const uriString = uri.toString();
+    const uriString = uri.toString(true);
 
     const signal = toSignal(token);
 
@@ -41,7 +41,7 @@ export async function activate(context: ExtensionContext) {
     };
 
     const res = await new Promise<http.IncomingMessage>((c, e) => {
-      let req = uri.scheme === "http" ? http.request(options, c) : https.request(options, c);
+      const req = uri.scheme === "http" ? http.request(options, c) : https.request(options, c);
       req.on("error", e);
       req.end();
     });
@@ -69,9 +69,9 @@ export async function activate(context: ExtensionContext) {
   const runtime: RuntimeEnvironment = {
     request: {
       async readFile(uri, token) {
-        const uriString = uri.toString();
+        const uriString = uri.toString(true);
         if (cache) {
-          const content = await cache.getFileIfUpdatedSince(uriString, retryTimeoutInHours);
+          const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
           if (content) {
             return content;
           }
@@ -79,15 +79,21 @@ export async function activate(context: ExtensionContext) {
         return await request(uri, cache?.getETag(uriString), token);
       },
       async stat(uri, token) {
-        const uriString = uri.toString();
+        const uriString = uri.toString(true);
         if (cache) {
-          const fileStat = cache.getFileStatIfUpdatedSince(uriString, retryTimeoutInHours);
-          if (fileStat) {
-            return fileStat;
+          const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
+          if (content) {
+            return {
+              type: FileType.File,
+              ctime: 0,
+              mtime: 0,
+              size: content.length,
+              permissions: FilePermission.Readonly,
+            };
           }
         }
         const content = await request(uri, cache?.getETag(uriString), token);
-        return { ctime: 0, mtime: 0, size: content.length, type: FileType.File, permissions: FilePermission.Readonly };
+        return { type: FileType.File, ctime: 0, mtime: 0, size: content.length, permissions: FilePermission.Readonly };
       },
     },
     timer: {
@@ -116,6 +122,7 @@ export async function activate(context: ExtensionContext) {
 
 export function deactivate() {
   if (server) {
+    server.dispose();
     server = null;
   }
 }
