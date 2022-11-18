@@ -1,5 +1,4 @@
 import {
-  CancellationTokenSource,
   CompletionItemProvider,
   DefinitionProvider,
   Disposable,
@@ -8,14 +7,17 @@ import {
   ReferenceProvider,
   workspace,
 } from "vscode";
-import { createLanguageCaches } from "./caches/language-caches";
+import { createLanguageModelCache } from "./caches/cache";
+import { getLanguageCacheEntry } from "./caches/language-caches";
 import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME, createHttpFileSystemProvider } from "./http-file-system";
 import { createLanguageModes, LanguageModes } from "./modes/language-modes";
-import { formatError, outputChannel, runSafeAsync, RuntimeEnvironment } from "./runner";
+import { createReferenceMap } from "./reference-map";
+import { runSafeAsync, RuntimeEnvironment } from "./runner";
 
 export function createLanguageServer(context: ExtensionContext, runtime: RuntimeEnvironment): LanguageServer {
-  const languageCaches = createLanguageCaches(runtime);
-  const languageModes = createLanguageModes(languageCaches);
+  const languageCache = createLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
+  const referenceMap = createReferenceMap(languageCache);
+  const languageModes = createLanguageModes(languageCache, referenceMap);
 
   const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
   context.subscriptions.push(
@@ -29,29 +31,11 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
     )
   );
 
-  const source = new CancellationTokenSource();
-
-  (async () => {
-    const uris = await workspace.findFiles("**/*.{html,vue}", undefined, undefined, source.token);
-    if (uris.length > 0) {
-      await Promise.all(
-        uris.map(async (uri) => {
-          const document = await workspace.openTextDocument(uri);
-          const mode = languageModes.getMode(document.languageId);
-          if (mode) {
-          }
-        })
-      );
-    }
-  })().catch((e) => {
-    outputChannel.appendLine(formatError("start", e));
-  });
-
   return {
     dispose() {
-      languageCaches.dispose();
+      languageCache.dispose();
+      referenceMap.dispose();
       languageModes.dispose();
-      source.cancel();
     },
   };
 }

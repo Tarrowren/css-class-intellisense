@@ -1,18 +1,23 @@
 import { CompletionItem, CompletionList, Disposable, Location, Position, ProviderResult, TextDocument } from "vscode";
-import { LanguageCaches } from "../caches/language-caches";
+import { LanguageModelCache } from "../caches/cache";
+import { LanguageCacheEntry } from "../caches/language-caches";
+import { ReferenceMap } from "../reference-map";
 import { createCssMode } from "./css-mode";
 import { createHtmlMode } from "./html-mode";
 import { createLessMode } from "./less-mode";
 import { createScssMode } from "./scss-mode";
 import { createVueMode } from "./vue-mode";
 
-export function createLanguageModes(caches: LanguageCaches): LanguageModes {
+export function createLanguageModes(
+  cache: LanguageModelCache<LanguageCacheEntry>,
+  referenceMap: ReferenceMap
+): LanguageModes {
   const modes = new Map<string, LanguageMode>();
-  modes.set("html", createHtmlMode(caches));
-  modes.set("vue", createVueMode(caches));
-  modes.set("css", createCssMode(caches));
-  modes.set("less", createLessMode(caches));
-  modes.set("scss", createScssMode(caches));
+  modes.set("html", createHtmlMode(cache));
+  modes.set("vue", createVueMode(cache));
+  modes.set("css", createCssMode(cache));
+  modes.set("less", createLessMode(cache));
+  modes.set("scss", createScssMode(cache));
 
   return {
     getMode(languageId) {

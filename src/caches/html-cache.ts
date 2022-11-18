@@ -1,7 +1,7 @@
 import { parseMixed, SyntaxNodeRef } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
-import { Range, TextDocument } from "vscode";
+import { Range, TextDocument, Uri } from "vscode";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { getClassNameFromStyle } from "../util/css-class-name";
@@ -20,8 +20,7 @@ const HTML_PARSER = LEZER_HTML.parser.configure({
 });
 
 export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
-  const content = document.getText();
-  const tree = HTML_PARSER.parse(content);
+  const tree = HTML_PARSER.parse(document.getText());
 
   const hrefs = new Set<string>();
   const usedClassNames = new Map<string, Range[]>();
@@ -55,6 +54,7 @@ function getHrefFromLinks(document: TextDocument, ref: SyntaxNodeRef, hrefs: Set
   }
 
   const attributes = node.getChildren(HTML_NODE_TYPE.Attribute.id);
+  let href: string | undefined;
   for (const attribute of attributes) {
     if (
       attribute.firstChild &&
@@ -70,11 +70,17 @@ function getHrefFromLinks(document: TextDocument, ref: SyntaxNodeRef, hrefs: Set
       }
 
       if (getText(document, attribute.firstChild) === "href") {
-        const href = getText(document, attribute.lastChild).slice(1, -1);
-        if (href) {
-          hrefs.add(href);
-        }
+        href = getText(document, attribute.lastChild).slice(1, -1);
       }
+    }
+  }
+
+  if (href) {
+    const uri = Uri.parse(href);
+    if (uri.scheme === "http" || uri.scheme === "https") {
+      hrefs.add(uri.toString(true));
+    } else if (uri.scheme === "file") {
+      hrefs.add(Uri.joinPath(document.uri, "..", uri.path).toString(true));
     }
   }
 }

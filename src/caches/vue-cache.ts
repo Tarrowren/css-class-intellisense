@@ -20,8 +20,7 @@ const VUE_PARSER = LEZER_HTML.parser.configure({
 });
 
 export function getVueCacheEntry(document: TextDocument): LanguageCacheEntry {
-  const content = document.getText();
-  const tree = VUE_PARSER.parse(content);
+  const tree = VUE_PARSER.parse(document.getText());
 
   const usedClassNames = new Map<string, Range[]>();
   const classNames = new Map<string, Range[]>();

@@ -1,19 +1,14 @@
 import { SyntaxNode, TreeCursor } from "@lezer/common";
 import { CompletionItem, CompletionItemKind, CompletionList, Location, TextDocument } from "vscode";
-import { LanguageCaches } from "../caches/language-caches";
+import { LanguageModelCache } from "../caches/cache";
+import { LanguageCacheEntry } from "../caches/language-caches";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { nearby } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
-export function createHtmlMode(caches: LanguageCaches): LanguageMode {
-  const cache = caches.getCache("html");
-
-  if (!cache) {
-    throw new Error("Missing cache");
-  }
-
+export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): LanguageMode {
   return {
     async doComplete(document, position) {
       const entry = cache.get(document);
@@ -57,7 +52,6 @@ export function createHtmlMode(caches: LanguageCaches): LanguageMode {
     },
     findReferences(document, position) {
       const entry = cache.get(document);
-
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
       if (cursor.type !== CSS_NODE_TYPE.ClassName) {
