@@ -1,3 +1,4 @@
 {
-  "npm.exclude": ["**/.vscode-test-web/**"]
+  "npm.exclude": ["**/.vscode-test-web/**"],
+  "typescript.tsdk": "node_modules\\typescript\\lib"
 }

@@ -49,3 +49,15 @@ export function convertToHttpScheme(uri: Uri): Uri {
     throw new Error(`Unable to convert ${uri.toString(true)}`);
   }
 }
+
+export function convertToCciHttpScheme(uri: Uri): Uri {
+  if (uri.scheme === CCI_HTTP_SCHEME || uri.scheme === CCI_HTTPS_SCHEME) {
+    return uri;
+  } else if (uri.scheme === "http") {
+    return uri.with({ scheme: CCI_HTTP_SCHEME });
+  } else if (uri.scheme === "https") {
+    return uri.with({ scheme: CCI_HTTPS_SCHEME });
+  } else {
+    throw new Error(`Unable to convert ${uri.toString(true)}`);
+  }
+}

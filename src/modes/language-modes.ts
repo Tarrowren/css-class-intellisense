@@ -15,9 +15,9 @@ export function createLanguageModes(
   const modes = new Map<string, LanguageMode>();
   modes.set("html", createHtmlMode(cache));
   modes.set("vue", createVueMode(cache));
-  modes.set("css", createCssMode(cache));
-  modes.set("less", createLessMode(cache));
-  modes.set("scss", createScssMode(cache));
+  modes.set("css", createCssMode(cache, referenceMap));
+  modes.set("less", createLessMode(cache, referenceMap));
+  modes.set("scss", createScssMode(cache, referenceMap));
 
   return {
     getMode(languageId) {

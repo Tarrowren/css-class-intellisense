@@ -6,22 +6,17 @@ import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileTy
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
-import { createRequestCache, RequestCache } from "./request-cache";
+import { createRequestCache } from "./request-cache";
 
 let server: LanguageServer | null;
 
 const retryTimeoutInHours = 3 * 24;
 
 export async function activate(context: ExtensionContext) {
-  let cache: RequestCache | undefined;
-
   const globalStorage = context.globalStorageUri;
-  if (globalStorage.scheme === "file") {
-    cache = await createRequestCache(globalStorage.fsPath, context.globalState);
-  }
+  const cache = await createRequestCache(globalStorage.fsPath, context.globalState);
 
   async function request(uri: Uri, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
-    uri = convertToHttpScheme(uri);
     const uriString = uri.toString(true);
 
     const signal = toSignal(token);
@@ -69,6 +64,8 @@ export async function activate(context: ExtensionContext) {
   const runtime: RuntimeEnvironment = {
     request: {
       async readFile(uri, token) {
+        uri = convertToHttpScheme(uri);
+
         const uriString = uri.toString(true);
         if (cache) {
           const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
@@ -79,6 +76,8 @@ export async function activate(context: ExtensionContext) {
         return await request(uri, cache?.getETag(uriString), token);
       },
       async stat(uri, token) {
+        uri = convertToHttpScheme(uri);
+
         const uriString = uri.toString(true);
         if (cache) {
           const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);

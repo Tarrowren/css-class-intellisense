@@ -20,7 +20,7 @@ export function createVueMode(cache: LanguageModelCache<LanguageCacheEntry>): La
 
       const items = new Map<string, CompletionItem>();
 
-      for (const [label] of entry.classNames) {
+      for (const label of entry.classNames.keys()) {
         if (!items.has(label)) {
           items.set(label, new CompletionItem(label, CompletionItemKind.Class));
         }
@@ -48,11 +48,18 @@ export function createVueMode(cache: LanguageModelCache<LanguageCacheEntry>): La
       }
 
       const definition: Location[] = [];
+
+      const ranges = entry.classNames.get(className);
+      if (ranges && ranges.length > 0) {
+        for (const range of ranges) {
+          definition.push(new Location(document.uri, range));
+        }
+      }
+
       return definition;
     },
     findReferences(document, position) {
       const entry = cache.get(document);
-
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
       if (cursor.type !== CSS_NODE_TYPE.ClassName) {

@@ -82,10 +82,10 @@ function toSignal(token?: CancellationToken): AbortSignal | undefined {
   const controller = new AbortController();
 
   if (token.isCancellationRequested) {
-    (controller as any).abort();
+    controller.abort();
   } else {
     token.onCancellationRequested(() => {
-      (controller as any).abort();
+      controller.abort();
     });
   }
 
