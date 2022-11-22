@@ -17,11 +17,12 @@
     "onLanguage:scss",
     "onLanguage:less"
   ],
-  "main": "out/node/main.js",
+  "main": "dist/node/main.js",
   "browser": "dist/browser/main.js",
   "scripts": {
     "watch": "tsc -w -p ./",
-    "package:browser": "node --experimental-import-meta-resolve ./scripts/browser.mjs",
+    "build:browser": "node scripts/browser.mjs",
+    "build:node": "node scripts/node.mjs",
     "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {

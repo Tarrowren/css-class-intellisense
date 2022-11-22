@@ -6,9 +6,9 @@ const OUT_PATH = resolve("dist");
 webpack(
   {
     mode: "production",
-    target: "webworker",
+    target: "node",
     entry: {
-      "browser/main": resolve("src", "browser", "main.ts"),
+      "node/main": resolve("src", "node", "main.ts"),
     },
     resolve: {
       extensions: [".ts", "..."],
