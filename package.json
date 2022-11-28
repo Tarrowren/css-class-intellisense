@@ -10,6 +10,7 @@
     "Programming Languages",
     "Other"
   ],
+  "icon": "images/icon.png",
   "activationEvents": [
     "onLanguage:html",
     "onLanguage:vue",

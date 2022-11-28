@@ -1,2 +1,9 @@
+.vscode/
+images/docs/
 node_modules/
 out/
+scripts/
+src/
+.gitignore
+tsconfig.json
+*.vsix
