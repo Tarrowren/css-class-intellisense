@@ -14,9 +14,12 @@ import { createLanguageModes, LanguageModes } from "./modes/language-modes";
 import { createReferenceMap } from "./reference-map";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
 
-export function createLanguageServer(context: ExtensionContext, runtime: RuntimeEnvironment): LanguageServer {
+export async function createLanguageServer(
+  context: ExtensionContext,
+  runtime: RuntimeEnvironment
+): Promise<LanguageServer> {
   const languageCache = createLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
-  const referenceMap = createReferenceMap(languageCache);
+  const referenceMap = await createReferenceMap(runtime, languageCache);
   const languageModes = createLanguageModes(languageCache, referenceMap);
 
   const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };

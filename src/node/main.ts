@@ -116,7 +116,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  server = createLanguageServer(context, runtime);
+  server = await createLanguageServer(context, runtime);
 }
 
 export function deactivate() {

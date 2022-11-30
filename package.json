@@ -24,9 +24,8 @@
     "watch": "tsc -w -p ./",
     "build:browser": "node scripts/browser.mjs",
     "build:node": "node scripts/node.mjs",
-    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. .",
     "lint": "eslint src --ext ts",
-    "publish": "vsce publish"
+    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {
     "type": "git",

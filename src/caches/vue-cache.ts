@@ -63,7 +63,7 @@ function getHrefFromImports(document: TextDocument, ref: SyntaxNodeRef, hrefs: S
   }
 
   const href = getText(document, stringNode).slice(1, -1);
-  if (href) {
+  if (href && href.slice(-11) !== ".module.css") {
     const uri = Uri.parse(href);
     if (uri.scheme === "http" || uri.scheme === "https") {
       hrefs.add(convertToCciHttpScheme(uri).toString(true));
