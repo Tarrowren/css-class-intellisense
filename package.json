@@ -24,7 +24,9 @@
     "watch": "tsc -w -p ./",
     "build:browser": "node scripts/browser.mjs",
     "build:node": "node scripts/node.mjs",
-    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
+    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. .",
+    "lint": "eslint src --ext ts",
+    "publish": "vsce publish"
   },
   "repository": {
     "type": "git",
@@ -49,18 +51,19 @@
   "devDependencies": {
     "@types/node": "^16.18.3",
     "@types/vscode": "^1.73.0",
-    "@typescript-eslint/eslint-plugin": "^5.44.0",
-    "@typescript-eslint/parser": "^5.44.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-web": "^0.0.32",
     "eslint": "^8.28.0",
     "ts-loader": "^9.4.1",
     "typescript": "^4.9.3",
+    "vsce": "^2.14.0",
     "webpack": "^5.75.0"
   },
   "dependencies": {
-    "@lezer/common": "^1.0.1",
-    "@lezer/css": "^1.0.1",
-    "@lezer/html": "^1.1.1",
-    "@lezer/javascript": "^1.1.1"
+    "@lezer/common": "^1.0.2",
+    "@lezer/css": "^1.1.0",
+    "@lezer/html": "^1.2.0",
+    "@lezer/javascript": "^1.3.1"
   }
 }
