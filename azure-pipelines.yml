@@ -25,8 +25,9 @@ steps:
       npm run build:node
     displayName: Build
 
-  - script: |
-      npm run publish
+  - bash: |
+      sudo npm i -g vsce
+      vsce publish -p $VSCE_PAT
     displayName: Publish
     env:
       VSCE_PAT: $(VSCE_PAT)
