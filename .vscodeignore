@@ -6,4 +6,5 @@ scripts/
 src/
 .gitignore
 tsconfig.json
+azure-pipelines.yml
 *.vsix
