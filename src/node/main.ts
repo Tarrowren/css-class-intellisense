@@ -4,9 +4,9 @@ import { buffer } from "node:stream/consumers";
 import { TextDecoder } from "node:util";
 import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileType, Uri } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
-import { RuntimeEnvironment } from "../runner";
+import { formatError, outputChannel, RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
-import { RequestCache } from "./request-cache";
+import { createRequestCache } from "./request-cache";
 
 let server: LanguageServer | null;
 
@@ -14,8 +14,9 @@ const retryTimeoutInHours = 3 * 24;
 
 export function activate(context: ExtensionContext) {
   const globalStorage = context.globalStorageUri;
-  // const cache = await createRequestCache(globalStorage.fsPath, context.globalState);
-  let cache: RequestCache | undefined;
+  const cachePromise = createRequestCache(globalStorage.fsPath, context.globalState).catch((e) => {
+    outputChannel.appendLine(formatError("createRequestCache", e));
+  });
 
   async function request(uri: Uri, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
     const uriString = uri.toString(true);
@@ -41,6 +42,7 @@ export function activate(context: ExtensionContext) {
       req.on("error", e);
       req.end();
     });
+    const cache = await cachePromise;
     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
       const content = await buffer(res);
       if (cache) {
@@ -69,6 +71,7 @@ export function activate(context: ExtensionContext) {
         uri = convertToHttpScheme(uri);
 
         const uriString = uri.toString(true);
+        const cache = await cachePromise;
         if (cache) {
           const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
           if (content) {
@@ -81,6 +84,7 @@ export function activate(context: ExtensionContext) {
         uri = convertToHttpScheme(uri);
 
         const uriString = uri.toString(true);
+        const cache = await cachePromise;
         if (cache) {
           const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
           if (content) {
