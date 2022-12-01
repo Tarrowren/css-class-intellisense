@@ -6,15 +6,16 @@ import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileTy
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
-import { createRequestCache } from "./request-cache";
+import { RequestCache } from "./request-cache";
 
 let server: LanguageServer | null;
 
 const retryTimeoutInHours = 3 * 24;
 
-export async function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext) {
   const globalStorage = context.globalStorageUri;
-  const cache = await createRequestCache(globalStorage.fsPath, context.globalState);
+  // const cache = await createRequestCache(globalStorage.fsPath, context.globalState);
+  let cache: RequestCache | undefined;
 
   async function request(uri: Uri, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
     const uriString = uri.toString(true);
@@ -62,6 +63,7 @@ export async function activate(context: ExtensionContext) {
   }
 
   const runtime: RuntimeEnvironment = {
+    isBrowser: false,
     request: {
       async readFile(uri, token) {
         uri = convertToHttpScheme(uri);
@@ -116,7 +118,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  server = await createLanguageServer(context, runtime);
+  server = createLanguageServer(context, runtime);
 }
 
 export function deactivate() {

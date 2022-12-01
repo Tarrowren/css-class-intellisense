@@ -3,6 +3,7 @@ import { CancellationToken, Disposable, FileStat, Uri, window } from "vscode";
 export const outputChannel = window.createOutputChannel("CSS Class Intellisense");
 
 export interface RuntimeEnvironment {
+  readonly isBrowser: boolean;
   readonly request: {
     readFile(uri: Uri, token?: CancellationToken): Promise<Uint8Array>;
     stat(uri: Uri, token?: CancellationToken): Promise<FileStat>;

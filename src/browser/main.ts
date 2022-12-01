@@ -5,8 +5,9 @@ import { createLanguageServer, LanguageServer } from "../server";
 
 let server: LanguageServer | null;
 
-export async function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext) {
   const runtime: RuntimeEnvironment = {
+    isBrowser: true,
     request: {
       async readFile(uri, token) {
         uri = convertToHttpScheme(uri);
@@ -64,7 +65,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  server = await createLanguageServer(context, runtime);
+  server = createLanguageServer(context, runtime);
 }
 
 export function deactivate() {

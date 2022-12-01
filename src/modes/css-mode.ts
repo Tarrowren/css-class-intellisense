@@ -10,10 +10,6 @@ import { LanguageMode } from "./language-modes";
 export function createCssMode(cache: LanguageModelCache<LanguageCacheEntry>, referenceMap: ReferenceMap): LanguageMode {
   return {
     async findReferences(document, position) {
-      if (!referenceMap.map) {
-        return;
-      }
-
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
@@ -25,7 +21,7 @@ export function createCssMode(cache: LanguageModelCache<LanguageCacheEntry>, ref
 
       const references: Location[] = [];
 
-      const refs = referenceMap.map.get(document.uri.toString(true));
+      const refs = await referenceMap.getRefs(document.uri);
       if (refs && refs.size > 0) {
         await Promise.all(
           [...refs].map(async (ref) => {

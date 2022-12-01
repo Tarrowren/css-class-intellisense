@@ -1,97 +1,114 @@
-import { CancellationTokenSource, Disposable, Uri, workspace } from "vscode";
+import { Disposable, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
 import { formatError, outputChannel, RuntimeEnvironment } from "./runner";
 
-export async function createReferenceMap(
+export function createReferenceMap(
   runtime: RuntimeEnvironment,
   cache: LanguageModelCache<LanguageCacheEntry>
-): Promise<ReferenceMap> {
-  const refmap = new Map<string, Set<string>>();
-
-  const source = new CancellationTokenSource();
-  const timeout = runtime.timer.setTimeout(() => {
-    source.cancel();
-  }, 5000);
-
-  try {
-    const uris = await workspace.findFiles("**/*.{html,vue}", "**/node_modules/**", undefined, source.token);
-    if (uris.length > 0) {
-      await Promise.all(
-        uris.map(async (uri) => {
-          const document = await workspace.openTextDocument(uri);
-          const hrefs = cache.get(document).hrefs;
-          if (hrefs && hrefs.size > 0) {
-            const uriString = uri.toString(true);
-
-            refmap.set(uriString, hrefs);
-
-            for (const href of hrefs) {
-              const uris = refmap.get(href);
-              if (uris) {
-                uris.add(uriString);
-              } else {
-                refmap.set(href, new Set([uriString]));
-              }
-            }
-          }
-        })
-      );
-    }
-  } catch (e) {
-    outputChannel.appendLine(formatError("ReferenceMap", e));
-  } finally {
-    timeout.dispose();
-    source.dispose();
-  }
+): ReferenceMap {
+  const map = new Map<string, Set<string>>();
+  let isComplete = false;
 
   const watcher = workspace.createFileSystemWatcher("**/*.{html,vue}");
+
   const disposables = [
     watcher.onDidCreate((uri) => {
-      onChange(uri, cache, refmap);
+      onChange(map, cache, uri);
     }),
     watcher.onDidChange((uri) => {
-      onChange(uri, cache, refmap);
+      onChange(map, cache, uri);
     }),
     watcher.onDidDelete((uri) => {
-      onDelete(uri, refmap);
+      onDelete(map, uri);
     }),
   ];
 
+  async function rebuildReference() {
+    // https://github.com/microsoft/vscode-test-web/issues/4
+    if (runtime.isBrowser) {
+      return;
+    }
+    try {
+      const uris = await workspace.findFiles("**/*.{html,vue}", "**/node_modules/**");
+      if (uris.length > 0) {
+        await Promise.all(
+          uris.map(async (uri) => {
+            try {
+              const document = await workspace.openTextDocument(uri);
+              const hrefs = cache.get(document).hrefs;
+              if (hrefs && hrefs.size > 0) {
+                const uriString = uri.toString(true);
+
+                const entry = map.get(uriString);
+                if (entry) {
+                  for (const href of hrefs) {
+                    entry.add(href);
+                  }
+                } else {
+                  map.set(uriString, hrefs);
+                }
+
+                for (const href of hrefs) {
+                  const entry = map.get(href);
+                  if (entry) {
+                    entry.add(uriString);
+                  } else {
+                    map.set(href, new Set([uriString]));
+                  }
+                }
+              }
+            } catch (e) {
+              outputChannel.appendLine(formatError("openTextDocument", e));
+            }
+          })
+        );
+      }
+    } catch (e) {
+      outputChannel.appendLine(formatError("rebuildReference", e));
+    }
+  }
+
   return {
-    get map() {
-      return refmap;
+    async getRefs(uri) {
+      const uriString = uri.toString(true);
+      if (isComplete) {
+        return map.get(uriString);
+      }
+
+      await rebuildReference();
+
+      isComplete = true;
+      return map.get(uriString);
     },
     dispose() {
-      watcher.dispose();
       for (const disposable of disposables) {
         disposable.dispose();
       }
-
-      refmap.clear();
+      map.clear();
     },
   };
 }
 
 export interface ReferenceMap extends Disposable {
-  readonly map: Map<string, Set<string>>;
+  getRefs(uri: Uri): Promise<Set<string> | undefined>;
 }
 
-async function onChange(uri: Uri, cache: LanguageModelCache<LanguageCacheEntry>, map: Map<string, Set<string>>) {
+async function onChange(refmap: Map<string, Set<string>>, cache: LanguageModelCache<LanguageCacheEntry>, uri: Uri) {
   const document = await workspace.openTextDocument(uri);
   const newHrefs = cache.get(document).hrefs;
 
   const uriString = uri.toString(true);
-  const oldHrefs = map.get(uriString);
+  const oldHrefs = refmap.get(uriString);
   if (oldHrefs && oldHrefs.size > 0) {
     if (newHrefs && newHrefs.size > 0) {
-      map.set(uriString, newHrefs);
+      refmap.set(uriString, newHrefs);
 
       for (const href of oldHrefs) {
         if (newHrefs.has(href)) {
           continue;
         }
-        const uris = map.get(href);
+        const uris = refmap.get(href);
         if (uris) {
           uris.delete(uriString);
         }
@@ -101,18 +118,18 @@ async function onChange(uri: Uri, cache: LanguageModelCache<LanguageCacheEntry>,
         if (oldHrefs.has(href)) {
           continue;
         }
-        const uris = map.get(href);
+        const uris = refmap.get(href);
         if (uris) {
           uris.add(uriString);
         } else {
-          map.set(href, new Set([uriString]));
+          refmap.set(href, new Set([uriString]));
         }
       }
     } else {
-      map.delete(uriString);
+      refmap.delete(uriString);
 
       for (const href of oldHrefs) {
-        const uris = map.get(href);
+        const uris = refmap.get(href);
         if (uris) {
           uris.delete(uriString);
         }
@@ -120,28 +137,28 @@ async function onChange(uri: Uri, cache: LanguageModelCache<LanguageCacheEntry>,
     }
   } else {
     if (newHrefs && newHrefs.size > 0) {
-      map.set(uriString, newHrefs);
+      refmap.set(uriString, newHrefs);
 
       for (const href of newHrefs) {
-        const uris = map.get(href);
+        const uris = refmap.get(href);
         if (uris) {
           uris.add(uriString);
         } else {
-          map.set(href, new Set([uriString]));
+          refmap.set(href, new Set([uriString]));
         }
       }
     }
   }
 }
 
-function onDelete(uri: Uri, map: Map<string, Set<string>>) {
+function onDelete(refmap: Map<string, Set<string>>, uri: Uri) {
   const uriString = uri.toString(true);
-  const oldHrefs = map.get(uriString);
+  const oldHrefs = refmap.get(uriString);
   if (oldHrefs && oldHrefs.size > 0) {
-    map.delete(uriString);
+    refmap.delete(uriString);
 
     for (const href of oldHrefs) {
-      const uris = map.get(href);
+      const uris = refmap.get(href);
       if (uris) {
         uris.delete(uriString);
       }
