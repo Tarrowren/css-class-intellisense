@@ -86,52 +86,94 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
       const offset = document.offsetAt(position);
       const cursor = entry.tree.cursorAt(offset);
 
-      if (!isClassAttributeValue(document, cursor)) {
-        return;
-      }
-
-      const text = getText(document, cursor).slice(1, -1);
-      if (!text) {
-        return;
-      }
-
-      const className = nearbyWord(text, offset - cursor.from - 1);
-      if (!className) {
-        return;
-      }
-
-      const definition: Location[] = [];
-
-      const ranges = entry.classNames.get(className);
-      if (ranges && ranges.length > 0) {
-        for (const range of ranges) {
-          definition.push(new Location(document.uri, range));
+      const attr = isAttributeValueAndGetAttributeName(document, cursor);
+      if (attr === "class") {
+        const text = getText(document, cursor).slice(1, -1);
+        if (!text) {
+          return;
         }
-      }
 
-      if (entry.hrefs && entry.hrefs.size > 0) {
-        await Promise.all(
-          [...entry.hrefs].map(async (href) => {
-            try {
-              const uri = Uri.parse(href);
+        const className = nearbyWord(text, offset - cursor.from - 1);
+        if (!className) {
+          return;
+        }
 
-              const document = await workspace.openTextDocument(uri);
-              const entry = cache.get(document);
+        const definition: Location[] = [];
 
-              const ranges = entry.classNames.get(className);
-              if (ranges) {
-                for (const range of ranges) {
-                  definition.push(new Location(document.uri, range));
+        const ranges = entry.classNames.get(className);
+        if (ranges && ranges.length > 0) {
+          for (const range of ranges) {
+            definition.push(new Location(document.uri, range));
+          }
+        }
+
+        if (entry.hrefs && entry.hrefs.size > 0) {
+          await Promise.all(
+            [...entry.hrefs].map(async (href) => {
+              try {
+                const uri = Uri.parse(href);
+
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+
+                const ranges = entry.classNames.get(className);
+                if (ranges) {
+                  for (const range of ranges) {
+                    definition.push(new Location(document.uri, range));
+                  }
                 }
+              } catch (e) {
+                outputChannel.appendLine(formatError("findDefinition", e));
               }
-            } catch (e) {
-              outputChannel.appendLine(formatError("findDefinition", e));
-            }
-          })
-        );
-      }
+            })
+          );
+        }
 
-      return definition;
+        return definition;
+      } else if (attr === "id") {
+        const text = getText(document, cursor).slice(1, -1);
+        if (!text) {
+          return;
+        }
+
+        const idName = text.trim();
+        if (!idName) {
+          return;
+        }
+
+        const definition: Location[] = [];
+
+        const ranges = entry.ids.get(idName);
+        if (ranges && ranges.length > 0) {
+          for (const range of ranges) {
+            definition.push(new Location(document.uri, range));
+          }
+        }
+
+        if (entry.hrefs && entry.hrefs.size > 0) {
+          await Promise.all(
+            [...entry.hrefs].map(async (href) => {
+              try {
+                const uri = Uri.parse(href);
+
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+
+                const ranges = entry.ids.get(idName);
+                if (ranges) {
+                  for (const range of ranges) {
+                    definition.push(new Location(document.uri, range));
+                  }
+                }
+              } catch (e) {
+                outputChannel.appendLine(formatError("findDefinition", e));
+              }
+            })
+          );
+        }
+
+        return definition;
+      }
     },
     findReferences(document, position) {
       const entry = cache.get(document);
