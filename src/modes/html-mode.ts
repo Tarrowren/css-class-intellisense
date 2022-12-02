@@ -6,7 +6,7 @@ import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { formatError, outputChannel } from "../runner";
-import { nearbyWord, POINT } from "../util/string";
+import { nearbyWord, POINT, SHARP } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -179,22 +179,27 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-      if (cursor.type !== CSS_NODE_TYPE.ClassName) {
-        return;
+      if (cursor.type === CSS_NODE_TYPE.ClassName) {
+        const className = getText(document, cursor);
+
+        return entry.usedClassNames?.get(className)?.map((range) => {
+          return new Location(document.uri, range);
+        });
+      } else if (cursor.type === CSS_NODE_TYPE.IdName) {
+        const idName = getText(document, cursor);
+
+        return entry.usedIds?.get(idName)?.map((range) => {
+          return new Location(document.uri, range);
+        });
       }
-
-      const className = getText(document, cursor);
-
-      return entry.usedClassNames?.get(className)?.map((range) => {
-        return new Location(document.uri, range);
-      });
     },
     async doRename(document, position, newName) {
       const entry = cache.get(document);
       const offset = document.offsetAt(position);
       const cursor = entry.tree.cursorAt(offset);
 
-      if (isClassAttributeValue(document, cursor)) {
+      const attr = isAttributeValueAndGetAttributeName(document, cursor);
+      if (attr === "class") {
         const text = getText(document, cursor).slice(1, -1);
         if (!text) {
           return;
@@ -244,6 +249,56 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
         }
 
         return workspaceEdit;
+      } else if (attr === "id") {
+        const text = getText(document, cursor).slice(1, -1);
+        if (!text) {
+          return;
+        }
+
+        const idName = text.trim();
+        if (!idName) {
+          return;
+        }
+
+        const workspaceEdit = new WorkspaceEdit();
+        entry.ids.get(idName)?.forEach((range) => {
+          workspaceEdit.replace(document.uri, range, newName);
+        });
+        entry.usedIds?.get(idName)?.forEach((range) => {
+          workspaceEdit.replace(document.uri, range, newName);
+        });
+
+        if (entry.hrefs && entry.hrefs.size > 0) {
+          await Promise.all(
+            [...entry.hrefs].map(async (href) => {
+              try {
+                const uri = Uri.parse(href);
+                if (
+                  uri.scheme === CCI_HTTPS_SCHEME ||
+                  uri.scheme === CCI_HTTP_SCHEME ||
+                  uri.scheme === "https" ||
+                  uri.scheme === "http"
+                ) {
+                  return;
+                }
+
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+
+                const ranges = entry.ids.get(idName);
+                if (ranges) {
+                  for (const range of ranges) {
+                    workspaceEdit.replace(document.uri, range, newName);
+                  }
+                }
+              } catch (e) {
+                outputChannel.appendLine(formatError("doRename", e));
+              }
+            })
+          );
+        }
+
+        return workspaceEdit;
       } else if (cursor.type === CSS_NODE_TYPE.ClassName) {
         if (newName.charCodeAt(0) === POINT) {
           if (newName.length <= 1) {
@@ -260,6 +315,26 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
           workspaceEdit.replace(document.uri, range, newName);
         });
         entry.usedClassNames?.get(className)?.forEach((range) => {
+          workspaceEdit.replace(document.uri, range, newName);
+        });
+
+        return workspaceEdit;
+      } else if (cursor.type === CSS_NODE_TYPE.IdName) {
+        if (newName.charCodeAt(0) === SHARP) {
+          if (newName.length <= 1) {
+            return;
+          }
+
+          newName = newName.substring(1);
+        }
+
+        const idName = getText(document, cursor);
+
+        const workspaceEdit = new WorkspaceEdit();
+        entry.ids.get(idName)?.forEach((range) => {
+          workspaceEdit.replace(document.uri, range, newName);
+        });
+        entry.usedIds?.get(idName)?.forEach((range) => {
           workspaceEdit.replace(document.uri, range, newName);
         });
 

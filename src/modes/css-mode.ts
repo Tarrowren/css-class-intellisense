@@ -13,36 +13,61 @@ export function createCssMode(cache: LanguageModelCache<LanguageCacheEntry>, ref
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-      if (cursor.type !== CSS_NODE_TYPE.ClassName) {
-        return;
-      }
+      if (cursor.type === CSS_NODE_TYPE.ClassName) {
+        const className = getText(document, cursor);
 
-      const className = getText(document, cursor);
+        const references: Location[] = [];
 
-      const references: Location[] = [];
-
-      const refs = await referenceMap.getRefs(document.uri);
-      if (refs && refs.size > 0) {
-        await Promise.all(
-          [...refs].map(async (ref) => {
-            try {
-              const uri = Uri.parse(ref);
-              const document = await workspace.openTextDocument(uri);
-              const entry = cache.get(document);
-              const ranges = entry.usedClassNames?.get(className);
-              if (ranges) {
-                for (const range of ranges) {
-                  references.push(new Location(uri, range));
+        const refs = await referenceMap.getRefs(document.uri);
+        if (refs && refs.size > 0) {
+          await Promise.all(
+            [...refs].map(async (ref) => {
+              try {
+                const uri = Uri.parse(ref);
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+                const ranges = entry.usedClassNames?.get(className);
+                if (ranges) {
+                  for (const range of ranges) {
+                    references.push(new Location(uri, range));
+                  }
                 }
+              } catch (e) {
+                outputChannel.appendLine(formatError("findReferences", e));
               }
-            } catch (e) {
-              outputChannel.appendLine(formatError("findReferences", e));
-            }
-          })
-        );
-      }
+            })
+          );
+        }
 
-      return references;
+        return references;
+      } else if (cursor.type === CSS_NODE_TYPE.IdName) {
+        const idName = getText(document, cursor);
+
+        const references: Location[] = [];
+
+        const refs = await referenceMap.getRefs(document.uri);
+        if (refs && refs.size > 0) {
+          await Promise.all(
+            [...refs].map(async (ref) => {
+              try {
+                const uri = Uri.parse(ref);
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+                const ranges = entry.usedIds?.get(idName);
+                if (ranges) {
+                  for (const range of ranges) {
+                    references.push(new Location(uri, range));
+                  }
+                }
+              } catch (e) {
+                outputChannel.appendLine(formatError("findReferences", e));
+              }
+            })
+          );
+        }
+
+        return references;
+      }
     },
     onDocumentRemoved(document) {
       cache.onDocumentRemoved(document);

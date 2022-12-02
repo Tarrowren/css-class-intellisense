@@ -5,6 +5,7 @@ export const FF = 0x0c;
 export const CR = 0x0d;
 export const SPACE = 0x20;
 export const POINT = 0x2e;
+export const SHARP = 0x23;
 
 export function isEmptyCode(code: number) {
   return code === HT || code === LF || code === VT || code === FF || code === CR || code === SPACE;

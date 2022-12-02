@@ -1,4 +1,4 @@
-import { parseMixed, SyntaxNodeRef } from "@lezer/common";
+import { parseMixed, SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
 import { Range, TextDocument, Uri } from "vscode";
@@ -25,6 +25,7 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
 
   const hrefs = new Set<string>();
   const usedClassNames = new Map<string, Range[]>();
+  const usedIds = new Map<string, Range[]>();
   const classNames = new Map<string, Range[]>();
   const ids = new Map<string, Range[]>();
 
@@ -33,7 +34,22 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
       getHrefFromLinks(document, ref, hrefs);
       return false;
     } else if (ref.type === HTML_NODE_TYPE.Attribute) {
-      getClassNameFromAttribute(document, ref, usedClassNames);
+      const firstChild = ref.node.firstChild;
+      const lastChild = ref.node.lastChild;
+      if (
+        firstChild &&
+        lastChild &&
+        firstChild.type === HTML_NODE_TYPE.AttributeName &&
+        lastChild.type === HTML_NODE_TYPE.AttributeValue
+      ) {
+        const attr = getText(document, firstChild);
+        if (attr === "class") {
+          getClassNameFromAttribute(document, lastChild, usedClassNames);
+        } else if (attr === "id") {
+          getIdNameFromAttribute(document, lastChild, usedIds);
+        }
+      }
+
       return false;
     } else if (ref.type === CSS_NODE_TYPE.ClassName) {
       getClassNameFromStyle(document, ref, classNames);
@@ -46,6 +62,7 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
     tree,
     hrefs,
     usedClassNames,
+    usedIds,
     classNames,
     ids,
   };
@@ -90,28 +107,23 @@ function getHrefFromLinks(document: TextDocument, ref: SyntaxNodeRef, hrefs: Set
   }
 }
 
-function getClassNameFromAttribute(document: TextDocument, ref: SyntaxNodeRef, classNames: Map<string, Range[]>) {
-  const node = ref.node;
-
-  const firstChild = node.firstChild;
-  if (!firstChild || firstChild.type !== HTML_NODE_TYPE.AttributeName || getText(document, firstChild) !== "class") {
-    return;
-  }
-
-  const lastChild = node.lastChild;
-  if (!lastChild || lastChild.type !== HTML_NODE_TYPE.AttributeValue) {
-    return;
-  }
-
-  const attribute = getText(document, lastChild);
+function getClassNameFromAttribute(
+  document: TextDocument,
+  attrValueNode: SyntaxNode,
+  classNames: Map<string, Range[]>
+) {
+  const value = getText(document, attrValueNode);
 
   let start = 1;
   let end = 1;
-  for (let i = 1; i < attribute.length; i++) {
-    if (isEmptyCode(attribute.charCodeAt(i)) || i === attribute.length - 1) {
+  for (let i = 1; i < value.length; i++) {
+    if (isEmptyCode(value.charCodeAt(i)) || i === value.length - 1) {
       if (start < end) {
-        const className = attribute.substring(start, end);
-        const range = new Range(document.positionAt(lastChild.from + start), document.positionAt(lastChild.from + end));
+        const className = value.substring(start, end);
+        const range = new Range(
+          document.positionAt(attrValueNode.from + start),
+          document.positionAt(attrValueNode.from + end)
+        );
         const ranges = classNames.get(className);
         if (ranges) {
           ranges.push(range);
@@ -122,6 +134,33 @@ function getClassNameFromAttribute(document: TextDocument, ref: SyntaxNodeRef, c
 
       start = i + 1;
       end = start;
+    } else {
+      end++;
+    }
+  }
+}
+
+function getIdNameFromAttribute(document: TextDocument, attrValueNode: SyntaxNode, ids: Map<string, Range[]>) {
+  const value = getText(document, attrValueNode);
+
+  let start = 1;
+  let end = 1;
+  for (let i = 1; i < value.length; i++) {
+    if (isEmptyCode(value.charCodeAt(i)) || i === value.length - 1) {
+      if (start < end) {
+        const idName = value.substring(start, end);
+        const range = new Range(
+          document.positionAt(attrValueNode.from + start),
+          document.positionAt(attrValueNode.from + end)
+        );
+        const ranges = ids.get(idName);
+        if (ranges) {
+          ranges.push(range);
+        } else {
+          ids.set(idName, [range]);
+        }
+        return;
+      }
     } else {
       end++;
     }
