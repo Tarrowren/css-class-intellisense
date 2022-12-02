@@ -5,6 +5,7 @@ import {
   ExtensionContext,
   languages,
   ReferenceProvider,
+  RenameProvider,
   workspace,
 } from "vscode";
 import { createLanguageModelCache } from "./caches/cache";
@@ -28,6 +29,10 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
     languages.registerReferenceProvider(
       ["html", "vue", "css", "scss", "less"],
       createReferenceProvider(runtime, languageModes)
+    ),
+    languages.registerRenameProvider(
+      ["html", "vue", "css", "scss", "less"],
+      createRenameProvider(runtime, languageModes)
     )
   );
 
@@ -102,6 +107,43 @@ function createReferenceProvider(runtime: RuntimeEnvironment, languageModes: Lan
         },
         null,
         "ReferenceProvider",
+        token
+      );
+    },
+  };
+}
+
+function createRenameProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): RenameProvider {
+  return {
+    prepareRename(document, position, token) {
+      return runSafeAsync(
+        runtime,
+        async () => {
+          const mode = languageModes.getMode(document.languageId);
+          if (!mode || !mode.prepareRename) {
+            return;
+          }
+
+          return await mode.prepareRename(document, position);
+        },
+        null,
+        "RenameProvider",
+        token
+      );
+    },
+    provideRenameEdits(document, position, newName, token) {
+      return runSafeAsync(
+        runtime,
+        async () => {
+          const mode = languageModes.getMode(document.languageId);
+          if (!mode || !mode.doRename) {
+            return;
+          }
+
+          return await mode.doRename(document, position, newName);
+        },
+        null,
+        "RenameProvider",
         token
       );
     },

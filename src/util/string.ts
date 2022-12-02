@@ -1,15 +1,16 @@
-const HT = 0x09;
-const LF = 0x0a;
-const VT = 0x0b;
-const FF = 0x0c;
-const CR = 0x0d;
-const SPACE = 0x20;
+export const HT = 0x09;
+export const LF = 0x0a;
+export const VT = 0x0b;
+export const FF = 0x0c;
+export const CR = 0x0d;
+export const SPACE = 0x20;
+export const POINT = 0x2e;
 
 export function isEmptyCode(code: number) {
   return code === HT || code === LF || code === VT || code === FF || code === CR || code === SPACE;
 }
 
-export function nearby(text: string, pos: number): string | undefined {
+export function nearbyWordRange(text: string, pos: number): [number, number] | undefined {
   let start = pos;
   let end = pos;
   const length = text.length;
@@ -29,6 +30,13 @@ export function nearby(text: string, pos: number): string | undefined {
   }
 
   if (start < end) {
-    return text.substring(start, end);
+    return [start, end];
+  }
+}
+
+export function nearbyWord(text: string, pos: number): string | undefined {
+  const range = nearbyWordRange(text, pos);
+  if (range) {
+    return text.substring(range[0], range[1]);
   }
 }

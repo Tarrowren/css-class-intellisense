@@ -5,7 +5,7 @@ import { LanguageCacheEntry } from "../caches/language-caches";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { formatError, outputChannel } from "../runner";
-import { nearby } from "../util/string";
+import { nearbyWord } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -64,7 +64,7 @@ export function createVueMode(cache: LanguageModelCache<LanguageCacheEntry>): La
         return;
       }
 
-      const className = nearby(text, offset - cursor.from - 1);
+      const className = nearbyWord(text, offset - cursor.from - 1);
       if (!className) {
         return;
       }

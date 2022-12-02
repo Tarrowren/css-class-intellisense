@@ -1,4 +1,14 @@
-import { CompletionItem, CompletionList, Disposable, Location, Position, ProviderResult, TextDocument } from "vscode";
+import {
+  CompletionItem,
+  CompletionList,
+  Disposable,
+  Location,
+  Position,
+  ProviderResult,
+  Range,
+  TextDocument,
+  WorkspaceEdit,
+} from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
 import { ReferenceMap } from "../reference-map";
@@ -50,5 +60,7 @@ export interface LanguageMode extends Disposable {
   doComplete?(document: TextDocument, position: Position): ProviderResult<CompletionItem[] | CompletionList>;
   findDefinition?(document: TextDocument, position: Position): ProviderResult<Location[]>;
   findReferences?(document: TextDocument, position: Position): ProviderResult<Location[]>;
+  prepareRename?: (document: TextDocument, position: Position) => ProviderResult<Range>;
+  doRename?: (document: TextDocument, position: Position, newName: string) => ProviderResult<WorkspaceEdit>;
   onDocumentRemoved(document: TextDocument): void;
 }
