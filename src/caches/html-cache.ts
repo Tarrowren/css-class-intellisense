@@ -5,7 +5,7 @@ import { Range, TextDocument, Uri } from "vscode";
 import { convertToCciHttpScheme } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
-import { getClassNameFromStyle } from "../util/css-class-name";
+import { getClassNameFromStyle, getIdNameFromStyle } from "../util/css-class-name";
 import { isEmptyCode } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageCacheEntry } from "./language-caches";
@@ -26,6 +26,7 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
   const hrefs = new Set<string>();
   const usedClassNames = new Map<string, Range[]>();
   const classNames = new Map<string, Range[]>();
+  const ids = new Map<string, Range[]>();
 
   tree.cursor().iterate((ref) => {
     if (ref.type === HTML_NODE_TYPE.SelfClosingTag) {
@@ -36,6 +37,8 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
       return false;
     } else if (ref.type === CSS_NODE_TYPE.ClassName) {
       getClassNameFromStyle(document, ref, classNames);
+    } else if (ref.type === CSS_NODE_TYPE.IdName) {
+      getIdNameFromStyle(document, ref, ids);
     }
   });
 
@@ -44,6 +47,7 @@ export function getHtmlCacheEntry(document: TextDocument): LanguageCacheEntry {
     hrefs,
     usedClassNames,
     classNames,
+    ids,
   };
 }
 

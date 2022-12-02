@@ -7,6 +7,7 @@ suite("Lezer", () => {
   test("Lezer CSS test", () => {
     strictEqual(CSS_NODE_TYPE.ClassName.name, "ClassName");
     strictEqual(CSS_NODE_TYPE.StyleSheet.name, "StyleSheet");
+    strictEqual(CSS_NODE_TYPE.IdName.name, "IdName");
   });
 
   test("Lezer HTML test", () => {

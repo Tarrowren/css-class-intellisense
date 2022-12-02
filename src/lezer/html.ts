@@ -1,14 +1,16 @@
 import * as LEZER_HTML from "@lezer/html";
 
+const types = LEZER_HTML.parser.nodeSet.types;
+
 export namespace HTML_NODE_TYPE {
-  export const Element = LEZER_HTML.parser.nodeSet.types[18],
-    TagName = LEZER_HTML.parser.nodeSet.types[20],
-    Attribute = LEZER_HTML.parser.nodeSet.types[21],
-    AttributeName = LEZER_HTML.parser.nodeSet.types[22],
-    Is = LEZER_HTML.parser.nodeSet.types[23],
-    AttributeValue = LEZER_HTML.parser.nodeSet.types[24],
-    UnquotedAttributeValue = LEZER_HTML.parser.nodeSet.types[25],
-    ScriptText = LEZER_HTML.parser.nodeSet.types[27],
-    StyleText = LEZER_HTML.parser.nodeSet.types[30],
-    SelfClosingTag = LEZER_HTML.parser.nodeSet.types[37];
+  export const Element = types[18],
+    TagName = types[20],
+    Attribute = types[21],
+    AttributeName = types[22],
+    Is = types[23],
+    AttributeValue = types[24],
+    UnquotedAttributeValue = types[25],
+    ScriptText = types[27],
+    StyleText = types[30],
+    SelfClosingTag = types[37];
 }

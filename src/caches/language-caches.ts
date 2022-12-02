@@ -23,5 +23,7 @@ export interface LanguageCacheEntry {
   readonly tree: Tree;
   readonly hrefs?: Set<string>;
   readonly usedClassNames?: Map<string, Range[]>;
+  readonly usedIds?: Map<string, Range[]>;
   readonly classNames: Map<string, Range[]>;
+  readonly ids: Map<string, Range[]>;
 }

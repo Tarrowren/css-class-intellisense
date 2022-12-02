@@ -16,40 +16,70 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-      if (!isClassAttributeValue(document, cursor)) {
-        return;
-      }
+      const attr = isAttributeValueAndGetAttributeName(document, cursor);
+      if (attr === "class") {
+        const items = new Map<string, CompletionItem>();
 
-      const items = new Map<string, CompletionItem>();
-
-      for (const label of entry.classNames.keys()) {
-        if (!items.has(label)) {
-          items.set(label, new CompletionItem(label, CompletionItemKind.Class));
+        for (const label of entry.classNames.keys()) {
+          if (!items.has(label)) {
+            items.set(label, new CompletionItem(label, CompletionItemKind.Class));
+          }
         }
-      }
 
-      if (entry.hrefs && entry.hrefs.size > 0) {
-        await Promise.all(
-          [...entry.hrefs].map(async (href) => {
-            try {
-              const uri = Uri.parse(href);
+        if (entry.hrefs && entry.hrefs.size > 0) {
+          await Promise.all(
+            [...entry.hrefs].map(async (href) => {
+              try {
+                const uri = Uri.parse(href);
 
-              const document = await workspace.openTextDocument(uri);
-              const entry = cache.get(document);
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
 
-              for (const label of entry.classNames.keys()) {
-                if (!items.has(label)) {
-                  items.set(label, new CompletionItem(label, CompletionItemKind.Class));
+                for (const label of entry.classNames.keys()) {
+                  if (!items.has(label)) {
+                    items.set(label, new CompletionItem(label, CompletionItemKind.Class));
+                  }
                 }
+              } catch (e) {
+                outputChannel.appendLine(formatError("doComplete", e));
               }
-            } catch (e) {
-              outputChannel.appendLine(formatError("doComplete", e));
-            }
-          })
-        );
-      }
+            })
+          );
+        }
 
-      return [...items.values()];
+        return [...items.values()];
+      } else if (attr === "id") {
+        const items = new Map<string, CompletionItem>();
+
+        for (const label of entry.ids.keys()) {
+          if (!items.has(label)) {
+            items.set(label, new CompletionItem(label, CompletionItemKind.Field));
+          }
+        }
+
+        if (entry.hrefs && entry.hrefs.size > 0) {
+          await Promise.all(
+            [...entry.hrefs].map(async (href) => {
+              try {
+                const uri = Uri.parse(href);
+
+                const document = await workspace.openTextDocument(uri);
+                const entry = cache.get(document);
+
+                for (const label of entry.ids.keys()) {
+                  if (!items.has(label)) {
+                    items.set(label, new CompletionItem(label, CompletionItemKind.Field));
+                  }
+                }
+              } catch (e) {
+                outputChannel.appendLine(formatError("doComplete", e));
+              }
+            })
+          );
+        }
+
+        return [...items.values()];
+      }
     },
     async findDefinition(document, position) {
       const entry = cache.get(document);
@@ -201,18 +231,19 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
   };
 }
 
-function isClassAttributeValue(document: TextDocument, cursor: TreeCursor) {
+function isAttributeValueAndGetAttributeName(document: TextDocument, cursor: TreeCursor) {
   let node: SyntaxNode | null = cursor.node;
   if (
-    node.type !== HTML_NODE_TYPE.AttributeValue ||
-    !(node = node.prevSibling) ||
-    node.type !== HTML_NODE_TYPE.Is ||
-    !(node = node.prevSibling) ||
-    node.type !== HTML_NODE_TYPE.AttributeName ||
-    getText(document, node) !== "class"
+    node.type === HTML_NODE_TYPE.AttributeValue &&
+    (node = node.prevSibling) &&
+    node.type === HTML_NODE_TYPE.Is &&
+    (node = node.prevSibling) &&
+    node.type === HTML_NODE_TYPE.AttributeName
   ) {
-    return false;
+    return getText(document, node);
   }
+}
 
-  return true;
+function isClassAttributeValue(document: TextDocument, cursor: TreeCursor) {
+  return isAttributeValueAndGetAttributeName(document, cursor) === "class";
 }
