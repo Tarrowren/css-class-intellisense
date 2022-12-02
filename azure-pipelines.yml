@@ -18,7 +18,8 @@ steps:
 
   - script: |
       npm run lint
-    displayName: Lint
+      npm run test
+    displayName: Lint & Test
 
   - script: |
       npm run build:browser

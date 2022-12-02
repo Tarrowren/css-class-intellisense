@@ -11,5 +11,5 @@
     "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["src/browser"]
+  "exclude": ["src/browser", "src/test"]
 }

@@ -117,8 +117,6 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
         return new Location(document.uri, range);
       });
     },
-    // May conflict with other extensions
-    // prepareRename(document, position) {},
     async doRename(document, position, newName) {
       const entry = cache.get(document);
       const offset = document.offsetAt(position);
@@ -175,10 +173,13 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
 
         return workspaceEdit;
       } else if (cursor.type === CSS_NODE_TYPE.ClassName) {
-        if (newName.charCodeAt(0) !== POINT || newName.length <= 1) {
-          return;
+        if (newName.charCodeAt(0) === POINT) {
+          if (newName.length <= 1) {
+            return;
+          }
+
+          newName = newName.substring(1);
         }
-        newName = newName.substring(1);
 
         const className = getText(document, cursor);
 

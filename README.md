@@ -6,9 +6,9 @@ Html/Vue class attribute completion
 
 ## Features
 
-- Html/Vue class attribute completion
+- Html/Vue class attribute completion (Include Vue imported CSS file)
 - Jump to definition or reference
-- Rename
+- Rename (May conflict with other extensions, currently can not be resolved, use with caution)
 
 ## Usage
 

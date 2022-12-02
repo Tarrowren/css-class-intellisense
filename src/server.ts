@@ -115,22 +115,22 @@ function createReferenceProvider(runtime: RuntimeEnvironment, languageModes: Lan
 
 function createRenameProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): RenameProvider {
   return {
-    prepareRename(document, position, token) {
-      return runSafeAsync(
-        runtime,
-        async () => {
-          const mode = languageModes.getMode(document.languageId);
-          if (!mode || !mode.prepareRename) {
-            return;
-          }
+    // prepareRename(document, position, token) {
+    //   return runSafeAsync(
+    //     runtime,
+    //     async () => {
+    //       const mode = languageModes.getMode(document.languageId);
+    //       if (!mode || !mode.prepareRename) {
+    //         return;
+    //       }
 
-          return await mode.prepareRename(document, position);
-        },
-        null,
-        "RenameProvider",
-        token
-      );
-    },
+    //       return await mode.prepareRename(document, position);
+    //     },
+    //     null,
+    //     "RenameProvider",
+    //     token
+    //   );
+    // },
     provideRenameEdits(document, position, newName, token) {
       return runSafeAsync(
         runtime,

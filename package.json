@@ -25,6 +25,8 @@
     "build:browser": "node scripts/browser.mjs",
     "build:node": "node scripts/node.mjs",
     "lint": "eslint src --ext ts",
+    "pretest": "tsc -p ./src/test",
+    "test": "node ./out/test/index.js",
     "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {
@@ -48,13 +50,17 @@
   },
   "homepage": "https://github.com/Tarrowren/css-class-intellisense#readme",
   "devDependencies": {
-    "@types/node": "^16.18.3",
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^16.18.4",
     "@types/vscode": "^1.73.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-web": "^0.0.32",
     "eslint": "^8.28.0",
-    "ts-loader": "^9.4.1",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "ts-loader": "^9.4.2",
     "typescript": "^4.9.3",
     "webpack": "^5.75.0"
   },
