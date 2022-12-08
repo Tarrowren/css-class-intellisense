@@ -360,7 +360,3 @@ function isAttributeValueAndGetAttributeName(document: TextDocument, cursor: Tre
     return getText(document, node);
   }
 }
-
-function isClassAttributeValue(document: TextDocument, cursor: TreeCursor) {
-  return isAttributeValueAndGetAttributeName(document, cursor) === "class";
-}
