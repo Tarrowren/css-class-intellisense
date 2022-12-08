@@ -18,6 +18,27 @@
     "onLanguage:scss",
     "onLanguage:less"
   ],
+  "contributes": {
+    "configuration": [
+      {
+        "title": "CSS Class Intellisense",
+        "properties": {
+          "cssci.features.reverseCompletion": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable id/class completion in CSS/SCSS/LESS files."
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "cssci.clearCache",
+        "title": "Clear file cache",
+        "category": "CSSCI"
+      }
+    ]
+  },
   "main": "dist/node/main.js",
   "browser": "dist/browser/main.js",
   "scripts": {

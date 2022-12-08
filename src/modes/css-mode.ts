@@ -1,6 +1,7 @@
-import { Location, Uri, workspace } from "vscode";
+import { CompletionItem, CompletionItemKind, Location, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
+import { enableReverseCompletion } from "../config";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
 import { formatError, outputChannel } from "../runner";
@@ -9,6 +10,47 @@ import { LanguageMode } from "./language-modes";
 
 export function createCssMode(cache: LanguageModelCache<LanguageCacheEntry>, referenceMap: ReferenceMap): LanguageMode {
   return {
+    async doComplete(document, position) {
+      if (!enableReverseCompletion()) {
+        return;
+      }
+      const entry = cache.get(document);
+      const cursor = entry.tree.cursorAt(document.offsetAt(position));
+
+      if (
+        cursor.type !== CSS_NODE_TYPE.StyleSheet &&
+        cursor.type !== CSS_NODE_TYPE.RuleSet &&
+        cursor.type !== CSS_NODE_TYPE.ClassSelector &&
+        cursor.type !== CSS_NODE_TYPE.IdSelector
+      ) {
+        return;
+      }
+
+      const items = new Map<string, CompletionItem>();
+
+      const refs = await referenceMap.getRefs(document.uri);
+      if (refs && refs.size > 0) {
+        await Promise.all(
+          [...refs].map(async (ref) => {
+            try {
+              const uri = Uri.parse(ref);
+              const document = await workspace.openTextDocument(uri);
+              const entry = cache.get(document);
+              entry.usedClassNames?.forEach((_, label) => {
+                items.set(label, new CompletionItem("." + label, CompletionItemKind.Field));
+              });
+              entry.usedIds?.forEach((_, label) => {
+                items.set(label, new CompletionItem("#" + label, CompletionItemKind.Field));
+              });
+            } catch (e) {
+              outputChannel.appendLine(formatError("doComplete", e));
+            }
+          })
+        );
+      }
+
+      return [...items.values()];
+    },
     async findReferences(document, position) {
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));

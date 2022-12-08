@@ -24,7 +24,10 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
   context.subscriptions.push(
     workspace.registerFileSystemProvider(CCI_HTTP_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
     workspace.registerFileSystemProvider(CCI_HTTPS_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
-    languages.registerCompletionItemProvider(["html", "vue"], createCompletionItemProvider(runtime, languageModes)),
+    languages.registerCompletionItemProvider(
+      ["html", "vue", "css", "scss", "less"],
+      createCompletionItemProvider(runtime, languageModes)
+    ),
     languages.registerDefinitionProvider(["html", "vue"], createDefinitionProvider(runtime, languageModes)),
     languages.registerReferenceProvider(
       ["html", "vue", "css", "scss", "less"],

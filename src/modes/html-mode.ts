@@ -2,6 +2,7 @@ import { SyntaxNode, TreeCursor } from "@lezer/common";
 import { CompletionItem, CompletionItemKind, Location, TextDocument, Uri, workspace, WorkspaceEdit } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
+import { enableReverseCompletion } from "../config";
 import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
@@ -15,6 +16,26 @@ export function createHtmlMode(cache: LanguageModelCache<LanguageCacheEntry>): L
     async doComplete(document, position) {
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
+
+      if (enableReverseCompletion()) {
+        if (
+          cursor.type === CSS_NODE_TYPE.StyleSheet ||
+          cursor.type === CSS_NODE_TYPE.RuleSet ||
+          cursor.type === CSS_NODE_TYPE.ClassSelector ||
+          cursor.type === CSS_NODE_TYPE.IdSelector
+        ) {
+          const items = new Map<string, CompletionItem>();
+
+          entry.usedClassNames?.forEach((_, label) => {
+            items.set(label, new CompletionItem("." + label, CompletionItemKind.Field));
+          });
+          entry.usedIds?.forEach((_, label) => {
+            items.set(label, new CompletionItem("#" + label, CompletionItemKind.Field));
+          });
+
+          return [...items.values()];
+        }
+      }
 
       const attr = isAttributeValueAndGetAttributeName(document, cursor);
       if (attr === "class") {
