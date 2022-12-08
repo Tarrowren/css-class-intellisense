@@ -5,9 +5,13 @@ import { JS_NODE_TYPE } from "../../lezer/javascript";
 
 suite("Lezer", () => {
   test("Lezer CSS test", () => {
-    strictEqual(CSS_NODE_TYPE.ClassName.name, "ClassName");
     strictEqual(CSS_NODE_TYPE.StyleSheet.name, "StyleSheet");
+    strictEqual(CSS_NODE_TYPE.RuleSet.name, "RuleSet");
+    strictEqual(CSS_NODE_TYPE.ClassSelector.name, "ClassSelector");
+    strictEqual(CSS_NODE_TYPE.ClassName.name, "ClassName");
+    strictEqual(CSS_NODE_TYPE.IdSelector.name, "IdSelector");
     strictEqual(CSS_NODE_TYPE.IdName.name, "IdName");
+    strictEqual(CSS_NODE_TYPE.Block.name, "Block");
   });
 
   test("Lezer HTML test", () => {
