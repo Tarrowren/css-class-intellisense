@@ -100,6 +100,14 @@ export function activate(context: ExtensionContext) {
         const content = await request(uri, cache?.getETag(uriString), token);
         return { type: FileType.File, ctime: 0, mtime: 0, size: content.length, permissions: FilePermission.Readonly };
       },
+      async clearCache() {
+        const cache = await cachePromise;
+        if (cache) {
+          return await cache.clearCache();
+        } else {
+          return [];
+        }
+      },
     },
     timer: {
       setImmediate(callback, ...args) {

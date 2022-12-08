@@ -1,4 +1,5 @@
 import {
+  commands,
   CompletionItemProvider,
   DefinitionProvider,
   Disposable,
@@ -6,6 +7,7 @@ import {
   languages,
   ReferenceProvider,
   RenameProvider,
+  window,
   workspace,
 } from "vscode";
 import { createLanguageModelCache } from "./caches/cache";
@@ -36,7 +38,13 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
     languages.registerRenameProvider(
       ["html", "vue", "css", "scss", "less"],
       createRenameProvider(runtime, languageModes)
-    )
+    ),
+    commands.registerCommand("cssci.clearCache", async () => {
+      if (runtime.request.clearCache) {
+        await runtime.request.clearCache();
+        await window.showInformationMessage("Cache cleaned up.");
+      }
+    })
   );
 
   return {

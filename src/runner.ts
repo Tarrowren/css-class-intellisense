@@ -7,6 +7,7 @@ export interface RuntimeEnvironment {
   readonly request: {
     readFile(uri: Uri, token?: CancellationToken): Promise<Uint8Array>;
     stat(uri: Uri, token?: CancellationToken): Promise<FileStat>;
+    clearCache?(): Promise<string[]>;
   };
   readonly timer: {
     setImmediate<TArgs extends any[]>(callback: (...args: TArgs) => void, ...args: TArgs): Disposable;

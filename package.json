@@ -16,7 +16,8 @@
     "onLanguage:vue",
     "onLanguage:css",
     "onLanguage:scss",
-    "onLanguage:less"
+    "onLanguage:less",
+    "onCommand:cssci.clearCache"
   ],
   "contributes": {
     "configuration": [
