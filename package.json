@@ -1,7 +1,7 @@
 {
   "name": "css-class-intellisense",
   "displayName": "CSS Class Intellisense",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "CSS Class Intellisense",
   "engines": {
     "vscode": "^1.73.0"
