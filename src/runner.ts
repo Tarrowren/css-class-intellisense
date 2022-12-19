@@ -54,5 +54,3 @@ export function runSafeAsync<T>(
     });
   });
 }
-
-export const EmptyDisposable = new Disposable(() => {});

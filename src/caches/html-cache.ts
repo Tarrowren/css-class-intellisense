@@ -2,7 +2,7 @@ import { parseMixed, SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
 import { Range, TextDocument, Uri } from "vscode";
-import { convertToCciHttpScheme } from "../http-file-system";
+import { convertToHttpSchemeEx, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { getClassNameFromStyle, getIdNameFromStyle } from "../util/css-class-name";
@@ -99,8 +99,8 @@ function getHrefFromLinks(document: TextDocument, ref: SyntaxNodeRef, hrefs: Set
 
   if (href) {
     const uri = Uri.parse(href);
-    if (uri.scheme === "http" || uri.scheme === "https") {
-      hrefs.add(convertToCciHttpScheme(uri).toString(true));
+    if (uri.scheme === HTTP_SCHEME || uri.scheme === HTTPS_SCHEME) {
+      hrefs.add(convertToHttpSchemeEx(uri).toString(true));
     } else if (uri.scheme === "file") {
       hrefs.add(Uri.joinPath(document.uri, "..", uri.path).toString(true));
     }

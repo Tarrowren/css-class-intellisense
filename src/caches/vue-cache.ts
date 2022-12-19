@@ -3,7 +3,7 @@ import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
 import * as LEZER_JS from "@lezer/javascript";
 import { Range, TextDocument, Uri } from "vscode";
-import { convertToCciHttpScheme } from "../http-file-system";
+import { convertToHttpSchemeEx, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { JS_NODE_TYPE } from "../lezer/javascript";
@@ -86,8 +86,8 @@ function getHrefFromImports(document: TextDocument, ref: SyntaxNodeRef, hrefs: S
   const href = getText(document, stringNode).slice(1, -1);
   if (href && !href.endsWith(".module.css")) {
     const uri = Uri.parse(href);
-    if (uri.scheme === "http" || uri.scheme === "https") {
-      hrefs.add(convertToCciHttpScheme(uri).toString(true));
+    if (uri.scheme === HTTP_SCHEME || uri.scheme === HTTPS_SCHEME) {
+      hrefs.add(convertToHttpSchemeEx(uri).toString(true));
     } else if (uri.scheme === "file") {
       hrefs.add(Uri.joinPath(document.uri, "..", uri.path).toString(true));
     }

@@ -1,108 +1,35 @@
-import http from "node:http";
-import https from "node:https";
-import { buffer } from "node:stream/consumers";
-import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileType, Uri } from "vscode";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { CancellationToken, Disposable, ExtensionContext } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
-import { formatError, outputChannel, RuntimeEnvironment } from "../runner";
+import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
-import { createRequestCache } from "./request-cache";
+import { LocalCache } from "./local-cache";
+import { RequestService } from "./request-service";
 
 let server: LanguageServer | null;
 
-const retryTimeoutInHours = 3 * 24;
-
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
   const globalStorage = context.globalStorageUri;
-  const cachePromise = createRequestCache(globalStorage.fsPath, context.globalState).catch((e) => {
-    outputChannel.appendLine(formatError("createRequestCache", e));
-  });
-
-  async function request(uri: Uri, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
-    const uriString = uri.toString(true);
-
-    const signal = toSignal(token);
-
-    const headers: http.OutgoingHttpHeaders = {};
-    if (etag) {
-      headers["If-None-Match"] = etag;
-    }
-
-    const options: http.RequestOptions = {
-      headers,
-      host: uri.authority,
-      path: uri.path,
-      method: "GET",
-      timeout: 10000,
-      signal,
-    };
-
-    const res = await new Promise<http.IncomingMessage>((c, e) => {
-      const req = uri.scheme === "http" ? http.request(options, c) : https.request(options, c);
-      req.on("error", e);
-      req.end();
-    });
-    const cache = await cachePromise;
-    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-      const content = await buffer(res);
-      if (cache) {
-        const etag = res.headers.etag;
-        if (typeof etag === "string") {
-          await cache.put(uriString, etag, content);
-        }
-      }
-      return content;
-    } else if (res.statusCode === 304 && etag && cache) {
-      const content = await cache.get(uriString, etag, true);
-      if (content) {
-        return content;
-      } else {
-        return await request(uri, undefined, token);
-      }
-    } else {
-      throw new Error(`Error: ${res.statusMessage}`);
-    }
-  }
+  const cacheLocation = join(globalStorage.fsPath, LocalCache.MEMENTO_KEY);
+  await mkdir(cacheLocation, { recursive: true });
+  const localCache = new LocalCache(cacheLocation, context.globalState);
+  const request = new RequestService(localCache);
 
   const runtime: RuntimeEnvironment = {
     isBrowser: false,
     request: {
       async readFile(uri, token) {
         uri = convertToHttpScheme(uri);
-
-        const uriString = uri.toString(true);
-        const cache = await cachePromise;
-        if (cache) {
-          const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
-          if (content) {
-            return content;
-          }
-        }
-        return await request(uri, cache?.getETag(uriString), token);
+        return await request.readFile(uri, token);
       },
       async stat(uri, token) {
         uri = convertToHttpScheme(uri);
-
-        const uriString = uri.toString(true);
-        const cache = await cachePromise;
-        if (cache) {
-          const content = await cache.getIfUpdatedSince(uriString, retryTimeoutInHours);
-          if (content) {
-            return {
-              type: FileType.File,
-              ctime: 0,
-              mtime: 0,
-              size: content.length,
-              permissions: FilePermission.Readonly,
-            };
-          }
-        }
-        const content = await request(uri, cache?.getETag(uriString), token);
-        return { type: FileType.File, ctime: 0, mtime: 0, size: content.length, permissions: FilePermission.Readonly };
+        return await request.stat(uri, token);
       },
       async clearCache() {
-        const cache = await cachePromise;
-        if (cache) {
-          return await cache.clearCache();
+        if (localCache) {
+          return await localCache.clearCache();
         } else {
           return [];
         }

@@ -13,7 +13,7 @@ import {
 import { createLanguageModelCache } from "./caches/cache";
 import { getLanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
-import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME, createHttpFileSystemProvider } from "./http-file-system";
+import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HttpFileSystemProvider } from "./http-file-system";
 import { createLanguageModes, LanguageModes } from "./modes/language-modes";
 import { createReferenceMap } from "./reference-map";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
@@ -26,8 +26,8 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
 
   const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
   context.subscriptions.push(
-    workspace.registerFileSystemProvider(CCI_HTTP_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
-    workspace.registerFileSystemProvider(CCI_HTTPS_SCHEME, createHttpFileSystemProvider(runtime), fileSystemOptions),
+    workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
+    workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
     languages.registerCompletionItemProvider(
       ["html", "vue", "css", "scss", "less"],
       createCompletionItemProvider(runtime, languageModes)

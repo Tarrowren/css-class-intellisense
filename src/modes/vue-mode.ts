@@ -3,7 +3,7 @@ import { CompletionItem, CompletionItemKind, Location, TextDocument, Uri, worksp
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
 import { Configuration } from "../config";
-import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME } from "../http-file-system";
+import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { formatError, outputChannel } from "../runner";
@@ -245,10 +245,10 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
               try {
                 const uri = Uri.parse(href);
                 if (
-                  uri.scheme === CCI_HTTPS_SCHEME ||
-                  uri.scheme === CCI_HTTP_SCHEME ||
-                  uri.scheme === "https" ||
-                  uri.scheme === "http"
+                  uri.scheme === CSSCI_HTTPS_SCHEME ||
+                  uri.scheme === CSSCI_HTTP_SCHEME ||
+                  uri.scheme === HTTPS_SCHEME ||
+                  uri.scheme === HTTP_SCHEME
                 ) {
                   return;
                 }
@@ -295,10 +295,10 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
               try {
                 const uri = Uri.parse(href);
                 if (
-                  uri.scheme === CCI_HTTPS_SCHEME ||
-                  uri.scheme === CCI_HTTP_SCHEME ||
-                  uri.scheme === "https" ||
-                  uri.scheme === "http"
+                  uri.scheme === CSSCI_HTTPS_SCHEME ||
+                  uri.scheme === CSSCI_HTTP_SCHEME ||
+                  uri.scheme === HTTPS_SCHEME ||
+                  uri.scheme === HTTP_SCHEME
                 ) {
                   return;
                 }
