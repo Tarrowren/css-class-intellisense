@@ -58,11 +58,6 @@ export function activate(context: ExtensionContext) {
         return new Disposable(() => clearInterval(handle));
       },
     },
-    util: {
-      decode(input, encoding) {
-        return new TextDecoder(encoding).decode(input);
-      },
-    },
   };
 
   server = createLanguageServer(context, runtime);

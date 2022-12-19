@@ -5,12 +5,12 @@ import {
   Location,
   Position,
   ProviderResult,
-  Range,
   TextDocument,
   WorkspaceEdit,
 } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
+import { Configuration } from "../config";
 import { ReferenceMap } from "../reference-map";
 import { createCssMode } from "./css-mode";
 import { createHtmlMode } from "./html-mode";
@@ -19,15 +19,16 @@ import { createScssMode } from "./scss-mode";
 import { createVueMode } from "./vue-mode";
 
 export function createLanguageModes(
+  config: Configuration,
   cache: LanguageModelCache<LanguageCacheEntry>,
   referenceMap: ReferenceMap
 ): LanguageModes {
   const modes = new Map<string, LanguageMode>();
-  modes.set("html", createHtmlMode(cache));
-  modes.set("vue", createVueMode(cache));
-  modes.set("css", createCssMode(cache, referenceMap));
-  modes.set("less", createLessMode(cache, referenceMap));
-  modes.set("scss", createScssMode(cache, referenceMap));
+  modes.set("html", createHtmlMode(config, cache));
+  modes.set("vue", createVueMode(config, cache));
+  modes.set("css", createCssMode(config, cache, referenceMap));
+  modes.set("less", createLessMode(config, cache, referenceMap));
+  modes.set("scss", createScssMode(config, cache, referenceMap));
 
   return {
     getMode(languageId) {

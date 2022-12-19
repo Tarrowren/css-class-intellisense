@@ -1,7 +1,6 @@
 import http from "node:http";
 import https from "node:https";
 import { buffer } from "node:stream/consumers";
-import { TextDecoder } from "node:util";
 import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileType, Uri } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
 import { formatError, outputChannel, RuntimeEnvironment } from "../runner";
@@ -121,11 +120,6 @@ export function activate(context: ExtensionContext) {
       setTimeout(callback, ms, ...args) {
         const handle = setInterval(callback, ms, ...args);
         return new Disposable(() => clearInterval(handle));
-      },
-    },
-    util: {
-      decode(input, encoding) {
-        return new TextDecoder(encoding).decode(input);
       },
     },
   };

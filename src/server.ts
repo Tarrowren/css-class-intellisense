@@ -12,15 +12,17 @@ import {
 } from "vscode";
 import { createLanguageModelCache } from "./caches/cache";
 import { getLanguageCacheEntry } from "./caches/language-caches";
+import { Configuration } from "./config";
 import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME, createHttpFileSystemProvider } from "./http-file-system";
 import { createLanguageModes, LanguageModes } from "./modes/language-modes";
 import { createReferenceMap } from "./reference-map";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
 
 export function createLanguageServer(context: ExtensionContext, runtime: RuntimeEnvironment): LanguageServer {
+  const config = new Configuration();
   const languageCache = createLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
   const referenceMap = createReferenceMap(runtime, languageCache);
-  const languageModes = createLanguageModes(languageCache, referenceMap);
+  const languageModes = createLanguageModes(config, languageCache, referenceMap);
 
   const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
   context.subscriptions.push(
@@ -49,6 +51,7 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
 
   return {
     dispose() {
+      config.dispose();
       languageCache.dispose();
       referenceMap.dispose();
       languageModes.dispose();

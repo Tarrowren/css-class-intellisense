@@ -1,7 +1,7 @@
 import { CompletionItem, CompletionItemKind, Location, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
-import { enableReverseCompletion } from "../config";
+import { Configuration } from "../config";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
 import { formatError, outputChannel } from "../runner";
@@ -9,12 +9,13 @@ import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export function createScssMode(
+  config: Configuration,
   cache: LanguageModelCache<LanguageCacheEntry>,
   referenceMap: ReferenceMap
 ): LanguageMode {
   return {
     async doComplete(document, position) {
-      if (!enableReverseCompletion()) {
+      if (!config.reverseCompletion) {
         return;
       }
       const entry = cache.get(document);

@@ -2,7 +2,7 @@ import { SyntaxNode, TreeCursor } from "@lezer/common";
 import { CompletionItem, CompletionItemKind, Location, TextDocument, Uri, workspace, WorkspaceEdit } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
-import { enableReverseCompletion } from "../config";
+import { Configuration } from "../config";
 import { CCI_HTTPS_SCHEME, CCI_HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
@@ -11,13 +11,13 @@ import { nearbyWord, POINT, SHARP } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
-export function createVueMode(cache: LanguageModelCache<LanguageCacheEntry>): LanguageMode {
+export function createVueMode(config: Configuration, cache: LanguageModelCache<LanguageCacheEntry>): LanguageMode {
   return {
     async doComplete(document, position) {
       const entry = cache.get(document);
       const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-      if (enableReverseCompletion()) {
+      if (config.reverseCompletion) {
         if (
           cursor.type === CSS_NODE_TYPE.StyleSheet ||
           cursor.type === CSS_NODE_TYPE.RuleSet ||

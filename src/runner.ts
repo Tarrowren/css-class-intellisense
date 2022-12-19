@@ -14,9 +14,6 @@ export interface RuntimeEnvironment {
     setTimeout<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
     setInterval<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
   };
-  readonly util: {
-    decode(input: Uint8Array, encoding?: string): string;
-  };
 }
 
 export function formatError(message: string, err: any): string {

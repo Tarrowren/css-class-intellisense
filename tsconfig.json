@@ -4,12 +4,12 @@
     "moduleResolution": "Node",
     "target": "ES2020",
     "lib": ["ES2020"],
+    "types": ["vscode"],
     "rootDir": "src",
     "outDir": "out",
     "strict": true,
-    "esModuleInterop": true,
-    "sourceMap": true
+    "esModuleInterop": true
   },
   "include": ["src"],
-  "exclude": ["src/browser", "src/test"]
+  "exclude": ["src/browser", "src/node", "src/test"]
 }
