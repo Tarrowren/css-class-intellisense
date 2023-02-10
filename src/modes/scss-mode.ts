@@ -4,7 +4,7 @@ import { LanguageCacheEntry } from "../caches/language-caches";
 import { Configuration } from "../config";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
-import { formatError, outputChannel } from "../runner";
+import { log } from "../runner";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -48,7 +48,7 @@ export function createScssMode(
                 items.set(label, new CompletionItem("#" + label, CompletionItemKind.Field));
               });
             } catch (e) {
-              outputChannel.appendLine(formatError("doComplete", e));
+              log.error(e, "do complete");
             }
           })
         );
@@ -80,7 +80,7 @@ export function createScssMode(
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("findReferences", e));
+                log.error(e, "find references");
               }
             })
           );
@@ -107,7 +107,7 @@ export function createScssMode(
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("findReferences", e));
+                log.error(e, "find references");
               }
             })
           );

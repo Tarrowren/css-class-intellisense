@@ -6,7 +6,7 @@ import { Configuration } from "../config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
-import { formatError, outputChannel } from "../runner";
+import { log } from "../runner";
 import { nearbyWord, POINT, SHARP } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
@@ -62,7 +62,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("doComplete", e));
+                log.error(e, "do complete");
               }
             })
           );
@@ -93,7 +93,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("doComplete", e));
+                log.error(e, "do complete");
               }
             })
           );
@@ -144,7 +144,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("findDefinition", e));
+                log.error(e, "find definition");
               }
             })
           );
@@ -187,7 +187,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("findDefinition", e));
+                log.error(e, "find definition");
               }
             })
           );
@@ -263,7 +263,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("doRename", e));
+                log.error(e, "do rename");
               }
             })
           );
@@ -313,7 +313,7 @@ export function createVueMode(config: Configuration, cache: LanguageModelCache<L
                   }
                 }
               } catch (e) {
-                outputChannel.appendLine(formatError("doRename", e));
+                log.error(e, "do rename");
               }
             })
           );

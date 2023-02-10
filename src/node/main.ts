@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { CancellationToken, Disposable, ExtensionContext } from "vscode";
+import { Disposable, ExtensionContext } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { createLanguageServer, LanguageServer } from "../server";
@@ -59,22 +59,4 @@ export function deactivate() {
     server.dispose();
     server = null;
   }
-}
-
-function toSignal(token?: CancellationToken): AbortSignal | undefined {
-  if (!token) {
-    return;
-  }
-
-  const controller = new AbortController();
-
-  if (token.isCancellationRequested) {
-    controller.abort();
-  } else {
-    token.onCancellationRequested(() => {
-      controller.abort();
-    });
-  }
-
-  return controller.signal;
 }

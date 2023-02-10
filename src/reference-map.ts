@@ -1,7 +1,7 @@
 import { Disposable, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
-import { formatError, outputChannel, RuntimeEnvironment } from "./runner";
+import { log, RuntimeEnvironment } from "./runner";
 
 export function createReferenceMap(
   runtime: RuntimeEnvironment,
@@ -59,13 +59,13 @@ export function createReferenceMap(
                 }
               }
             } catch (e) {
-              outputChannel.appendLine(formatError("openTextDocument", e));
+              log.error(e, "open text document");
             }
           })
         );
       }
     } catch (e) {
-      outputChannel.appendLine(formatError("rebuildReference", e));
+      log.error(e, "rebuild reference");
     }
   }
 

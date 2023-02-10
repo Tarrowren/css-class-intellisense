@@ -1,6 +1,26 @@
+import pino, { LoggerOptions } from "pino";
 import { CancellationToken, Disposable, FileStat, Uri, window } from "vscode";
 
-export const outputChannel = window.createOutputChannel("CSS Class Intellisense");
+export const log = (() => {
+  const channel = window.createOutputChannel("CSS Class Intellisense");
+
+  return pino<LoggerOptions>(
+    {
+      level: "debug",
+      browser: {
+        serialize: true,
+        write(o) {
+          channel.appendLine(JSON.stringify(o));
+        },
+      },
+    },
+    {
+      write(msg) {
+        channel.append(msg);
+      },
+    }
+  );
+})();
 
 export interface RuntimeEnvironment {
   readonly isBrowser: boolean;
@@ -14,17 +34,6 @@ export interface RuntimeEnvironment {
     setTimeout<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
     setInterval<TArgs extends any[]>(callback: (...args: TArgs) => void, ms: number, ...args: TArgs): Disposable;
   };
-}
-
-export function formatError(message: string, err: any): string {
-  if (err instanceof Error) {
-    return `[${message}] ${err.message}\n${err.stack}`;
-  } else if (typeof err === "string") {
-    return `[${message}] ${err}`;
-  } else if (err) {
-    return `[${message}] ${err.toString()}`;
-  }
-  return `[${message}]`;
 }
 
 export function runSafeAsync<T>(
@@ -47,7 +56,7 @@ export function runSafeAsync<T>(
             resolve(result);
           }
         } catch (e) {
-          outputChannel.appendLine(formatError(errorMessage, e));
+          log.error(e, errorMessage);
           resolve(errorVal);
         }
       }
