@@ -29,16 +29,19 @@ export function createLanguageServer(context: ExtensionContext, runtime: Runtime
     workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
     workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
     languages.registerCompletionItemProvider(
-      ["html", "vue", "css", "scss", "less"],
+      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
       createCompletionItemProvider(runtime, languageModes)
     ),
-    languages.registerDefinitionProvider(["html", "vue"], createDefinitionProvider(runtime, languageModes)),
+    languages.registerDefinitionProvider(
+      ["html", "vue", "javascriptreact", "typescriptreact"],
+      createDefinitionProvider(runtime, languageModes)
+    ),
     languages.registerReferenceProvider(
-      ["html", "vue", "css", "scss", "less"],
+      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
       createReferenceProvider(runtime, languageModes)
     ),
     languages.registerRenameProvider(
-      ["html", "vue", "css", "scss", "less"],
+      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
       createRenameProvider(runtime, languageModes)
     ),
     commands.registerCommand("cssci.clearCache", async () => {

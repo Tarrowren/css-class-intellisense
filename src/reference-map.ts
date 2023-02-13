@@ -10,7 +10,7 @@ export function createReferenceMap(
   const map = new Map<string, Set<string>>();
   let isComplete = false;
 
-  const watcher = workspace.createFileSystemWatcher("**/*.{html,vue}");
+  const watcher = workspace.createFileSystemWatcher("**/*.{html,vue,jsx,tsx}");
 
   const disposables = [
     watcher.onDidCreate((uri) => {
@@ -30,7 +30,7 @@ export function createReferenceMap(
       return;
     }
     try {
-      const uris = await workspace.findFiles("**/*.{html,vue}", "**/node_modules/**");
+      const uris = await workspace.findFiles("**/*.{html,vue,jsx,tsx}", "**/node_modules/**");
       if (uris.length > 0) {
         await Promise.all(
           uris.map(async (uri) => {

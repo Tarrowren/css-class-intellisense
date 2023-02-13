@@ -14,6 +14,7 @@ import { Configuration } from "../config";
 import { ReferenceMap } from "../reference-map";
 import { createCssMode } from "./css-mode";
 import { createHtmlMode } from "./html-mode";
+import { JsxMode } from "./jsx-mode";
 import { createLessMode } from "./less-mode";
 import { createScssMode } from "./scss-mode";
 import { createVueMode } from "./vue-mode";
@@ -26,6 +27,8 @@ export function createLanguageModes(
   const modes = new Map<string, LanguageMode>();
   modes.set("html", createHtmlMode(config, cache));
   modes.set("vue", createVueMode(config, cache));
+  modes.set("javascriptreact", new JsxMode(config, cache));
+  modes.set("typescriptreact", new JsxMode(config, cache));
   modes.set("css", createCssMode(config, cache, referenceMap));
   modes.set("less", createLessMode(config, cache, referenceMap));
   modes.set("scss", createScssMode(config, cache, referenceMap));
@@ -62,6 +65,6 @@ export interface LanguageMode extends Disposable {
   findDefinition?(document: TextDocument, position: Position): ProviderResult<Location[]>;
   findReferences?(document: TextDocument, position: Position): ProviderResult<Location[]>;
   // prepareRename?: (document: TextDocument, position: Position) => ProviderResult<Range>;
-  doRename?: (document: TextDocument, position: Position, newName: string) => ProviderResult<WorkspaceEdit>;
+  doRename?(document: TextDocument, position: Position, newName: string): ProviderResult<WorkspaceEdit>;
   onDocumentRemoved(document: TextDocument): void;
 }

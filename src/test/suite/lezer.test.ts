@@ -30,7 +30,11 @@ test("Lezer", async (t) => {
 
   await t.test("Lezer JavaScript test", () => {
     assert.strictEqual(JS_NODE_TYPE.String.name, "String");
+    assert.strictEqual(JS_NODE_TYPE.Equals.name, "Equals");
     assert.strictEqual(JS_NODE_TYPE.Import.name, "import");
+    assert.strictEqual(JS_NODE_TYPE.JSXIdentifier.name, "JSXIdentifier");
+    assert.strictEqual(JS_NODE_TYPE.JSXAttribute.name, "JSXAttribute");
+    assert.strictEqual(JS_NODE_TYPE.JSXAttributeValue.name, "JSXAttributeValue");
     assert.strictEqual(JS_NODE_TYPE.ImportDeclaration.name, "ImportDeclaration");
   });
 });
