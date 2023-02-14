@@ -1,30 +1,29 @@
-import { Disposable, workspace } from "vscode";
+import { Disposable, EventEmitter, workspace } from "vscode";
 
-const reverseCompletionSetting = "cssci.features.reverseCompletion";
+const lightweight = "cssci.lightweight";
 
 export class Configuration implements Disposable {
-  private _configListener: Disposable | null | undefined;
+  private _lightweight = workspace.getConfiguration().get<boolean>(lightweight, false);
+  private _on_lightweight = new EventEmitter<boolean>();
+  private _disposable = workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration(lightweight)) {
+      this._lightweight = workspace.getConfiguration().get<boolean>(lightweight, false);
+      this._on_lightweight.fire(this._lightweight);
+    }
+  });
 
-  private _reverseCompletion: boolean;
-
-  constructor() {
-    this._reverseCompletion = workspace.getConfiguration().get<boolean>(reverseCompletionSetting, true);
-
-    this._configListener = workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration(reverseCompletionSetting)) {
-        this._reverseCompletion = workspace.getConfiguration().get<boolean>(reverseCompletionSetting, true);
-      }
-    });
+  get lightweight() {
+    return this._lightweight;
   }
 
-  get reverseCompletion() {
-    return this._reverseCompletion;
+  get on() {
+    return {
+      lightweight: this._on_lightweight.event,
+    };
   }
 
   dispose() {
-    if (this._configListener) {
-      this._configListener.dispose();
-      this._configListener = null;
-    }
+    this._disposable.dispose();
+    this._on_lightweight.dispose();
   }
 }

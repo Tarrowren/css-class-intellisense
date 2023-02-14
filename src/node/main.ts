@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Disposable, ExtensionContext } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
-import { createLanguageServer, LanguageServer } from "../server";
+import { GlobalLanguageServer, LanguageServer } from "../server";
 import { LocalCache } from "./local-cache";
 import { RequestService } from "./request-service";
 
@@ -51,7 +51,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  server = createLanguageServer(context, runtime);
+  server = new GlobalLanguageServer(context, runtime);
 }
 
 export function deactivate() {

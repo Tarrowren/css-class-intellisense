@@ -2,7 +2,7 @@ import { Tree } from "@lezer/common";
 import * as LEZER_JS from "@lezer/javascript";
 import { Range, TextDocument } from "vscode";
 import { JS_NODE_TYPE } from "../lezer/javascript";
-import { getClassNameFromAttribute } from "../util/css-class-name";
+import { getNameFromAttribute } from "../util/css-class-name";
 import { emptyMap } from "../util/empty";
 import { getHrefFromImports } from "../util/js-import";
 import { getText } from "../util/text-document";
@@ -40,7 +40,7 @@ export class JsxCacheEntry implements LanguageCacheEntry {
         ) {
           const attr = getText(document, firstChild);
           if (attr === "className") {
-            getClassNameFromAttribute(document, lastChild, this.usedClassNames);
+            getNameFromAttribute(document, lastChild, this.usedClassNames);
           }
         }
 

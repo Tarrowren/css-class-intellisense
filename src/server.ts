@@ -1,168 +1,194 @@
 import {
+  CancellationToken,
   commands,
+  CompletionContext,
+  CompletionItem,
   CompletionItemProvider,
+  CompletionList,
+  Definition,
   DefinitionProvider,
   Disposable,
   ExtensionContext,
+  l10n,
   languages,
+  Location,
+  LocationLink,
+  Position,
+  ProviderResult,
+  ReferenceContext,
   ReferenceProvider,
   RenameProvider,
+  TextDocument,
   window,
   workspace,
+  WorkspaceEdit,
 } from "vscode";
-import { createLanguageModelCache } from "./caches/cache";
-import { getLanguageCacheEntry } from "./caches/language-caches";
+import { GlobalLanguageModelCache, LanguageModelCache } from "./caches/cache";
+import { getLanguageCacheEntry, LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HttpFileSystemProvider } from "./http-file-system";
-import { createLanguageModes, LanguageModes } from "./modes/language-modes";
-import { createReferenceMap } from "./reference-map";
+import { GlobalLanguageModes, LanguageModes } from "./modes/language-modes";
+import { GlobalReferenceMap, ReferenceMap } from "./reference-map";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
-
-export function createLanguageServer(context: ExtensionContext, runtime: RuntimeEnvironment): LanguageServer {
-  const config = new Configuration();
-  const languageCache = createLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
-  const referenceMap = createReferenceMap(runtime, languageCache);
-  const languageModes = createLanguageModes(config, languageCache, referenceMap);
-
-  const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
-  context.subscriptions.push(
-    workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
-    workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
-    languages.registerCompletionItemProvider(
-      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
-      createCompletionItemProvider(runtime, languageModes)
-    ),
-    languages.registerDefinitionProvider(
-      ["html", "vue", "javascriptreact", "typescriptreact"],
-      createDefinitionProvider(runtime, languageModes)
-    ),
-    languages.registerReferenceProvider(
-      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
-      createReferenceProvider(runtime, languageModes)
-    ),
-    languages.registerRenameProvider(
-      ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
-      createRenameProvider(runtime, languageModes)
-    ),
-    commands.registerCommand("cssci.clearCache", async () => {
-      if (runtime.request.clearCache) {
-        await runtime.request.clearCache();
-        await window.showInformationMessage("Cache cleaned up.");
-      }
-    })
-  );
-
-  return {
-    dispose() {
-      config.dispose();
-      languageCache.dispose();
-      referenceMap.dispose();
-      languageModes.dispose();
-    },
-  };
-}
 
 export interface LanguageServer extends Disposable {}
 
-function createCompletionItemProvider(
-  runtime: RuntimeEnvironment,
-  languageModes: LanguageModes
-): CompletionItemProvider {
-  return {
-    provideCompletionItems(document, position, token, _context) {
-      return runSafeAsync(
-        runtime,
-        async () => {
-          const mode = languageModes.getMode(document.languageId);
-          if (!mode || !mode.doComplete) {
-            return;
-          }
+export class GlobalLanguageServer implements LanguageServer {
+  private config: Configuration;
+  private languageCache: LanguageModelCache<LanguageCacheEntry>;
+  private referenceMap: ReferenceMap;
+  private languageModes: LanguageModes;
 
-          return await mode.doComplete(document, position);
-        },
-        null,
-        "CompletionItemProvider",
-        token
-      );
-    },
-  };
+  constructor(context: ExtensionContext, runtime: RuntimeEnvironment) {
+    this.config = new Configuration();
+    this.languageCache = new GlobalLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
+    this.referenceMap = new GlobalReferenceMap(runtime, this.config, this.languageCache);
+    this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap);
+
+    const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
+    context.subscriptions.push(
+      workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
+      workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
+      languages.registerCompletionItemProvider(
+        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
+        new CssCompletionItemProvider(runtime, this.languageModes)
+      ),
+      languages.registerDefinitionProvider(
+        ["html", "vue", "javascriptreact", "typescriptreact"],
+        new CssDefinitionProvider(runtime, this.languageModes)
+      ),
+      languages.registerReferenceProvider(
+        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
+        new CssReferenceProvider(runtime, this.languageModes)
+      ),
+      languages.registerRenameProvider(
+        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
+        new CssRenameProvider(runtime, this.languageModes)
+      ),
+      commands.registerCommand("cssci.clearCache", async () => {
+        if (runtime.request.clearCache) {
+          await runtime.request.clearCache();
+          await window.showInformationMessage(l10n.t("Cache cleaned up."));
+        }
+      })
+    );
+  }
+
+  dispose() {
+    this.config.dispose();
+    this.languageCache.dispose();
+    this.referenceMap.dispose();
+    this.languageModes.dispose();
+  }
 }
 
-function createDefinitionProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): DefinitionProvider {
-  return {
-    provideDefinition(document, position, token) {
-      return runSafeAsync(
-        runtime,
-        async () => {
-          const mode = languageModes.getMode(document.languageId);
-          if (!mode || !mode.findDefinition) {
-            return;
-          }
+class CssCompletionItemProvider implements CompletionItemProvider {
+  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
 
-          return await mode.findDefinition(document, position);
-        },
-        null,
-        "DefinitionProvider",
-        token
-      );
-    },
-  };
+  provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    token: CancellationToken,
+    _context: CompletionContext
+  ): ProviderResult<CompletionItem[] | CompletionList<CompletionItem>> {
+    return runSafeAsync(
+      this.runtime,
+      async () => {
+        const mode = this.languageModes.getMode(document.languageId);
+        if (!mode || !mode.doComplete) {
+          return;
+        }
+
+        return await mode.doComplete(document, position);
+      },
+      null,
+      "completion item provider",
+      token
+    );
+  }
 }
 
-function createReferenceProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): ReferenceProvider {
-  return {
-    provideReferences(document, position, _context, token) {
-      return runSafeAsync(
-        runtime,
-        async () => {
-          const mode = languageModes.getMode(document.languageId);
-          if (!mode || !mode.findReferences) {
-            return;
-          }
+class CssDefinitionProvider implements DefinitionProvider {
+  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
 
-          return await mode.findReferences(document, position);
-        },
-        null,
-        "ReferenceProvider",
-        token
-      );
-    },
-  };
+  provideDefinition(
+    document: TextDocument,
+    position: Position,
+    token: CancellationToken
+  ): ProviderResult<Definition | LocationLink[]> {
+    return runSafeAsync(
+      this.runtime,
+      async () => {
+        const mode = this.languageModes.getMode(document.languageId);
+        if (!mode || !mode.findDefinition) {
+          return;
+        }
+
+        return await mode.findDefinition(document, position);
+      },
+      null,
+      "definition provider",
+      token
+    );
+  }
 }
 
-function createRenameProvider(runtime: RuntimeEnvironment, languageModes: LanguageModes): RenameProvider {
-  return {
-    // prepareRename(document, position, token) {
-    //   return runSafeAsync(
-    //     runtime,
-    //     async () => {
-    //       const mode = languageModes.getMode(document.languageId);
-    //       if (!mode || !mode.prepareRename) {
-    //         return;
-    //       }
+class CssReferenceProvider implements ReferenceProvider {
+  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
 
-    //       return await mode.prepareRename(document, position);
-    //     },
-    //     null,
-    //     "RenameProvider",
-    //     token
-    //   );
-    // },
-    provideRenameEdits(document, position, newName, token) {
-      return runSafeAsync(
-        runtime,
-        async () => {
-          const mode = languageModes.getMode(document.languageId);
-          if (!mode || !mode.doRename) {
-            return;
-          }
+  provideReferences(
+    document: TextDocument,
+    position: Position,
+    _context: ReferenceContext,
+    token: CancellationToken
+  ): ProviderResult<Location[]> {
+    return runSafeAsync(
+      this.runtime,
+      async () => {
+        const mode = this.languageModes.getMode(document.languageId);
+        if (!mode || !mode.findReferences) {
+          return;
+        }
 
-          return await mode.doRename(document, position, newName);
-        },
-        null,
-        "RenameProvider",
-        token
-      );
-    },
-  };
+        return await mode.findReferences(document, position);
+      },
+      null,
+      "reference provider",
+      token
+    );
+  }
+}
+
+class CssRenameProvider implements RenameProvider {
+  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+
+  provideRenameEdits(
+    document: TextDocument,
+    position: Position,
+    newName: string,
+    token: CancellationToken
+  ): ProviderResult<WorkspaceEdit> {
+    return runSafeAsync(
+      this.runtime,
+      async () => {
+        const mode = this.languageModes.getMode(document.languageId);
+        if (!mode || !mode.doRename) {
+          return;
+        }
+
+        return await mode.doRename(document, position, newName);
+      },
+      null,
+      "rename provider",
+      token
+    );
+  }
+
+  // prepareRename?(
+  //   document: TextDocument,
+  //   position: Position,
+  //   token: CancellationToken
+  // ): ProviderResult<Range | { range: Range; placeholder: string }> {
+  //   throw new Error("Method not implemented.");
+  // }
 }

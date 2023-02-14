@@ -1,0 +1,5 @@
+{
+  "cssci.description": "CSS Class 智能提示",
+  "cssci.clearCache": "清除文件缓存",
+  "cssci.lightweight.description": "初始化时不检查文件之间的引用，禁用 CSS 文件的自动完成和跳转到引用。"
+}

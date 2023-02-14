@@ -20,13 +20,13 @@ import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class JsxMode implements LanguageMode {
-  constructor(private config: Configuration, private cache: LanguageModelCache<LanguageCacheEntry>) {}
+  constructor(_config: Configuration, private cache: LanguageModelCache<LanguageCacheEntry>) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
     const entry = this.cache.get(document);
     const cursor = entry.tree.cursorAt(document.offsetAt(position));
 
-    const attr = isAttributeValueAndGetAttributeName(document, cursor);
+    const attr = this.getAttributeName(document, cursor);
     if (attr === "className") {
       const items = new Map<string, CompletionItem>();
 
@@ -60,7 +60,7 @@ export class JsxMode implements LanguageMode {
     const offset = document.offsetAt(position);
     const cursor = entry.tree.cursorAt(offset);
 
-    const attr = isAttributeValueAndGetAttributeName(document, cursor);
+    const attr = this.getAttributeName(document, cursor);
     if (attr === "className") {
       const text = getText(document, cursor).slice(1, -1);
       if (!text) {
@@ -105,7 +105,7 @@ export class JsxMode implements LanguageMode {
     const offset = document.offsetAt(position);
     const cursor = entry.tree.cursorAt(offset);
 
-    const attr = isAttributeValueAndGetAttributeName(document, cursor);
+    const attr = this.getAttributeName(document, cursor);
     if (attr === "className") {
       const text = getText(document, cursor).slice(1, -1);
       if (!text) {
@@ -161,17 +161,17 @@ export class JsxMode implements LanguageMode {
   }
 
   dispose() {}
-}
 
-function isAttributeValueAndGetAttributeName(document: TextDocument, cursor: TreeCursor) {
-  let node: SyntaxNode | null = cursor.node;
-  if (
-    node.type === JS_NODE_TYPE.JSXAttributeValue &&
-    (node = node.prevSibling) &&
-    node.type === JS_NODE_TYPE.Equals &&
-    (node = node.prevSibling) &&
-    node.type === JS_NODE_TYPE.JSXIdentifier
-  ) {
-    return getText(document, node);
+  private getAttributeName(document: TextDocument, cursor: TreeCursor): string | undefined {
+    let node: SyntaxNode | null = cursor.node;
+    if (
+      node.type === JS_NODE_TYPE.JSXAttributeValue &&
+      (node = node.prevSibling) &&
+      node.type === JS_NODE_TYPE.Equals &&
+      (node = node.prevSibling) &&
+      node.type === JS_NODE_TYPE.JSXIdentifier
+    ) {
+      return getText(document, node);
+    }
   }
 }

@@ -1,0 +1,5 @@
+{
+  "cssci.description": "CSS Class Intellisense",
+  "cssci.clearCache": "Clear file cache",
+  "cssci.lightweight.description": "Initialize without checking references between files, disable \"Autocomplete\" and \"Jump to reference\" features for css files."
+}

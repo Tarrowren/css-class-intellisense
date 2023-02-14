@@ -5,8 +5,7 @@ import { Range, TextDocument, Uri } from "vscode";
 import { convertToHttpSchemeEx, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
-import { getClassNameFromAttribute, getClassNameFromStyle, getIdNameFromStyle } from "../util/css-class-name";
-import { getIdNameFromAttribute } from "../util/id-name";
+import { getNameFromAttribute, getNameFromStyle } from "../util/css-class-name";
 import { getText } from "../util/text-document";
 import { LanguageCacheEntry } from "./language-caches";
 
@@ -52,17 +51,17 @@ export class HtmlCacheEntry implements LanguageCacheEntry {
         ) {
           const attr = getText(document, firstChild);
           if (attr === "class") {
-            getClassNameFromAttribute(document, lastChild, this.usedClassNames);
+            getNameFromAttribute(document, lastChild, this.usedClassNames);
           } else if (attr === "id") {
-            getIdNameFromAttribute(document, lastChild, this.usedIds);
+            getNameFromAttribute(document, lastChild, this.usedIds, true);
           }
         }
 
         return false;
       } else if (ref.type === CSS_NODE_TYPE.ClassName) {
-        getClassNameFromStyle(document, ref, this.classNames);
+        getNameFromStyle(document, ref, this.classNames);
       } else if (ref.type === CSS_NODE_TYPE.IdName) {
-        getIdNameFromStyle(document, ref, this.ids);
+        getNameFromStyle(document, ref, this.ids);
       }
     });
   }

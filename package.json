@@ -2,7 +2,7 @@
   "name": "css-class-intellisense",
   "displayName": "CSS Class Intellisense",
   "version": "4.2.0",
-  "description": "CSS Class Intellisense",
+  "description": "%cssci.description%",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -25,10 +25,10 @@
       {
         "title": "CSS Class Intellisense",
         "properties": {
-          "cssci.features.reverseCompletion": {
+          "cssci.lightweight": {
             "type": "boolean",
-            "default": true,
-            "description": "Enable id/class completion in CSS/SCSS/LESS files."
+            "default": false,
+            "description": "%cssci.lightweight.description%"
           }
         }
       }
@@ -36,13 +36,14 @@
     "commands": [
       {
         "command": "cssci.clearCache",
-        "title": "Clear file cache",
+        "title": "%cssci.clearCache%",
         "category": "CSSCI"
       }
     ]
   },
   "main": "dist/node/main.js",
   "browser": "dist/browser/main.js",
+  "l10n": "l10n",
   "scripts": {
     "watch": "tsc -w -p src/node",
     "build:browser": "node scripts/browser.mjs",
