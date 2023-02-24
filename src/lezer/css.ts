@@ -8,6 +8,7 @@ export const CSS_NODE_TYPE = {
   ClassSelector: types[10],
   ClassName: types[11],
   IdSelector: types[35],
+  "#": types[36],
   IdName: types[37],
   Block: types[50],
 };

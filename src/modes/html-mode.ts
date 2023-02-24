@@ -18,6 +18,7 @@ import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { log } from "../runner";
+import { getRangeOfClassSelector, getRangeOfIdSelector, getRangeOfRuleSet } from "../util/css-class-name";
 import { nearbyWord, POINT, SHARP } from "../util/string";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
@@ -29,19 +30,41 @@ export class HtmlMode implements LanguageMode {
     const entry = this.cache.get(document);
 
     const cursor = entry.tree.cursorAt(document.offsetAt(position));
+    log.info({ type: cursor.type, text: getText(document, cursor) });
     if (
       cursor.type === CSS_NODE_TYPE.StyleSheet ||
       cursor.type === CSS_NODE_TYPE.RuleSet ||
       cursor.type === CSS_NODE_TYPE.ClassSelector ||
-      cursor.type === CSS_NODE_TYPE.IdSelector
+      cursor.type === CSS_NODE_TYPE.ClassName ||
+      cursor.type === CSS_NODE_TYPE.IdSelector ||
+      cursor.type === CSS_NODE_TYPE.IdName
+      // ||      cursor.type === CSS_NODE_TYPE.DescendantSelector
     ) {
       const items = new Map<string, CompletionItem>();
 
-      for (const label of entry.usedClassNames.keys()) {
-        items.set(label, new CompletionItem("." + label, CompletionItemKind.Field));
+      let range: Range | undefined;
+      if (cursor.type === CSS_NODE_TYPE.RuleSet) {
+        range = getRangeOfRuleSet(document, position, entry.tree);
+      } else if (cursor.type === CSS_NODE_TYPE.ClassSelector) {
+        range = getRangeOfClassSelector(document, position, entry.tree);
+      } else if (cursor.type === CSS_NODE_TYPE.IdSelector) {
+        range = getRangeOfIdSelector(document, position, entry.tree);
+      } else if (cursor.type === CSS_NODE_TYPE.ClassName || cursor.type === CSS_NODE_TYPE.IdName) {
+        range = new Range(document.positionAt(cursor.from - 1), document.positionAt(cursor.to));
       }
-      for (const label of entry.usedIds.keys()) {
-        items.set(label, new CompletionItem("#" + label, CompletionItemKind.Field));
+
+      for (const name of entry.usedClassNames.keys()) {
+        const label = "." + name;
+        const item = new CompletionItem(label, CompletionItemKind.Field);
+        item.range = range;
+        items.set(label, item);
+      }
+
+      for (const name of entry.usedIds.keys()) {
+        const label = "#" + name;
+        const item = new CompletionItem(label, CompletionItemKind.Field);
+        item.range = range;
+        items.set(label, item);
       }
 
       return [...items.values()];

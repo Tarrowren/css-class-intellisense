@@ -19,6 +19,7 @@ export class CssMode implements LanguageMode {
     dialect: boolean = false
   ) {
     if (dialect) {
+      // TODO classname idname
       this.doCompleteDisabled = (cursor) =>
         cursor.type !== CSS_NODE_TYPE.StyleSheet &&
         cursor.type !== CSS_NODE_TYPE.RuleSet &&
@@ -59,11 +60,13 @@ export class CssMode implements LanguageMode {
           const uri = Uri.parse(ref);
           const document = await workspace.openTextDocument(uri);
           const entry = this.cache.get(document);
-          for (const label of entry.usedClassNames.keys()) {
-            items.set(label, new CompletionItem("." + label, CompletionItemKind.Field));
+          for (const name of entry.usedClassNames.keys()) {
+            const label = "." + name;
+            items.set(label, new CompletionItem(label, CompletionItemKind.Field));
           }
-          for (const label of entry.usedIds.keys()) {
-            items.set(label, new CompletionItem("#" + label, CompletionItemKind.Field));
+          for (const name of entry.usedIds.keys()) {
+            const label = "#" + name;
+            items.set(label, new CompletionItem(label, CompletionItemKind.Field));
           }
         } catch (e) {
           log.error(e, "do complete");

@@ -11,6 +11,7 @@ test("Lezer", async (t) => {
     assert.strictEqual(CSS_NODE_TYPE.ClassSelector.name, "ClassSelector");
     assert.strictEqual(CSS_NODE_TYPE.ClassName.name, "ClassName");
     assert.strictEqual(CSS_NODE_TYPE.IdSelector.name, "IdSelector");
+    assert.strictEqual(CSS_NODE_TYPE["#"].name, "#");
     assert.strictEqual(CSS_NODE_TYPE.IdName.name, "IdName");
     assert.strictEqual(CSS_NODE_TYPE.Block.name, "Block");
   });
