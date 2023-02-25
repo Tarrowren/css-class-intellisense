@@ -8,7 +8,7 @@ Html/Vue/Jsx id/class attribute completion
 
 - Html/Vue/Jsx id/class attribute completion (Include Vue/Jsx imported CSS/SCSS/LESS file)
 - Jump to definition or reference
-- Rename (May conflict with other extensions, currently can not be resolved, use with caution)
+- Rename (May conflict with other extensions, cannot currently be resolved, use with care)
 - Limited language support for web extensions ([issues](https://github.com/microsoft/vscode-test-web/issues/4))
 
 ## Usage

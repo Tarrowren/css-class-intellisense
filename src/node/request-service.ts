@@ -1,4 +1,4 @@
-import { fetch, Headers } from "undici";
+import fetch, { Headers } from "node-fetch";
 import {
   CancellationToken,
   CancellationTokenSource,
@@ -109,7 +109,7 @@ export class RequestService implements Disposable {
             headers.set("If-None-Match", etag);
           }
 
-          const res = await fetch(uri, { method: "GET", mode: "cors", headers, signal: toSignal(token) });
+          const res = await fetch(uri, { method: "GET", headers, signal: toSignal(token) as any });
           if (res.ok) {
             const content = new Uint8Array(await res.arrayBuffer());
             if (this._localCache) {
