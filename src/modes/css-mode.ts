@@ -6,7 +6,9 @@ import { Configuration } from "../config";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
 import { log } from "../runner";
-import { getText } from "../util/text-document";
+import { cssDoComplete } from "../util/css-class-name";
+import { getInsertionRange } from "../util/name-range";
+import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class CssMode implements LanguageMode {
@@ -19,19 +21,9 @@ export class CssMode implements LanguageMode {
     dialect: boolean = false
   ) {
     if (dialect) {
-      // TODO classname idname
-      this.doCompleteDisabled = (cursor) =>
-        cursor.type !== CSS_NODE_TYPE.StyleSheet &&
-        cursor.type !== CSS_NODE_TYPE.RuleSet &&
-        cursor.type !== CSS_NODE_TYPE.ClassSelector &&
-        cursor.type !== CSS_NODE_TYPE.IdSelector &&
-        cursor.type !== CSS_NODE_TYPE.Block;
+      this.doCompleteDisabled = (cursor) => !cssDoComplete(cursor.type) && cursor.type !== CSS_NODE_TYPE.Block;
     } else {
-      this.doCompleteDisabled = (cursor) =>
-        cursor.type !== CSS_NODE_TYPE.StyleSheet &&
-        cursor.type !== CSS_NODE_TYPE.RuleSet &&
-        cursor.type !== CSS_NODE_TYPE.ClassSelector &&
-        cursor.type !== CSS_NODE_TYPE.IdSelector;
+      this.doCompleteDisabled = (cursor) => !cssDoComplete(cursor.type);
     }
   }
 
@@ -41,7 +33,9 @@ export class CssMode implements LanguageMode {
     }
 
     const entry = this.cache.get(document);
-    const cursor = entry.tree.cursorAt(document.offsetAt(position));
+
+    const offset = document.offsetAt(position);
+    const cursor = entry.tree.cursorAt(offset);
 
     if (this.doCompleteDisabled(cursor)) {
       return;
@@ -53,6 +47,7 @@ export class CssMode implements LanguageMode {
     }
 
     const items = new Map<string, CompletionItem>();
+    const range = getRangeFromTuple(document, getInsertionRange(document.getText(), offset, entry.tree, cursor));
 
     await Promise.all(
       [...refs].map(async (ref) => {
@@ -62,11 +57,15 @@ export class CssMode implements LanguageMode {
           const entry = this.cache.get(document);
           for (const name of entry.usedClassNames.keys()) {
             const label = "." + name;
-            items.set(label, new CompletionItem(label, CompletionItemKind.Field));
+            const item = new CompletionItem(label, CompletionItemKind.Field);
+            item.range = range;
+            items.set(label, item);
           }
           for (const name of entry.usedIds.keys()) {
             const label = "#" + name;
-            items.set(label, new CompletionItem(label, CompletionItemKind.Field));
+            const item = new CompletionItem(label, CompletionItemKind.Field);
+            item.range = range;
+            items.set(label, item);
           }
         } catch (e) {
           log.error(e, "do complete");

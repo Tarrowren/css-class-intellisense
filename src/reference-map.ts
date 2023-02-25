@@ -17,9 +17,9 @@ class _ReferenceMap implements ReferenceMap {
   constructor(private runtime: RuntimeEnvironment, private cache: LanguageModelCache<LanguageCacheEntry>) {
     this.watcher = workspace.createFileSystemWatcher("**/*.{html,vue,jsx,tsx}");
     this.disposables = [
-      this.watcher.onDidCreate(this.onDidChange),
-      this.watcher.onDidChange(this.onDidChange),
-      this.watcher.onDidDelete(this.onDidDelete),
+      this.watcher.onDidCreate(this.onDidChange, this),
+      this.watcher.onDidChange(this.onDidChange, this),
+      this.watcher.onDidDelete(this.onDidDelete, this),
     ];
     this.promise = this.rebuildReference();
   }
