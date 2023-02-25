@@ -19,9 +19,9 @@ export function getInsertionRange(
   const rightChar = text.substring(offset, offset + 1);
   const rightCursorRight = tree.cursorAt(offset + 1, 1);
   if (rightChar === ".") {
-    return _test(text, offset, rightCursorRight, CSS_NODE_TYPE.ClassName);
+    return checkRight(text, offset, rightCursorRight, CSS_NODE_TYPE.ClassName);
   } else if (rightChar === "#") {
-    return _test(text, offset, rightCursorRight, CSS_NODE_TYPE.IdName);
+    return checkRight(text, offset, rightCursorRight, CSS_NODE_TYPE.IdName);
   }
 
   const left = tree.cursorAt(offset, -1);
@@ -35,7 +35,7 @@ export function getInsertionRange(
   }
 }
 
-function _test(text: string, offset: number, cursor: TreeCursor, type: NodeType): [number, number] {
+function checkRight(text: string, offset: number, cursor: TreeCursor, type: NodeType): [number, number] {
   if (cursor.type === type) {
     const leftChar = text.substring(offset - 1, offset);
     if (leftChar === "." || leftChar === "#") {
