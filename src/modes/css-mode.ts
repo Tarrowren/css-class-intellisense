@@ -1,4 +1,3 @@
-import { TreeCursor } from "@lezer/common";
 import { CompletionItem, CompletionItemKind, Location, Position, Range, TextDocument, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
@@ -12,20 +11,12 @@ import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class CssMode implements LanguageMode {
-  private doCompleteDisabled: (cursor: TreeCursor) => boolean;
-
   constructor(
     private config: Configuration,
     private cache: LanguageModelCache<LanguageCacheEntry>,
     private referenceMap: ReferenceMap,
-    dialect: boolean = false
-  ) {
-    if (dialect) {
-      this.doCompleteDisabled = (cursor) => !cssDoComplete(cursor.type) && cursor.type !== CSS_NODE_TYPE.Block;
-    } else {
-      this.doCompleteDisabled = (cursor) => !cssDoComplete(cursor.type);
-    }
-  }
+    private canNested: boolean = false
+  ) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
     if (this.config.lightweight) {
@@ -37,7 +28,7 @@ export class CssMode implements LanguageMode {
     const offset = document.offsetAt(position);
     const cursor = entry.tree.cursorAt(offset);
 
-    if (this.doCompleteDisabled(cursor)) {
+    if (!cssDoComplete(cursor.node, this.canNested)) {
       return;
     }
 

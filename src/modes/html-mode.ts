@@ -33,7 +33,7 @@ export class HtmlMode implements LanguageMode {
     const offset = document.offsetAt(position);
     const cursor = entry.tree.cursorAt(offset);
 
-    if (cssDoComplete(cursor.type)) {
+    if (cssDoComplete(cursor.node, false)) {
       const items = new Map<string, CompletionItem>();
       const range = getRangeFromTuple(document, getInsertionRange(document.getText(), offset, entry.tree, cursor));
 

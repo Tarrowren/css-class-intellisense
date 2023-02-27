@@ -17,4 +17,5 @@ export const CSS_NODE_TYPE = {
   DescendantSelector: types[45],
   SiblingSelector: types[46],
   Block: types[50],
+  MediaStatement: types[68],
 };

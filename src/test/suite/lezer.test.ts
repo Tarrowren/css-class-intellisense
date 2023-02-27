@@ -20,6 +20,7 @@ test("Lezer", async (t) => {
     assert.strictEqual(CSS_NODE_TYPE.DescendantSelector.name, "DescendantSelector");
     assert.strictEqual(CSS_NODE_TYPE.SiblingSelector.name, "SiblingSelector");
     assert.strictEqual(CSS_NODE_TYPE.Block.name, "Block");
+    assert.strictEqual(CSS_NODE_TYPE.MediaStatement.name, "MediaStatement");
   });
 
   await t.test("Lezer HTML test", () => {
