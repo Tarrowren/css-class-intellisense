@@ -2,6 +2,7 @@
 
 import { rm } from "fs/promises";
 import { resolve } from "path";
+import TerserPlugin from "terser-webpack-plugin";
 import webpack from "webpack";
 
 const mode = process.env.NODE_ENV === "production" ? "production" : "none";
@@ -14,9 +15,7 @@ webpack(
     mode,
     watch,
     target: "webworker",
-    entry: {
-      "browser/main": resolve("src", "browser", "main.ts"),
-    },
+    entry: resolve("src", "browser", "main.ts"),
     resolve: {
       extensions: [".ts", "..."],
     },
@@ -41,6 +40,13 @@ webpack(
     devtool: mode === "production" ? false : "source-map",
     infrastructureLogging: {
       level: "log",
+    },
+    optimization: {
+      minimizer: [
+        new TerserPlugin({
+          extractComments: false,
+        }),
+      ],
     },
   },
   (err, stats) => {
