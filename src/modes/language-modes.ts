@@ -38,6 +38,7 @@ export class GlobalLanguageModes implements LanguageModes {
 
     this.modes.set("html", h);
     this.modes.set("vue", h);
+    this.modes.set("php", h);
 
     const j = new JsxMode(config, cache);
 

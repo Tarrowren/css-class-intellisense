@@ -2,7 +2,7 @@ import { Disposable, FileSystemWatcher, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
-import { log, RuntimeEnvironment } from "./runner";
+import { RuntimeEnvironment, log } from "./runner";
 
 export interface ReferenceMap extends Disposable {
   getRefs(uri: Uri): Promise<Set<string> | undefined>;
@@ -13,9 +13,10 @@ class _ReferenceMap implements ReferenceMap {
   private watcher: FileSystemWatcher;
   private disposables: Disposable[];
   private promise: Promise<void> | null | undefined;
+  private readonly globPattern: string = "**/*.{html,vue,jsx,tsx,php}";
 
   constructor(private runtime: RuntimeEnvironment, private cache: LanguageModelCache<LanguageCacheEntry>) {
-    this.watcher = workspace.createFileSystemWatcher("**/*.{html,vue,jsx,tsx}");
+    this.watcher = workspace.createFileSystemWatcher(this.globPattern);
     this.disposables = [
       this.watcher.onDidCreate(this.onDidChange, this),
       this.watcher.onDidChange(this.onDidChange, this),
@@ -50,7 +51,7 @@ class _ReferenceMap implements ReferenceMap {
         return;
       }
 
-      const uris = await workspace.findFiles("**/*.{html,vue,jsx,tsx}", "**/node_modules/**");
+      const uris = await workspace.findFiles(this.globPattern, "**/node_modules/**");
       if (uris.length === 0) {
         return;
       }

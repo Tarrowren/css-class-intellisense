@@ -3,6 +3,7 @@ import test from "node:test";
 import { CSS_NODE_TYPE } from "../../lezer/css";
 import { HTML_NODE_TYPE } from "../../lezer/html";
 import { JS_NODE_TYPE } from "../../lezer/javascript";
+import { PHP_NODE_TYPE } from "../../lezer/php";
 
 test("Lezer", async (t) => {
   await t.test("Lezer CSS test", () => {
@@ -44,5 +45,9 @@ test("Lezer", async (t) => {
     assert.strictEqual(JS_NODE_TYPE.JSXAttribute.name, "JSXAttribute");
     assert.strictEqual(JS_NODE_TYPE.JSXAttributeValue.name, "JSXAttributeValue");
     assert.strictEqual(JS_NODE_TYPE.ImportDeclaration.name, "ImportDeclaration");
+  });
+
+  await t.test("Lezer PHP test", () => {
+    assert.strictEqual(PHP_NODE_TYPE.Text.name, "Text");
   });
 });

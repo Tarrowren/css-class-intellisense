@@ -26,7 +26,7 @@ import {
 import { GlobalLanguageModelCache, LanguageModelCache } from "./caches/cache";
 import { getLanguageCacheEntry, LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
-import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HttpFileSystemProvider } from "./http-file-system";
+import { CSSCI_HTTP_SCHEME, CSSCI_HTTPS_SCHEME, HttpFileSystemProvider } from "./http-file-system";
 import { GlobalLanguageModes, LanguageModes } from "./modes/language-modes";
 import { GlobalReferenceMap, ReferenceMap } from "./reference-map";
 import { runSafeAsync, RuntimeEnvironment } from "./runner";
@@ -45,26 +45,21 @@ export class GlobalLanguageServer implements LanguageServer {
     this.referenceMap = new GlobalReferenceMap(runtime, this.config, this.languageCache);
     this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap);
 
+    const htmlLanguages = ["html", "vue", "javascriptreact", "typescriptreact", "php"];
+    const cssLanguages = ["css", "scss", "less"];
+    const allLanguages = [...htmlLanguages, ...cssLanguages];
+
     const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
     context.subscriptions.push(
       workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
       workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
       languages.registerCompletionItemProvider(
-        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
+        allLanguages,
         new CssCompletionItemProvider(runtime, this.languageModes)
       ),
-      languages.registerDefinitionProvider(
-        ["html", "vue", "javascriptreact", "typescriptreact"],
-        new CssDefinitionProvider(runtime, this.languageModes)
-      ),
-      languages.registerReferenceProvider(
-        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
-        new CssReferenceProvider(runtime, this.languageModes)
-      ),
-      languages.registerRenameProvider(
-        ["html", "vue", "javascriptreact", "typescriptreact", "css", "scss", "less"],
-        new CssRenameProvider(runtime, this.languageModes)
-      ),
+      languages.registerDefinitionProvider(htmlLanguages, new CssDefinitionProvider(runtime, this.languageModes)),
+      languages.registerReferenceProvider(allLanguages, new CssReferenceProvider(runtime, this.languageModes)),
+      languages.registerRenameProvider(allLanguages, new CssRenameProvider(runtime, this.languageModes)),
       commands.registerCommand("cssci.clearCache", async () => {
         if (runtime.request.clearCache) {
           await runtime.request.clearCache();

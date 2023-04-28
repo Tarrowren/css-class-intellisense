@@ -3,6 +3,7 @@ import { Range, TextDocument } from "vscode";
 import { CssCacheEntry } from "./css-cache";
 import { HtmlCacheEntry } from "./html-cache";
 import { JsxCacheEntry } from "./jsx-cache";
+import { PhpCacheEntry } from "./php-cache";
 import { VueCacheEntry } from "./vue-cache";
 
 export function getLanguageCacheEntry(document: TextDocument): LanguageCacheEntry {
@@ -19,6 +20,8 @@ export function getLanguageCacheEntry(document: TextDocument): LanguageCacheEntr
       return new JsxCacheEntry(document);
     case "typescriptreact":
       return new JsxCacheEntry(document, true);
+    case "php":
+      return new PhpCacheEntry(document);
     default:
       throw new Error("Wrong languageId");
   }
