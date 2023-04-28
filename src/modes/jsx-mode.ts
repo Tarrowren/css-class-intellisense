@@ -6,8 +6,8 @@ import {
   Position,
   TextDocument,
   Uri,
-  workspace,
   WorkspaceEdit,
+  workspace,
 } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
@@ -15,8 +15,9 @@ import { Configuration } from "../config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { JS_NODE_TYPE } from "../lezer/javascript";
 import { log } from "../runner";
+import { getJsxInsertionRange } from "../util/name-range";
 import { nearbyWord } from "../util/string";
-import { getText } from "../util/text-document";
+import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class JsxMode implements LanguageMode {
@@ -24,11 +25,13 @@ export class JsxMode implements LanguageMode {
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
     const entry = this.cache.get(document);
-    const cursor = entry.tree.cursorAt(document.offsetAt(position));
+    const offset = document.offsetAt(position);
+    const cursor = entry.tree.cursorAt(offset);
 
     const attr = this.getAttributeName(document, cursor);
     if (attr === "className") {
       const items = new Map<string, CompletionItem>();
+      const range = getRangeFromTuple(document, getJsxInsertionRange(document.getText(), offset, entry.tree, cursor));
 
       if (entry.hrefs.size > 0) {
         await Promise.all(
@@ -41,7 +44,9 @@ export class JsxMode implements LanguageMode {
 
               for (const label of entry.classNames.keys()) {
                 if (!items.has(label)) {
-                  items.set(label, new CompletionItem(label, CompletionItemKind.Class));
+                  const item = new CompletionItem(label, CompletionItemKind.Class);
+                  item.range = range;
+                  items.set(label, item);
                 }
               }
             } catch (e) {

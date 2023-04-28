@@ -1,7 +1,10 @@
 import { NodeType, Tree, TreeCursor } from "@lezer/common";
 import { CSS_NODE_TYPE } from "../lezer/css";
+import { HTML_NODE_TYPE } from "../lezer/html";
+import { JS_NODE_TYPE } from "../lezer/javascript";
+import { nearbyWordRange } from "./string";
 
-export function getInsertionRange(
+export function getCssInsertionRange(
   text: string,
   offset: number,
   tree: Tree,
@@ -34,6 +37,32 @@ export function getInsertionRange(
     return [offset - 1, offset];
   }
 }
+
+export function getHtmlInsertionRange(
+  text: string,
+  offset: number,
+  _tree: Tree,
+  cursor: TreeCursor
+): [number, number] | undefined {
+  if (cursor.type !== HTML_NODE_TYPE.AttributeValue && cursor.type !== JS_NODE_TYPE.JSXAttributeValue) {
+    return;
+  }
+
+  const start = cursor.from + 1;
+  const end = cursor.to - 1;
+  if (start === end) {
+    return;
+  }
+
+  const range = nearbyWordRange(text.substring(start, end), offset - start);
+  if (!range) {
+    return;
+  }
+
+  return [start + range[0], start + range[1]];
+}
+
+export const getJsxInsertionRange = getHtmlInsertionRange;
 
 function checkRight(text: string, offset: number, cursor: TreeCursor, type: NodeType): [number, number] {
   if (cursor.type === type) {

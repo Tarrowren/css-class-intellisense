@@ -6,7 +6,7 @@ import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
 import { log } from "../runner";
 import { cssDoComplete } from "../util/css-class-name";
-import { getInsertionRange } from "../util/name-range";
+import { getCssInsertionRange } from "../util/name-range";
 import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -38,7 +38,7 @@ export class CssMode implements LanguageMode {
     }
 
     const items = new Map<string, CompletionItem>();
-    const range = getRangeFromTuple(document, getInsertionRange(document.getText(), offset, entry.tree, cursor));
+    const range = getRangeFromTuple(document, getCssInsertionRange(document.getText(), offset, entry.tree, cursor));
 
     await Promise.all(
       [...refs].map(async (ref) => {

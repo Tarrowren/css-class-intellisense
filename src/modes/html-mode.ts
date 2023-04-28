@@ -8,8 +8,8 @@ import {
   Range,
   TextDocument,
   Uri,
-  workspace,
   WorkspaceEdit,
+  workspace,
 } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
@@ -19,8 +19,8 @@ import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { log } from "../runner";
 import { cssDoComplete } from "../util/css-class-name";
-import { getInsertionRange } from "../util/name-range";
-import { nearbyWord, POINT, SHARP } from "../util/string";
+import { getCssInsertionRange, getHtmlInsertionRange } from "../util/name-range";
+import { POINT, SHARP, nearbyWord } from "../util/string";
 import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -35,7 +35,7 @@ export class HtmlMode implements LanguageMode {
 
     if (cssDoComplete(cursor.node, false)) {
       const items = new Map<string, CompletionItem>();
-      const range = getRangeFromTuple(document, getInsertionRange(document.getText(), offset, entry.tree, cursor));
+      const range = getRangeFromTuple(document, getCssInsertionRange(document.getText(), offset, entry.tree, cursor));
 
       for (const name of entry.usedClassNames.keys()) {
         const label = "." + name;
@@ -69,10 +69,13 @@ export class HtmlMode implements LanguageMode {
     }
 
     const items = new Map<string, CompletionItem>();
+    const range = getRangeFromTuple(document, getHtmlInsertionRange(document.getText(), offset, entry.tree, cursor));
 
     for (const label of fn(entry).keys()) {
       if (!items.has(label)) {
-        items.set(label, new CompletionItem(label, kind));
+        const item = new CompletionItem(label, kind);
+        item.range = range;
+        items.set(label, item);
       }
     }
 
@@ -86,7 +89,9 @@ export class HtmlMode implements LanguageMode {
             const entry = this.cache.get(document);
             for (const label of fn(entry).keys()) {
               if (!items.has(label)) {
-                items.set(label, new CompletionItem(label, kind));
+                const item = new CompletionItem(label, kind);
+                item.range = range;
+                items.set(label, item);
               }
             }
           } catch (e) {
