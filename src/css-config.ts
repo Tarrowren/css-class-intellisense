@@ -4,6 +4,7 @@ import { HTTPS_SCHEME, HTTP_SCHEME, convertToHttpSchemeEx } from "./http-file-sy
 import { RuntimeEnvironment, log } from "./runner";
 import { emptySet } from "./util/empty";
 import { notNull } from "./util/string";
+import { validate } from "./validates/css-config-options";
 
 export interface CssConfig extends Disposable {
   getGlobalCssFiles(uri: Uri): Promise<Set<string>>;
@@ -117,7 +118,7 @@ class CssConfigImpl implements CssConfig {
       const document = await workspace.openTextDocument(uri);
 
       const options = JSON.parse(document.getText());
-      if (!isCssConfigOptions(options)) {
+      if (!validate(options)) {
         this.map.delete(dirString);
         return;
       }
@@ -181,18 +182,4 @@ interface Options {
   exclude?: string[];
 
   _cache: Set<string>;
-}
-
-function isCssConfigOptions(value: unknown): value is CssConfigOptions {
-  if (!value) {
-    return false;
-  }
-
-  if (typeof value !== "object") {
-    return false;
-  }
-
-  // TODO ajv
-
-  return true;
 }
