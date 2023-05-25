@@ -1,7 +1,8 @@
-import { Disposable, FileSystemWatcher, Uri, workspace } from "vscode";
+import { CancellationTokenSource, Disposable, FileSystemWatcher, TextDocument, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
+import { CssConfig } from "./css-config";
 import { RuntimeEnvironment, log } from "./runner";
 
 export interface ReferenceMap extends Disposable {
@@ -14,8 +15,13 @@ class _ReferenceMap implements ReferenceMap {
   private disposables: Disposable[];
   private promise: Promise<void> | null | undefined;
   private readonly globPattern: string = "**/*.{html,vue,jsx,tsx,php}";
+  private source = new CancellationTokenSource();
 
-  constructor(private runtime: RuntimeEnvironment, private cache: LanguageModelCache<LanguageCacheEntry>) {
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private cache: LanguageModelCache<LanguageCacheEntry>,
+    private cssConfig: CssConfig
+  ) {
     this.watcher = workspace.createFileSystemWatcher(this.globPattern);
     this.disposables = [
       this.watcher.onDidCreate(this.onDidChange, this),
@@ -26,17 +32,16 @@ class _ReferenceMap implements ReferenceMap {
   }
 
   async getRefs(uri: Uri): Promise<Set<string> | undefined> {
-    const uriString = uri.toString(true);
-    if (!this.promise) {
-      return this.graph.get(uriString);
+    if (this.promise) {
+      await this.promise;
     }
 
-    await this.promise;
-
+    const uriString = uri.toString(true);
     return this.graph.get(uriString);
   }
 
   dispose() {
+    this.source.cancel();
     for (const disposable of this.disposables) {
       disposable.dispose();
     }
@@ -51,7 +56,7 @@ class _ReferenceMap implements ReferenceMap {
         return;
       }
 
-      const uris = await workspace.findFiles(this.globPattern, "**/node_modules/**");
+      const uris = await workspace.findFiles(this.globPattern, "**/node_modules/**", undefined, this.source.token);
       if (uris.length === 0) {
         return;
       }
@@ -61,7 +66,7 @@ class _ReferenceMap implements ReferenceMap {
           try {
             const document = await workspace.openTextDocument(uri);
 
-            const hrefs = this.cache.get(document).hrefs;
+            const hrefs = await this.getHrefs(document);
             if (hrefs.size === 0) {
               return;
             }
@@ -99,7 +104,7 @@ class _ReferenceMap implements ReferenceMap {
 
   private async onDidChange(uri: Uri) {
     const document = await workspace.openTextDocument(uri);
-    const newHrefs = this.cache.get(document).hrefs;
+    const newHrefs = await this.getHrefs(document);
 
     const uriString = uri.toString(true);
 
@@ -170,6 +175,12 @@ class _ReferenceMap implements ReferenceMap {
       }
     }
   }
+
+  private async getHrefs(document: TextDocument) {
+    const hrefs = this.cache.get(document).hrefs;
+    const globalCssFiles = await this.cssConfig.getGlobalCssFiles(document.uri);
+    return new Set([...hrefs, ...globalCssFiles]);
+  }
 }
 
 export class GlobalReferenceMap implements ReferenceMap {
@@ -177,22 +188,23 @@ export class GlobalReferenceMap implements ReferenceMap {
   private disposable: Disposable;
 
   constructor(
-    private runtime: RuntimeEnvironment,
-    private config: Configuration,
-    private cache: LanguageModelCache<LanguageCacheEntry>
+    runtime: RuntimeEnvironment,
+    config: Configuration,
+    cache: LanguageModelCache<LanguageCacheEntry>,
+    cssConfig: CssConfig
   ) {
-    if (!this.config.lightweight) {
-      this.map = new _ReferenceMap(this.runtime, this.cache);
+    if (!config.lightweight) {
+      this.map = new _ReferenceMap(runtime, cache, cssConfig);
     }
 
-    this.disposable = this.config.on.lightweight((lightweight) => {
+    this.disposable = config.on.lightweight((lightweight) => {
       if (lightweight) {
         if (this.map) {
           this.map.dispose();
           this.map = null;
         }
       } else {
-        this.map = new _ReferenceMap(this.runtime, this.cache);
+        this.map = new _ReferenceMap(runtime, cache, cssConfig);
       }
     });
   }

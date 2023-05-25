@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "type": "object",
+  "title": "JSON schema for the  CSS Class Intellisense configuration file",
+  "properties": {
+    "globalCssFiles": {
+      "description": "Specify a list of css/scss/less files to be used for global import.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    },
+    "include": {
+      "description": "Specify a list of glob patterns that match files to be included in the global reference.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    },
+    "exclude": {
+      "description": "Specify a list of glob patterns that match files to be excluded in the global reference.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false,
+  "required": ["globalCssFiles"]
+}

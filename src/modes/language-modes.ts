@@ -11,6 +11,7 @@ import {
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
 import { Configuration } from "../config";
+import { CssConfig } from "../css-config";
 import { ReferenceMap } from "../reference-map";
 import { CssMode } from "./css-mode";
 import { HtmlMode } from "./html-mode";
@@ -33,14 +34,19 @@ export interface LanguageMode extends Disposable {
 export class GlobalLanguageModes implements LanguageModes {
   private modes = new Map<string, LanguageMode>();
 
-  constructor(config: Configuration, cache: LanguageModelCache<LanguageCacheEntry>, referenceMap: ReferenceMap) {
-    const h = new HtmlMode(config, cache);
+  constructor(
+    config: Configuration,
+    cache: LanguageModelCache<LanguageCacheEntry>,
+    referenceMap: ReferenceMap,
+    cssConfig: CssConfig
+  ) {
+    const h = new HtmlMode(config, cache, cssConfig);
 
     this.modes.set("html", h);
     this.modes.set("vue", h);
     this.modes.set("php", h);
 
-    const j = new JsxMode(config, cache);
+    const j = new JsxMode(config, cache, cssConfig);
 
     this.modes.set("javascriptreact", j);
     this.modes.set("typescriptreact", j);

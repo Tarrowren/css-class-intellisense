@@ -2,7 +2,7 @@ import { parseMixed, SyntaxNodeRef, Tree } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
 import { Range, TextDocument, Uri } from "vscode";
-import { convertToHttpSchemeEx, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
+import { convertToHttpSchemeEx, HTTP_SCHEME, HTTPS_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
 import { getNameFromAttribute, getNameFromStyle } from "../util/css-class-name";

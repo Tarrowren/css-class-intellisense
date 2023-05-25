@@ -14,6 +14,7 @@ import {
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
 import { Configuration } from "../config";
+import { CssConfig } from "../css-config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
@@ -25,7 +26,11 @@ import { getRangeFromTuple, getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class HtmlMode implements LanguageMode {
-  constructor(_config: Configuration, private cache: LanguageModelCache<LanguageCacheEntry>) {}
+  constructor(
+    _config: Configuration,
+    private cache: LanguageModelCache<LanguageCacheEntry>,
+    private cssConfig: CssConfig
+  ) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
     const entry = this.cache.get(document);
@@ -79,9 +84,10 @@ export class HtmlMode implements LanguageMode {
       }
     }
 
-    if (entry.hrefs.size > 0) {
+    const hrefs = await this.getHrefs(document, entry);
+    if (hrefs.size > 0) {
       await Promise.all(
-        [...entry.hrefs].map(async (href) => {
+        [...hrefs].map(async (href) => {
           try {
             const uri = Uri.parse(href);
             const document = await workspace.openTextDocument(uri);
@@ -141,9 +147,10 @@ export class HtmlMode implements LanguageMode {
       }
     }
 
-    if (entry.hrefs.size > 0) {
+    const hrefs = await this.getHrefs(document, entry);
+    if (hrefs.size > 0) {
       await Promise.all(
-        [...entry.hrefs].map(async (href) => {
+        [...hrefs].map(async (href) => {
           try {
             const uri = Uri.parse(href);
 
@@ -244,9 +251,10 @@ export class HtmlMode implements LanguageMode {
         workspaceEdit.replace(document.uri, range, newName);
       });
 
-    if (entry.hrefs.size > 0) {
+    const hrefs = await this.getHrefs(document, entry);
+    if (hrefs.size > 0) {
       await Promise.all(
-        [...entry.hrefs].map(async (href) => {
+        [...hrefs].map(async (href) => {
           try {
             const uri = Uri.parse(href);
             if (
@@ -320,5 +328,11 @@ export class HtmlMode implements LanguageMode {
     });
 
     return workspaceEdit;
+  }
+
+  private async getHrefs(document: TextDocument, entry: LanguageCacheEntry) {
+    const hrefs = await this.cssConfig.getGlobalCssFiles(document.uri);
+
+    return new Set([...hrefs, ...entry.hrefs]);
   }
 }

@@ -41,3 +41,7 @@ export function nearbyWord(text: string, pos: number): string | undefined {
     return text.substring(range[0], range[1]);
   }
 }
+
+export function notNull(value: string | null | undefined): value is string {
+  return !!value;
+}

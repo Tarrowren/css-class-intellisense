@@ -26,6 +26,7 @@ import {
 import { GlobalLanguageModelCache, LanguageModelCache } from "./caches/cache";
 import { getLanguageCacheEntry, LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
+import { createCssConfig, CssConfig } from "./css-config";
 import { CSSCI_HTTP_SCHEME, CSSCI_HTTPS_SCHEME, HttpFileSystemProvider } from "./http-file-system";
 import { GlobalLanguageModes, LanguageModes } from "./modes/language-modes";
 import { GlobalReferenceMap, ReferenceMap } from "./reference-map";
@@ -35,15 +36,17 @@ export interface LanguageServer extends Disposable {}
 
 export class GlobalLanguageServer implements LanguageServer {
   private config: Configuration;
+  private cssConfig: CssConfig;
   private languageCache: LanguageModelCache<LanguageCacheEntry>;
   private referenceMap: ReferenceMap;
   private languageModes: LanguageModes;
 
   constructor(context: ExtensionContext, runtime: RuntimeEnvironment) {
     this.config = new Configuration();
-    this.languageCache = new GlobalLanguageModelCache(runtime, 10, 60, getLanguageCacheEntry);
-    this.referenceMap = new GlobalReferenceMap(runtime, this.config, this.languageCache);
-    this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap);
+    this.cssConfig = createCssConfig(runtime);
+    this.languageCache = new GlobalLanguageModelCache(runtime, 10, 60, (document) => getLanguageCacheEntry(document));
+    this.referenceMap = new GlobalReferenceMap(runtime, this.config, this.languageCache, this.cssConfig);
+    this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap, this.cssConfig);
 
     const htmlLanguages = ["html", "vue", "javascriptreact", "typescriptreact", "php"];
     const cssLanguages = ["css", "scss", "less"];
@@ -71,6 +74,7 @@ export class GlobalLanguageServer implements LanguageServer {
 
   dispose() {
     this.config.dispose();
+    this.cssConfig.dispose();
     this.languageCache.dispose();
     this.referenceMap.dispose();
     this.languageModes.dispose();

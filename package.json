@@ -40,6 +40,12 @@
         "title": "%cssci.clearCache%",
         "category": "CSSCI"
       }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "cssconfig.json",
+        "url": "./schemas/cssconfig.schema.json"
+      }
     ]
   },
   "main": "dist/node/main.js",
@@ -95,6 +101,7 @@
     "@lezer/html": "^1.3.4",
     "@lezer/javascript": "^1.4.3",
     "@lezer/php": "^1.0.1",
+    "minimatch": "^9.0.1",
     "node-fetch": "^3.3.1",
     "pino": "^8.11.0"
   }
