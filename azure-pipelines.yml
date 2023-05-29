@@ -22,7 +22,7 @@ steps:
     displayName: Cache npm
 
   - script: |
-      npm i
+      npm ci
     displayName: Install dependencies
 
   - script: |
@@ -31,8 +31,7 @@ steps:
     displayName: Lint & Test
 
   - script: |
-      npm run build:browser
-      npm run build:node
+      npm run build
     displayName: Build
 
   - bash: |

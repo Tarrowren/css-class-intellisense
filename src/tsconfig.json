@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "ES2020",
     "moduleResolution": "node",
     "lib": ["ES2020"],
+    "types": [],
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["webpack/", "webpack.*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["./browser", "./node"]
 }
