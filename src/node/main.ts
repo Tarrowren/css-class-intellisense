@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Disposable, ExtensionContext } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
-import { log, RuntimeEnvironment } from "../runner";
+import { RuntimeEnvironment, log } from "../runner";
 import { GlobalLanguageServer, LanguageServer } from "../server";
 import { LocalCache } from "./local-cache";
 import { RequestService } from "./request-service";
