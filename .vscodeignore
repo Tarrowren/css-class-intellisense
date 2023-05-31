@@ -1,10 +1,12 @@
 .vscode/
-images/docs/
+.vscode-test-web/
 node_modules/
-out/
-scripts/
 src/
-.gitignore
-tsconfig.json
+test/
+webpack/
 azure-pipelines.yml
+jest.config.js
+tsconfig.json
+webpack.*
 *.vsix
+.*

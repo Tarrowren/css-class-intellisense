@@ -13,26 +13,84 @@ Html/Vue/Jsx/PHP id/class attribute completion
 
 ## Usage
 
-### completion(html)
+### Global
 
-![completion](./images/docs/html-completion.png)
+Create the `cssconfig.json` file to specify global CSS:
 
-### completion(vue)
+```json
+{
+  "globalCssFiles": ["https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css", "../main.css"]
+}
+```
 
-![completion](./images/docs/vue-completion.png)
+Using the `include` and `exclude` properties:
 
-### completion(jsx)
+```json
+{
+  "globalCssFiles": ["https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css", "../main.css"],
+  "include": ["**/*.{vue,tsx}"],
+  "exclude": ["**/*.html"]
+}
+```
 
-![completion](./images/docs/jsx-completion.png)
+### Embed
 
-### completion(php)
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .hello {
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hello"></div>
+  </body>
+</html>
+```
 
-![completion](./images/docs/php-completion.png)
+```vue
+<template>
+  <div class="hello"></div>
+</template>
 
-### definition
+<style>
+.hello {
+}
+</style>
+```
 
-![definition](./images/docs/definition.png)
+### Link
 
-### reference
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css" />
+  </head>
+  <body>
+    <div class="accordion"></div>
+  </body>
+</html>
+```
 
-![reference](./images/docs/reference.png)
+### Import
+
+```jsx
+import "./App.scss";
+
+export default function App() {
+  return <div className="hello"></div>;
+}
+```
+
+```vue
+<template>
+  <div class="hello"></div>
+</template>
+
+<script>
+import "./App.css";
+</script>
+```
