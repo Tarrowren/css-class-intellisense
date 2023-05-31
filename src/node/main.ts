@@ -41,16 +41,16 @@ export async function activate(context: ExtensionContext) {
     },
     timer: {
       setImmediate(callback, ...args) {
-        const handle = setImmediate(callback, ...args);
-        return new Disposable(() => clearImmediate(handle));
-      },
-      setInterval(callback, ms, ...args) {
-        const handle = setTimeout(callback, ms, ...args);
-        return new Disposable(() => clearTimeout(handle));
+        const immediate = setImmediate(callback, ...args);
+        return new Disposable(() => clearImmediate(immediate));
       },
       setTimeout(callback, ms, ...args) {
-        const handle = setInterval(callback, ms, ...args);
-        return new Disposable(() => clearInterval(handle));
+        const timeout = setTimeout(callback, ms, ...args);
+        return new Disposable(() => clearTimeout(timeout));
+      },
+      setInterval(callback, ms, ...args) {
+        const timer = setInterval(callback, ms, ...args);
+        return new Disposable(() => clearInterval(timer));
       },
     },
   };

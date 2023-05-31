@@ -35,7 +35,7 @@ steps:
     displayName: Build
 
   - bash: |
-      sudo npm i -g vsce
+      sudo npm i -g @vscode/vsce
       vsce publish -p $VSCE_PAT
     displayName: Publish
     env:

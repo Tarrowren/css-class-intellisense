@@ -2,6 +2,7 @@ import { CancellationToken, Disposable, ExtensionContext, FilePermission, FileTy
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment } from "../runner";
 import { GlobalLanguageServer, LanguageServer } from "../server";
+import { setImmediate } from "./timer";
 
 let server: LanguageServer | null;
 
@@ -45,17 +46,14 @@ export function activate(context: ExtensionContext) {
       },
     },
     timer: {
-      setImmediate(callback, ...args) {
-        const handle = setTimeout(callback, 0, ...args);
-        return new Disposable(() => clearTimeout(handle));
+      setImmediate,
+      setTimeout(callback, ms, ...args) {
+        const id = setTimeout(callback, ms, ...args);
+        return new Disposable(() => clearTimeout(id));
       },
       setInterval(callback, ms, ...args) {
-        const handle = setTimeout(callback, ms, ...args);
-        return new Disposable(() => clearTimeout(handle));
-      },
-      setTimeout(callback, ms, ...args) {
-        const handle = setInterval(callback, ms, ...args);
-        return new Disposable(() => clearInterval(handle));
+        const id = setInterval(callback, ms, ...args);
+        return new Disposable(() => clearInterval(id));
       },
     },
   };
