@@ -9,5 +9,5 @@ export const JS_NODE_TYPE = {
   JSXIdentifier: types[148],
   JSXAttribute: types[152],
   JSXAttributeValue: types[153],
-  ImportDeclaration: types[225],
+  ImportDeclaration: types[226],
 };
