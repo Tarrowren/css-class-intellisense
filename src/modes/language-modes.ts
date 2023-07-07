@@ -16,6 +16,7 @@ import { ReferenceMap } from "../reference-map";
 import { CssMode } from "./css-mode";
 import { HtmlMode } from "./html-mode";
 import { JsxMode } from "./jsx-mode";
+import { SassMode } from "./sass-mode";
 
 export interface LanguageModes extends Disposable {
   getMode(languageId: string): LanguageMode | undefined;
@@ -53,9 +54,11 @@ export class GlobalLanguageModes implements LanguageModes {
 
     this.modes.set("css", new CssMode(config, cache, referenceMap));
 
-    const c = new CssMode(config, cache, referenceMap, true);
-    this.modes.set("less", c);
+    this.modes.set("less", new CssMode(config, cache, referenceMap, true));
+
+    const c = new SassMode(config, cache, referenceMap);
     this.modes.set("scss", c);
+    this.modes.set("sass", c);
   }
 
   getMode(languageId: string): LanguageMode | undefined {

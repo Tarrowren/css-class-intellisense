@@ -4,20 +4,31 @@ import { CSS_NODE_TYPE } from "../lezer/css";
 import { isEmptyCode } from "./string";
 import { getRange, getText } from "./text-document";
 
+export function toNodeKey(ref: SyntaxNodeRef) {
+  return `${ref.from},${ref.to}`;
+}
+
+export function addValuesCache<T>(cache: Map<string, T[]>, key: string, value: T) {
+  const values = cache.get(key);
+  if (values) {
+    values.push(value);
+  } else {
+    cache.set(key, [value]);
+  }
+}
+
 export function getNameFromStyle(document: TextDocument, node: SyntaxNodeRef, names: Map<string, Range[]>): void {
-  const label = getText(document, node);
+  const range = getRange(document, node);
+  if (range.isEmpty) {
+    return;
+  }
+
+  const label = document.getText(range);
   if (!label) {
     return;
   }
 
-  const range = getRange(document, node);
-
-  const ranges = names.get(label);
-  if (ranges) {
-    ranges.push(range);
-  } else {
-    names.set(label, [range]);
-  }
+  addValuesCache(names, label, range);
 }
 
 export function getNameFromAttribute(
@@ -37,12 +48,7 @@ export function getNameFromAttribute(
 
         const range = new Range(document.positionAt(node.from + start), document.positionAt(node.from + end));
 
-        const ranges = names.get(name);
-        if (ranges) {
-          ranges.push(range);
-        } else {
-          names.set(name, [range]);
-        }
+        addValuesCache(names, name, range);
       }
 
       if (once) {

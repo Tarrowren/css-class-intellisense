@@ -4,6 +4,7 @@ import { CssCacheEntry } from "./css-cache";
 import { HtmlCacheEntry } from "./html-cache";
 import { JsxCacheEntry } from "./jsx-cache";
 import { PhpCacheEntry } from "./php-cache";
+import { SassCacheEntry } from "./sass-cache";
 import { VueCacheEntry } from "./vue-cache";
 
 export function getLanguageCacheEntry(document: TextDocument): LanguageCacheEntry {
@@ -13,9 +14,12 @@ export function getLanguageCacheEntry(document: TextDocument): LanguageCacheEntr
     case "vue":
       return new VueCacheEntry(document);
     case "css":
-    case "scss":
     case "less":
       return new CssCacheEntry(document);
+    case "scss":
+      return new SassCacheEntry(document);
+    case "sass":
+      return new SassCacheEntry(document, true);
     case "javascriptreact":
       return new JsxCacheEntry(document);
     case "typescriptreact":

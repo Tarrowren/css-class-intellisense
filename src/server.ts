@@ -49,7 +49,7 @@ export class GlobalLanguageServer implements LanguageServer {
     this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap, this.cssConfig);
 
     const htmlLanguages = ["html", "vue", "javascriptreact", "typescriptreact", "php"];
-    const cssLanguages = ["css", "scss", "less"];
+    const cssLanguages = ["css", "scss", "sass", "less"];
     const allLanguages = [...htmlLanguages, ...cssLanguages];
 
     const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };

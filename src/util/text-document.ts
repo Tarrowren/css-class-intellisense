@@ -6,7 +6,7 @@ export function getRange(document: TextDocument, node: SyntaxNodeRef): Range {
 }
 
 export function getText(document: TextDocument, node: SyntaxNodeRef): string {
-  return document.getText(new Range(document.positionAt(node.from), document.positionAt(node.to)));
+  return document.getText(getRange(document, node));
 }
 
 export function getRangeFromTuple(document: TextDocument, range: [number, number] | undefined): Range | undefined {

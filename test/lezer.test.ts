@@ -3,6 +3,7 @@ import { CSS_NODE_TYPE } from "@src/lezer/css";
 import { HTML_NODE_TYPE } from "@src/lezer/html";
 import { JS_NODE_TYPE } from "@src/lezer/javascript";
 import { PHP_NODE_TYPE } from "@src/lezer/php";
+import { SASS_NODE_TYPE } from "@src/lezer/sass";
 
 describe("Lezer", () => {
   it("Lezer CSS test", () => {
@@ -21,6 +22,14 @@ describe("Lezer", () => {
     expect(CSS_NODE_TYPE.SiblingSelector.name).toBe("SiblingSelector");
     expect(CSS_NODE_TYPE.Block.name).toBe("Block");
     expect(CSS_NODE_TYPE.MediaStatement.name).toBe("MediaStatement");
+  });
+
+  it("Lezer SASS test", () => {
+    expect(SASS_NODE_TYPE.Suffix.name).toBe("Suffix");
+    expect(SASS_NODE_TYPE[","].name).toBe(",");
+    expect(SASS_NODE_TYPE.ClassName.name).toBe("ClassName");
+    expect(SASS_NODE_TYPE.IdName.name).toBe("IdName");
+    expect(SASS_NODE_TYPE.Block.name).toBe("Block");
   });
 
   it("Lezer HTML test", () => {
