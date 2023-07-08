@@ -1,3 +1,5 @@
 {
-  "Cache cleaned up.": "缓存已清除"
+  "Cache cleaned up.": "缓存已清除。",
+  "Download canceled.": "已取消下载。",
+  "Download {0} failure! {1}": "下载 {0} 失败！{1}"
 }

@@ -91,12 +91,12 @@ class _ReferenceMap implements ReferenceMap {
               }
             }
           } catch (e) {
-            log.error(e, "rebuild reference");
+            log.error(e as any, "rebuild reference");
           }
         })
       );
     } catch (e) {
-      log.error(e, "rebuild reference");
+      log.error(e as any, "rebuild reference");
     } finally {
       this.promise = null;
     }

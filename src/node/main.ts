@@ -9,8 +9,8 @@ import { RequestService } from "./request-service";
 
 let server: LanguageServer | null;
 
-process.on("unhandledRejection", (e: any) => {
-  log.error(e, "unhandled exception");
+process.on("unhandledRejection", (e) => {
+  log.error(e as any, "unhandled exception");
 });
 
 export async function activate(context: ExtensionContext) {

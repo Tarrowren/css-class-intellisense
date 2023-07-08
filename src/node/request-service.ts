@@ -8,6 +8,7 @@ import {
   FileType,
   ProgressLocation,
   Uri,
+  l10n,
   window,
 } from "vscode";
 import { LocalCache } from "./local-cache";
@@ -133,9 +134,9 @@ export class RequestService implements Disposable {
       );
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") {
-        window.showInformationMessage(e.message);
+        window.showInformationMessage(l10n.t("Download canceled."));
       } else {
-        window.showErrorMessage(`Download ${uri} failure ${e}`);
+        window.showErrorMessage(l10n.t("Download {0} failure! {1}", uri, e instanceof Error ? e.message : ""));
       }
       throw e;
     }

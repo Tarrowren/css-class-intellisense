@@ -56,7 +56,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e, "do complete");
+              log.error(e as any, "do complete");
             }
           })
         );
@@ -102,7 +102,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e, "find definition");
+              log.error(e as any, "find definition");
             }
           })
         );
@@ -159,7 +159,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e, "do rename");
+              log.error(e as any, "do rename");
             }
           })
         );

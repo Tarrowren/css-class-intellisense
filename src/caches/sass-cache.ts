@@ -2,13 +2,13 @@ import { NodeType, SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import * as LEZER_SASS from "@lezer/sass";
 import { Range, TextDocument } from "vscode";
 import { SASS_NODE_TYPE } from "../lezer/sass";
-import { addValuesCache, getNameFromStyle, toNodeKey } from "../util/css-class-name";
+import { addValuesCache, getNameFromStyle } from "../util/css-class-name";
 import { emptyMap, emptySet } from "../util/empty";
 import { getRange } from "../util/text-document";
 import { LanguageCacheEntry } from "./language-caches";
 
 export class SassCacheEntry implements LanguageCacheEntry {
-  private suffixCache = new Map<string, SuffixCacheValue[]>();
+  private suffixCache = new Map<number, SuffixCacheValue[]>();
 
   tree: Tree;
   hrefs: Set<string>;
@@ -38,7 +38,7 @@ export class SassCacheEntry implements LanguageCacheEntry {
   }
 
   public getSuffixCacheValues(ref: SyntaxNodeRef) {
-    return this.suffixCache.get(toNodeKey(ref));
+    return this.suffixCache.get(ref.from);
   }
 
   private getNameWithSuffixFromStyle(document: TextDocument, ref: SyntaxNodeRef) {
@@ -52,8 +52,6 @@ export class SassCacheEntry implements LanguageCacheEntry {
       return;
     }
 
-    const suffixKey = toNodeKey(ref);
-
     let node: SyntaxNode | null = ref.node;
     while ((node = node.parent)) {
       if (node.type === SASS_NODE_TYPE.Block) {
@@ -65,10 +63,10 @@ export class SassCacheEntry implements LanguageCacheEntry {
           let name: SyntaxNode | null = node;
           while ((name = name.lastChild)) {
             if (name.type === SASS_NODE_TYPE.ClassName || name.type === SASS_NODE_TYPE.IdName) {
-              this.add(document, name, suffix, suffixKey, range);
+              this.add(document, name, suffix, ref.from, range);
               break;
             } else if (name.type === SASS_NODE_TYPE.Suffix) {
-              const values = this.suffixCache.get(toNodeKey(name));
+              const values = this.suffixCache.get(name.from);
               if (!values) {
                 break;
               }
@@ -84,7 +82,7 @@ export class SassCacheEntry implements LanguageCacheEntry {
                   break;
                 }
 
-                addValuesCache(this.suffixCache, suffixKey, { type: value.type, name: label });
+                addValuesCache(this.suffixCache, ref.from, { type: value.type, name: label });
               }
             }
           }
@@ -95,7 +93,7 @@ export class SassCacheEntry implements LanguageCacheEntry {
     }
   }
 
-  private add(document: TextDocument, node: SyntaxNode, suffix: string, suffixKey: string, suffixRange: Range) {
+  private add(document: TextDocument, node: SyntaxNode, suffix: string, suffixKey: number, suffixRange: Range) {
     const range = getRange(document, node);
     if (range.isEmpty) {
       return;

@@ -85,7 +85,7 @@ export class SassMode implements LanguageMode {
             }
           }
         } catch (e) {
-          log.error(e, "find references");
+          log.error(e as any, "find references");
         }
       })
     );

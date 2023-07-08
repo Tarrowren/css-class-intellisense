@@ -109,7 +109,6 @@
     "@lezer/php": "^1.0.1",
     "@lezer/sass": "^1.0.3",
     "minimatch": "^9.0.3",
-    "node-fetch": "^3.3.1",
-    "pino": "^8.14.1"
+    "node-fetch": "^3.3.1"
   }
 }

@@ -4,11 +4,7 @@ import { CSS_NODE_TYPE } from "../lezer/css";
 import { isEmptyCode } from "./string";
 import { getRange, getText } from "./text-document";
 
-export function toNodeKey(ref: SyntaxNodeRef) {
-  return `${ref.from},${ref.to}`;
-}
-
-export function addValuesCache<T>(cache: Map<string, T[]>, key: string, value: T) {
+export function addValuesCache<K, V>(cache: Map<K, V[]>, key: K, value: V) {
   const values = cache.get(key);
   if (values) {
     values.push(value);

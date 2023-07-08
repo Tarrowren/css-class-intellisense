@@ -1,26 +1,6 @@
-import pino, { LoggerOptions } from "pino";
 import { CancellationToken, Disposable, FileStat, Uri, window } from "vscode";
 
-export const log = (() => {
-  const channel = window.createOutputChannel("CSS Class Intellisense");
-
-  return pino<LoggerOptions>(
-    {
-      level: "debug",
-      browser: {
-        serialize: true,
-        write(o) {
-          channel.appendLine(JSON.stringify(o));
-        },
-      },
-    },
-    {
-      write(msg) {
-        channel.append(msg);
-      },
-    }
-  );
-})();
+export const log = window.createOutputChannel("CSS Class Intellisense", { log: true });
 
 export interface RuntimeEnvironment {
   readonly isBrowser: boolean;
@@ -56,7 +36,7 @@ export function runSafeAsync<T>(
             resolve(result);
           }
         } catch (e) {
-          log.error(e, errorMessage);
+          log.error(e as any, errorMessage);
           resolve(errorVal);
         }
       }

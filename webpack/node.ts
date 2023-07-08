@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import Webpack from "webpack";
 
 export default function (common: Partial<Webpack.Configuration>, prod: boolean): Webpack.Configuration {
-  const swcOptions = {
+  const swcTsOptions = {
     jsc: {
       parser: {
         syntax: "typescript",
@@ -13,7 +13,18 @@ export default function (common: Partial<Webpack.Configuration>, prod: boolean):
     module: {
       type: "commonjs",
     },
-    minify: prod,
+  } satisfies Config;
+
+  const swcJsOptions = {
+    jsc: {
+      parser: {
+        syntax: "ecmascript",
+      },
+      target: "es2020",
+    },
+    module: {
+      type: "commonjs",
+    },
   } satisfies Config;
 
   return {
@@ -29,7 +40,13 @@ export default function (common: Partial<Webpack.Configuration>, prod: boolean):
           test: /\.ts$/,
           exclude: /node_modules/,
           loader: "swc-loader",
-          options: swcOptions,
+          options: swcTsOptions,
+        },
+        {
+          test: /\.js$/,
+          exclude: /node_modules/,
+          loader: "swc-loader",
+          options: swcJsOptions,
         },
       ],
     },

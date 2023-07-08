@@ -59,7 +59,7 @@ export class CssMode implements LanguageMode {
             items.set(label, item);
           }
         } catch (e) {
-          log.error(e, "do complete");
+          log.error(e as any, "do complete");
         }
       })
     );
@@ -106,7 +106,7 @@ export class CssMode implements LanguageMode {
             }
           }
         } catch (e) {
-          log.error(e, "find references");
+          log.error(e as any, "find references");
         }
       })
     );

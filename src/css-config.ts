@@ -52,7 +52,7 @@ class CssConfigImpl implements CssConfig {
 
       await Promise.all(uris.map(this.onDidChange, this));
     } catch (e) {
-      log.error(e, "rebuild css config");
+      log.error(e as any, "rebuild css config");
     } finally {
       this.promise = null;
     }
@@ -159,7 +159,7 @@ class CssConfigImpl implements CssConfig {
       });
     } catch (e) {
       this.map.delete(dirString);
-      log.error(e, "css config");
+      log.error(e as any, "css config");
     }
   }
 
