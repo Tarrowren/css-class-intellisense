@@ -13,8 +13,6 @@ import {
 } from "vscode";
 import { LocalCache } from "./local-cache";
 
-const retryTimeoutInHours = 3 * 24;
-
 class RequestCache<K, V> implements Disposable {
   private _cache = new Map<K, [CancellationTokenSource, Promise<V>]>();
 
@@ -41,7 +39,7 @@ class RequestCache<K, V> implements Disposable {
       return await promise;
     } finally {
       this._cache.delete(key);
-      source?.cancel();
+      source?.dispose();
     }
   }
 
@@ -55,6 +53,7 @@ class RequestCache<K, V> implements Disposable {
 }
 
 export class RequestService implements Disposable {
+  private _retryTimeoutInHours = 3 * 24;
   private _requestCache = new RequestCache<string, Uint8Array>((uri, token) => {
     return this._requestWithProgress(uri, this._localCache.getETag(uri), token);
   });
@@ -66,7 +65,7 @@ export class RequestService implements Disposable {
 
     let content: Uint8Array | undefined;
     if (this._localCache) {
-      content = await this._localCache.getIfUpdatedSince(uriString, retryTimeoutInHours);
+      content = await this._localCache.getIfUpdatedSince(uriString, this._retryTimeoutInHours);
     }
 
     if (!content) {
@@ -81,7 +80,7 @@ export class RequestService implements Disposable {
 
     let stat: FileStat | undefined;
     if (this._localCache) {
-      stat = await this._localCache.getStatIfUpdatedSince(uriString, retryTimeoutInHours);
+      stat = await this._localCache.getStatIfUpdatedSince(uriString, this._retryTimeoutInHours);
     }
 
     if (!stat) {
@@ -120,9 +119,15 @@ export class RequestService implements Disposable {
         { location: ProgressLocation.Notification, cancellable: true, title: l10n.t("Start downloading {0}.", uri) },
         async (_progress, token2) => {
           const source = new CancellationTokenSource();
+
           linkCancellationToken(token, source);
           linkCancellationToken(token2, source);
-          return this._request(uri, etag, source.token);
+
+          try {
+            return this._request(uri, etag, source.token);
+          } finally {
+            source.dispose();
+          }
         }
       );
     } catch (err) {
