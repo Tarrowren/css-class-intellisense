@@ -1,6 +1,6 @@
 {
   "Cache cleaned up.": "缓存已清除。",
   "Start downloading {0}.": "开始下载 {0}。",
-  "Download cancelled.": "已取消下载。",
-  "Download {0} failed! {1}": "下载 {0} 失败！{1}"
+  "Download canceled.": "已取消下载。",
+  "Failed to download {0}!\n{1}": "下载 {0} 失败！\n{1}"
 }

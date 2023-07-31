@@ -132,9 +132,9 @@ export class RequestService implements Disposable {
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        window.showInformationMessage(l10n.t("Download cancelled."));
+        window.showInformationMessage(l10n.t("Download canceled."));
       } else {
-        window.showErrorMessage(l10n.t("Download {0} failed! {1}", uri, err instanceof Error ? err.message : ""));
+        window.showErrorMessage(l10n.t("Failed to download {0}!\n{1}", uri, err instanceof Error ? err.message : ""));
       }
       throw err;
     }
