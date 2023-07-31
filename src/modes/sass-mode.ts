@@ -5,7 +5,7 @@ import { SassCacheEntry } from "../caches/sass-cache";
 import { Configuration } from "../config";
 import { SASS_NODE_TYPE } from "../lezer/sass";
 import { ReferenceMap } from "../reference-map";
-import { log } from "../runner";
+import { logError } from "../runner";
 import { getText } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
@@ -85,7 +85,7 @@ export class SassMode implements LanguageMode {
             }
           }
         } catch (e) {
-          log.error(e as any, "find references");
+          logError(e, "find references");
         }
       })
     );

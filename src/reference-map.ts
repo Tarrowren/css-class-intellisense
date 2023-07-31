@@ -3,7 +3,7 @@ import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
 import { CssConfig } from "./css-config";
-import { RuntimeEnvironment, log } from "./runner";
+import { RuntimeEnvironment, logError } from "./runner";
 
 export interface ReferenceMap extends Disposable {
   getRefs(uri: Uri): Promise<Set<string> | undefined>;
@@ -91,12 +91,12 @@ class _ReferenceMap implements ReferenceMap {
               }
             }
           } catch (e) {
-            log.error(e as any, "rebuild reference");
+            logError(e, "rebuild reference");
           }
         })
       );
     } catch (e) {
-      log.error(e as any, "rebuild reference");
+      logError(e, "rebuild reference");
     } finally {
       this.promise = null;
     }

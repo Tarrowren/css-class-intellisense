@@ -1,4 +1,4 @@
-import fetch, { Headers } from "node-fetch";
+import { Headers, XHRResponse, getErrorStatusDescription, xhr } from "request-light";
 import {
   CancellationToken,
   CancellationTokenSource,
@@ -15,16 +15,53 @@ import { LocalCache } from "./local-cache";
 
 const retryTimeoutInHours = 3 * 24;
 
-export class RequestService implements Disposable {
-  private _map: Map<string, [CancellationTokenSource, Promise<Uint8Array>]>;
-  private _localCache: LocalCache | undefined;
+class RequestCache<K, V> implements Disposable {
+  private _cache = new Map<K, [CancellationTokenSource, Promise<V>]>();
 
-  constructor(localCache: LocalCache | undefined) {
-    this._map = new Map();
-    this._localCache = localCache;
+  constructor(private _func: (key: K, token?: CancellationToken) => Promise<V>) {}
+
+  async get(key: K, token?: CancellationToken): Promise<V> {
+    let source: CancellationTokenSource | undefined;
+    let promise: Promise<V> | undefined;
+
+    try {
+      const value = this._cache.get(key);
+
+      if (value) {
+        [source, promise] = value;
+      } else {
+        source = new CancellationTokenSource();
+        promise = this._func(key, token);
+
+        this._cache.set(key, [source, promise]);
+      }
+
+      linkCancellationToken(token, source);
+
+      return await promise;
+    } finally {
+      this._cache.delete(key);
+      source?.cancel();
+    }
   }
 
-  async readFile(uri: Uri, token?: CancellationToken) {
+  dispose(): void {
+    for (const [source, _] of this._cache.values()) {
+      source.cancel();
+    }
+
+    this._cache.clear();
+  }
+}
+
+export class RequestService implements Disposable {
+  private _requestCache = new RequestCache<string, Uint8Array>((uri, token) => {
+    return this._requestWithProgress(uri, this._localCache.getETag(uri), token);
+  });
+
+  constructor(private _localCache: LocalCache) {}
+
+  async readFile(uri: Uri, token?: CancellationToken): Promise<Uint8Array> {
     const uriString = uri.toString(true);
 
     let content: Uint8Array | undefined;
@@ -33,143 +70,122 @@ export class RequestService implements Disposable {
     }
 
     if (!content) {
-      try {
-        let source: CancellationTokenSource;
-        let buf: Promise<Uint8Array>;
-
-        const cache = this._map.get(uriString);
-        if (cache) {
-          [source, buf] = cache;
-        } else {
-          source = new CancellationTokenSource();
-          buf = this.request(uriString, this._localCache?.getETag(uriString), source.token);
-          this._map.set(uriString, [source, buf]);
-        }
-        this.link(token, source);
-        content = await buf;
-      } finally {
-        this._map.delete(uriString);
-      }
+      content = await this._requestCache.get(uriString, token);
     }
 
     return content;
   }
 
-  async stat(uri: Uri, token?: CancellationToken) {
+  async stat(uri: Uri, token?: CancellationToken): Promise<FileStat> {
     const uriString = uri.toString(true);
-    let stats: FileStat | undefined;
+
+    let stat: FileStat | undefined;
     if (this._localCache) {
-      stats = await this._localCache.getStatIfUpdatedSince(uriString, retryTimeoutInHours);
+      stat = await this._localCache.getStatIfUpdatedSince(uriString, retryTimeoutInHours);
     }
 
-    if (!stats) {
-      try {
-        let source: CancellationTokenSource;
-        let buf: Promise<Uint8Array>;
-
-        const cache = this._map.get(uriString);
-        if (cache) {
-          [source, buf] = cache;
-        } else {
-          source = new CancellationTokenSource();
-          buf = this.request(uriString, this._localCache?.getETag(uriString), source.token);
-          this._map.set(uriString, [source, buf]);
-        }
-        this.link(token, source);
-        const content = await buf;
-
-        stats = {
-          ctime: Date.now(),
-          mtime: Date.now(),
-          size: content.length,
-          type: FileType.File,
-          permissions: FilePermission.Readonly,
-        };
-      } finally {
-        this._map.delete(uriString);
-      }
+    if (!stat) {
+      const content = await this._requestCache.get(uriString, token);
+      stat = {
+        ctime: Date.now(),
+        mtime: Date.now(),
+        size: content.length,
+        type: FileType.File,
+        permissions: FilePermission.Readonly,
+      };
     }
 
-    return stats;
+    return stat;
   }
 
   dispose() {
-    for (const [token, _] of this._map.values()) {
-      token.cancel();
-    }
-    this._map.clear();
+    this._requestCache.dispose();
   }
 
-  private async request(uri: string, etag?: string, token?: CancellationToken): Promise<Uint8Array> {
+  private _isXHRResponse(err: unknown): err is XHRResponse {
+    if (err && typeof err === "object" && "status" in err) {
+      return typeof err.status === "number";
+    } else {
+      return false;
+    }
+  }
+
+  private async _requestWithProgress(
+    uri: string,
+    etag: string | undefined,
+    token?: CancellationToken
+  ): Promise<Uint8Array> {
     try {
       return await window.withProgress(
-        { location: ProgressLocation.Notification, cancellable: true, title: `Download ${uri}` },
-        async (_progress, token) => {
-          const headers = new Headers();
-          if (etag) {
-            headers.set("If-None-Match", etag);
-          }
-
-          const res = await fetch(uri, { method: "GET", headers, signal: toSignal(token) as any });
-          if (res.ok) {
-            const content = new Uint8Array(await res.arrayBuffer());
-            if (this._localCache) {
-              const etag = res.headers.get("etag");
-              if (typeof etag === "string") {
-                await this._localCache.put(uri, etag, content);
-              }
-            }
-            return content;
-          } else if (res.status === 304 && etag && this._localCache) {
-            const content = await this._localCache.get(uri, etag, true);
-            if (content) {
-              return content;
-            } else {
-              return await this.request(uri, undefined, token);
-            }
-          } else {
-            throw new Error(`Error: ${res.statusText}`);
-          }
+        { location: ProgressLocation.Notification, cancellable: true, title: l10n.t("Start downloading {0}.", uri) },
+        async (_progress, token2) => {
+          const source = new CancellationTokenSource();
+          linkCancellationToken(token, source);
+          linkCancellationToken(token2, source);
+          return this._request(uri, etag, source.token);
         }
       );
-    } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") {
-        window.showInformationMessage(l10n.t("Download canceled."));
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        window.showInformationMessage(l10n.t("Download cancelled."));
       } else {
-        window.showErrorMessage(l10n.t("Download {0} failure! {1}", uri, e instanceof Error ? e.message : ""));
+        window.showErrorMessage(l10n.t("Download {0} failed! {1}", uri, err instanceof Error ? err.message : ""));
       }
-      throw e;
+      throw err;
     }
   }
 
-  private link(token: CancellationToken | undefined, source: CancellationTokenSource) {
-    if (!token) {
-      return;
+  private async _request(uri: string, etag: string | undefined, token: CancellationToken): Promise<Uint8Array> {
+    const headers: Headers = { "Accept-Encoding": "gzip, deflate" };
+    if (etag) {
+      headers["If-None-Match"] = etag;
     }
 
-    if (token.isCancellationRequested) {
-      source.cancel();
+    try {
+      const res = await xhr({ url: uri, followRedirects: 5, headers, token });
+      if (this._localCache) {
+        const etag = res.headers["etag"];
+        if (typeof etag === "string") {
+          await this._localCache.put(uri, etag, res.body);
+        }
+      }
+      return res.body;
+    } catch (err) {
+      if (this._isXHRResponse(err)) {
+        if (err.status === 304 && etag && this._localCache) {
+          const content = await this._localCache.get(uri, etag, true);
+          if (content) {
+            return content;
+          } else {
+            return await this._request(uri, undefined, token);
+          }
+        } else {
+          let status = getErrorStatusDescription(err.status);
+          if (status && err.responseText) {
+            status = `${status}\n${err.responseText.substring(0, 200)}`;
+          }
+          if (!status) {
+            status = err.toString();
+          }
+          throw new Error(status);
+        }
+      } else {
+        throw err;
+      }
     }
-    token.onCancellationRequested(() => {
-      source.cancel();
-    });
   }
 }
 
-function toSignal(token?: CancellationToken): AbortSignal | undefined {
+function linkCancellationToken(token: CancellationToken | undefined, source: CancellationTokenSource) {
   if (!token) {
     return;
   }
 
-  const controller = new AbortController();
-
   if (token.isCancellationRequested) {
-    controller.abort();
-  } else {
-    token.onCancellationRequested(() => {
-      controller.abort();
-    });
+    source.cancel();
   }
 
-  return controller.signal;
+  token.onCancellationRequested(() => {
+    source.cancel();
+  });
 }

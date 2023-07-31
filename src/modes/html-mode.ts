@@ -18,7 +18,7 @@ import { CssConfig } from "../css-config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { HTML_NODE_TYPE } from "../lezer/html";
-import { log } from "../runner";
+import { logError } from "../runner";
 import { cssDoComplete } from "../util/css-class-name";
 import { getCssInsertionRange, getHtmlInsertionRange } from "../util/name-range";
 import { POINT, SHARP, nearbyWord } from "../util/string";
@@ -101,7 +101,7 @@ export class HtmlMode implements LanguageMode {
               }
             }
           } catch (e) {
-            log.error(e as any, "do complete");
+            logError(e, "do complete");
           }
         })
       );
@@ -164,7 +164,7 @@ export class HtmlMode implements LanguageMode {
               }
             }
           } catch (e) {
-            log.error(e as any, "find definition");
+            logError(e, "find definition");
           }
         })
       );
@@ -276,7 +276,7 @@ export class HtmlMode implements LanguageMode {
               }
             }
           } catch (e) {
-            log.error(e as any, "do rename");
+            logError(e, "do rename");
           }
         })
       );

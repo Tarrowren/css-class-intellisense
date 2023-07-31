@@ -46,14 +46,14 @@ class EmptySet<T> extends Set<T> {
   }
 }
 
-const EMPTY_MAP = new EmptyMap<any, any>();
+const EMPTY_MAP = new EmptyMap();
 
-const EMPTY_SET = new EmptySet<any>();
+const EMPTY_SET = new EmptySet();
 
 export function emptyMap<K, V>(): Map<K, V> {
-  return EMPTY_MAP;
+  return EMPTY_MAP as Map<K, V>;
 }
 
 export function emptySet<T>(): Set<T> {
-  return EMPTY_SET;
+  return EMPTY_SET as Set<T>;
 }

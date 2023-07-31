@@ -1,11 +1,16 @@
 import { Disposable } from "vscode";
 
-const generateId = (() => {
-  let id = 1;
-  return () => id++;
-})();
+class GenerateId {
+  private _id = 1;
 
-const cache = new Map<number, [(...args: any) => void, any[]]>();
+  next() {
+    return this._id++;
+  }
+}
+
+const generateId = new GenerateId();
+
+const cache = new Map<number, [Function, unknown[]]>();
 const channel = new MessageChannel();
 
 channel.port2.onmessage = (e) => {
@@ -20,8 +25,8 @@ channel.port2.onmessage = (e) => {
   }
 };
 
-export function setImmediate<TArgs extends any[]>(callback: (...args: TArgs) => void, ...args: TArgs): Disposable {
-  const id = generateId();
+export function setImmediate<TArgs extends unknown[]>(callback: (...args: TArgs) => void, ...args: TArgs): Disposable {
+  const id = generateId.next();
   cache.set(id, [callback, args]);
   channel.port1.postMessage(id);
   return new Disposable(() => {

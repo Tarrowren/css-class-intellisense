@@ -15,7 +15,7 @@ import { Configuration } from "../config";
 import { CssConfig } from "../css-config";
 import { CSSCI_HTTPS_SCHEME, CSSCI_HTTP_SCHEME, HTTPS_SCHEME, HTTP_SCHEME } from "../http-file-system";
 import { JS_NODE_TYPE } from "../lezer/javascript";
-import { log } from "../runner";
+import { logError } from "../runner";
 import { getJsxInsertionRange } from "../util/name-range";
 import { nearbyWord } from "../util/string";
 import { getRangeFromTuple, getText } from "../util/text-document";
@@ -56,7 +56,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e as any, "do complete");
+              logError(e, "do complete");
             }
           })
         );
@@ -102,7 +102,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e as any, "find definition");
+              logError(e, "find definition");
             }
           })
         );
@@ -159,7 +159,7 @@ export class JsxMode implements LanguageMode {
                 }
               }
             } catch (e) {
-              log.error(e as any, "do rename");
+              logError(e, "do rename");
             }
           })
         );

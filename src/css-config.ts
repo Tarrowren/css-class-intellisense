@@ -1,7 +1,7 @@
 import { minimatch } from "minimatch";
 import { CancellationTokenSource, Disposable, FileSystemWatcher, Uri, workspace } from "vscode";
 import { HTTPS_SCHEME, HTTP_SCHEME, convertToHttpSchemeEx } from "./http-file-system";
-import { RuntimeEnvironment, log } from "./runner";
+import { RuntimeEnvironment, logError } from "./runner";
 import { emptySet } from "./util/empty";
 import { notNull } from "./util/string";
 import { validate } from "./validates/css-config-options";
@@ -52,7 +52,7 @@ class CssConfigImpl implements CssConfig {
 
       await Promise.all(uris.map(this.onDidChange, this));
     } catch (e) {
-      log.error(e as any, "rebuild css config");
+      logError(e, "rebuild css config");
     } finally {
       this.promise = null;
     }
@@ -159,7 +159,7 @@ class CssConfigImpl implements CssConfig {
       });
     } catch (e) {
       this.map.delete(dirString);
-      log.error(e as any, "css config");
+      logError(e, "css config");
     }
   }
 

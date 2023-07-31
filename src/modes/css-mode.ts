@@ -4,7 +4,7 @@ import { LanguageCacheEntry } from "../caches/language-caches";
 import { Configuration } from "../config";
 import { CSS_NODE_TYPE } from "../lezer/css";
 import { ReferenceMap } from "../reference-map";
-import { log } from "../runner";
+import { logError } from "../runner";
 import { cssDoComplete } from "../util/css-class-name";
 import { getCssInsertionRange } from "../util/name-range";
 import { getRangeFromTuple, getText } from "../util/text-document";
@@ -59,7 +59,7 @@ export class CssMode implements LanguageMode {
             items.set(label, item);
           }
         } catch (e) {
-          log.error(e as any, "do complete");
+          logError(e, "do complete");
         }
       })
     );
@@ -106,7 +106,7 @@ export class CssMode implements LanguageMode {
             }
           }
         } catch (e) {
-          log.error(e as any, "find references");
+          logError(e, "find references");
         }
       })
     );
