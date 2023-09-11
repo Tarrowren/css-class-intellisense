@@ -9,6 +9,7 @@ export default function (common: Partial<Webpack.Configuration>, prod: boolean):
         syntax: "typescript",
       },
       target: "es2020",
+      externalHelpers: true,
     },
     module: {
       type: "es6",
@@ -21,6 +22,7 @@ export default function (common: Partial<Webpack.Configuration>, prod: boolean):
         syntax: "ecmascript",
       },
       target: "es2020",
+      externalHelpers: true,
     },
     module: {
       type: "es6",

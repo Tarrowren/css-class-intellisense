@@ -13,6 +13,8 @@ module.exports = {
             syntax: "typescript",
           },
           target: "es2020",
+          externalHelpers: true,
+          baseUrl: "./",
           paths: {
             "@src/*": ["src/*"],
           },
