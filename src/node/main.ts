@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import { Disposable, ExtensionContext } from "vscode";
 import { convertToHttpScheme } from "../http-file-system";
 import { RuntimeEnvironment, logError } from "../runner";
@@ -51,6 +52,9 @@ export async function activate(context: ExtensionContext) {
       setInterval(callback, ms, ...args) {
         const timer = setInterval(callback, ms, ...args);
         return new Disposable(() => clearInterval(timer));
+      },
+      timestamp() {
+        return performance.now();
       },
     },
   };

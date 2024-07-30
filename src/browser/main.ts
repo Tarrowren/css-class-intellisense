@@ -55,6 +55,9 @@ export function activate(context: ExtensionContext) {
         const id = setInterval(callback, ms, ...args);
         return new Disposable(() => clearInterval(id));
       },
+      timestamp() {
+        return Date.now();
+      },
     },
   };
 

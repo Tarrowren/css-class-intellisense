@@ -3,7 +3,7 @@ import { LanguageModelCache } from "./caches/cache";
 import { LanguageCacheEntry } from "./caches/language-caches";
 import { Configuration } from "./config";
 import { CssConfig } from "./css-config";
-import { RuntimeEnvironment, logError } from "./runner";
+import { RuntimeEnvironment, logError, logger } from "./runner";
 
 export interface ReferenceMap extends Disposable {
   getRefs(uri: Uri): Promise<Set<string> | undefined>;
@@ -20,7 +20,7 @@ class _ReferenceMap implements ReferenceMap {
   constructor(
     private runtime: RuntimeEnvironment,
     private cache: LanguageModelCache<LanguageCacheEntry>,
-    private cssConfig: CssConfig
+    private cssConfig: CssConfig,
   ) {
     this.watcher = workspace.createFileSystemWatcher(this.globPattern);
     this.disposables = [
@@ -61,40 +61,48 @@ class _ReferenceMap implements ReferenceMap {
         return;
       }
 
-      await Promise.all(
-        uris.map(async (uri) => {
-          try {
-            const document = await workspace.openTextDocument(uri);
+      logger.info("Starting load reference map");
+      const start = this.runtime.timer.timestamp();
 
-            const hrefs = await this.getHrefs(document);
-            if (hrefs.size === 0) {
-              return;
-            }
+      for (const uri of uris) {
+        if (this.source.token.isCancellationRequested) {
+          break;
+        }
 
-            const uriString = uri.toString(true);
+        try {
+          const document = await workspace.openTextDocument(uri);
 
-            const entry = this.graph.get(uriString);
-            if (entry) {
-              for (const href of hrefs) {
-                entry.add(href);
-              }
-            } else {
-              this.graph.set(uriString, hrefs);
-            }
-
-            for (const href of hrefs) {
-              const entry = this.graph.get(href);
-              if (entry) {
-                entry.add(uriString);
-              } else {
-                this.graph.set(href, new Set([uriString]));
-              }
-            }
-          } catch (e) {
-            logError(e, "rebuild reference");
+          const hrefs = await this.getHrefs(document);
+          if (hrefs.size === 0) {
+            continue;
           }
-        })
-      );
+
+          const uriString = uri.toString(true);
+
+          const entry = this.graph.get(uriString);
+          if (entry) {
+            for (const href of hrefs) {
+              entry.add(href);
+            }
+          } else {
+            this.graph.set(uriString, hrefs);
+          }
+
+          for (const href of hrefs) {
+            const entry = this.graph.get(href);
+            if (entry) {
+              entry.add(uriString);
+            } else {
+              this.graph.set(href, new Set([uriString]));
+            }
+          }
+        } catch (e) {
+          logError(e, "rebuild reference");
+        }
+      }
+
+      const elapsed = this.runtime.timer.timestamp() - start;
+      logger.info("Finishing load reference map: ", elapsed);
     } catch (e) {
       logError(e, "rebuild reference");
     } finally {
@@ -191,7 +199,7 @@ export class GlobalReferenceMap implements ReferenceMap {
     runtime: RuntimeEnvironment,
     config: Configuration,
     cache: LanguageModelCache<LanguageCacheEntry>,
-    cssConfig: CssConfig
+    cssConfig: CssConfig,
   ) {
     if (!config.lightweight) {
       this.map = new _ReferenceMap(runtime, cache, cssConfig);
