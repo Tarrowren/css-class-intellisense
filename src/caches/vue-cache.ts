@@ -12,6 +12,7 @@ import { getText } from "../util/text-document";
 import { LanguageCacheEntry } from "./language-caches";
 
 const VUE_PARSER = LEZER_HTML.parser.configure({
+  dialect: "selfClosing",
   wrap: parseMixed((node) => {
     if (node.type === HTML_NODE_TYPE.ScriptText) {
       return { parser: LEZER_JS.parser };
