@@ -78,7 +78,7 @@ export class LocalCache {
       await writeFile(join(this._cacheLocation, fileName), content);
       const item: _CacheItem = { etag, fileName, updateTime: Date.now() };
       this._info[uri] = item;
-    } catch (e) {
+    } catch (_e) {
       delete this._info[uri];
     } finally {
       await this.updateMemento();
@@ -96,7 +96,7 @@ export class LocalCache {
           // ignore
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     } finally {
       this._info = {};
@@ -113,7 +113,7 @@ export class LocalCache {
         await this.updateMemento();
       }
       return content;
-    } catch (e) {
+    } catch (_e) {
       delete this._info[uri];
       await this.updateMemento();
     }
@@ -134,7 +134,7 @@ export class LocalCache {
         permissions: FilePermission.Readonly,
       };
       return fileStat;
-    } catch (e) {
+    } catch (_e) {
       delete this._info[uri];
       await this.updateMemento();
     }
@@ -145,7 +145,7 @@ export class LocalCache {
     await this.updateMemento();
     try {
       await rm(join(this._cacheLocation, item.fileName));
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }
@@ -153,7 +153,7 @@ export class LocalCache {
   private async updateMemento() {
     try {
       await this._globalState.update(LocalCache.MEMENTO_KEY, this._info);
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }
