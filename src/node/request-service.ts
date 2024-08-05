@@ -1,4 +1,3 @@
-import { Headers, XHRResponse, getErrorStatusDescription, xhr } from "request-light";
 import {
   CancellationToken,
   CancellationTokenSource,
@@ -101,14 +100,6 @@ export class RequestService implements Disposable {
     this._requestCache.dispose();
   }
 
-  private _isXHRResponse(err: unknown): err is XHRResponse {
-    if (err && typeof err === "object" && "status" in err) {
-      return typeof err.status === "number";
-    } else {
-      return false;
-    }
-  }
-
   private async _requestWithProgress(
     uri: string,
     etag: string | undefined,
@@ -124,7 +115,7 @@ export class RequestService implements Disposable {
           linkCancellationToken(token2, source);
 
           try {
-            return this._request(uri, etag, source.token);
+            return this._request(uri, etag, toSignal(source.token));
           } finally {
             source.dispose();
           }
@@ -140,45 +131,56 @@ export class RequestService implements Disposable {
     }
   }
 
-  private async _request(uri: string, etag: string | undefined, token: CancellationToken): Promise<Uint8Array> {
-    const headers: Headers = { "Accept-Encoding": "gzip, deflate" };
+  private async _request(uri: string, etag: string | undefined, signal: AbortSignal): Promise<Uint8Array> {
+    const headers = new Headers({ "Accept-Encoding": "gzip, deflate" });
+
     if (etag) {
-      headers["If-None-Match"] = etag;
+      headers.set("If-None-Match", etag);
     }
 
-    try {
-      const res = await xhr({ url: uri, followRedirects: 5, headers, token });
+    const res = await fetch(uri, { redirect: "follow", headers, signal });
+    if (res.ok) {
+      const body = new Uint8Array(await res.arrayBuffer());
+
       if (this._localCache) {
-        const etag = res.headers["etag"];
+        const etag = res.headers.get("etag");
         if (typeof etag === "string") {
-          await this._localCache.put(uri, etag, res.body);
+          await this._localCache.put(uri, etag, body);
         }
       }
-      return res.body;
-    } catch (err) {
-      if (this._isXHRResponse(err)) {
-        if (err.status === 304 && etag && this._localCache) {
-          const content = await this._localCache.get(uri, etag, true);
-          if (content) {
-            return content;
-          } else {
-            return await this._request(uri, undefined, token);
-          }
+      return body;
+    } else {
+      if (res.status === 304 && etag && this._localCache) {
+        const content = await this._localCache.get(uri, etag, true);
+        if (content) {
+          return content;
         } else {
-          let status = getErrorStatusDescription(err.status);
-          if (status && err.responseText) {
-            status = `${status}\n${err.responseText.substring(0, 200)}`;
-          }
-          if (!status) {
-            status = err.toString();
-          }
-          throw new Error(status);
+          return await this._request(uri, undefined, signal);
         }
       } else {
-        throw err;
+        const responseText = await res.text();
+        if (responseText) {
+          throw new Error(`${res.statusText}\n${responseText.substring(0, 200)}`);
+        } else {
+          throw new Error(res.statusText);
+        }
       }
     }
   }
+}
+
+function toSignal(token: CancellationToken): AbortSignal {
+  const controller = new AbortController();
+
+  if (token.isCancellationRequested) {
+    controller.abort();
+  } else {
+    token.onCancellationRequested(() => {
+      controller.abort();
+    });
+  }
+
+  return controller.signal;
 }
 
 function linkCancellationToken(token: CancellationToken | undefined, source: CancellationTokenSource) {
