@@ -31,7 +31,7 @@ export function getNameFromAttribute(
   document: TextDocument,
   node: SyntaxNodeRef,
   names: Map<string, Range[]>,
-  once: boolean = false
+  once: boolean = false,
 ) {
   const value = getText(document, node);
 

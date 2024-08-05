@@ -43,7 +43,7 @@ class CssConfigImpl implements CssConfig {
         `**/${CSS_CONFIG_FILE}`,
         "**/{node_modules,.*}/**",
         undefined,
-        this.source.token
+        this.source.token,
       );
 
       if (uris.length === 0) {

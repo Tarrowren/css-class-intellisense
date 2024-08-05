@@ -39,7 +39,7 @@ export class GlobalLanguageModes implements LanguageModes {
     config: Configuration,
     cache: LanguageModelCache<LanguageCacheEntry>,
     referenceMap: ReferenceMap,
-    cssConfig: CssConfig
+    cssConfig: CssConfig,
   ) {
     const h = new HtmlMode(config, cache, cssConfig);
 

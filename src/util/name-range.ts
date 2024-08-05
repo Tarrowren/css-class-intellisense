@@ -8,7 +8,7 @@ export function getCssInsertionRange(
   text: string,
   offset: number,
   tree: Tree,
-  cursor: TreeCursor
+  cursor: TreeCursor,
 ): [number, number] | undefined {
   if (cursor.type === CSS_NODE_TYPE.ClassName || cursor.type === CSS_NODE_TYPE.IdName) {
     return [cursor.from - 1, cursor.to];
@@ -42,7 +42,7 @@ export function getHtmlInsertionRange(
   text: string,
   offset: number,
   _tree: Tree,
-  cursor: TreeCursor
+  cursor: TreeCursor,
 ): [number, number] | undefined {
   if (cursor.type !== HTML_NODE_TYPE.AttributeValue && cursor.type !== JS_NODE_TYPE.JSXAttributeValue) {
     return;

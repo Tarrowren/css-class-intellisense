@@ -36,7 +36,7 @@ Using the `include` and `exclude` properties:
 ### Embed
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <style>
@@ -64,7 +64,7 @@ Using the `include` and `exclude` properties:
 ### Link
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <link rel="stylesheet" href="https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css" />

@@ -21,7 +21,7 @@ export class GlobalLanguageModelCache<T> implements LanguageModelCache<T> {
     runtime: RuntimeEnvironment,
     private maxEntries: number,
     cleanupIntervalTimeInSec: number,
-    private parse: (document: TextDocument) => T
+    private parse: (document: TextDocument) => T,
   ) {
     if (cleanupIntervalTimeInSec > 0) {
       const ms = cleanupIntervalTimeInSec * 1000;

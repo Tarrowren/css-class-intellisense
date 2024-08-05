@@ -112,7 +112,7 @@ export class RequestService implements Disposable {
   private async _requestWithProgress(
     uri: string,
     etag: string | undefined,
-    token?: CancellationToken
+    token?: CancellationToken,
   ): Promise<Uint8Array> {
     try {
       return await window.withProgress(
@@ -128,7 +128,7 @@ export class RequestService implements Disposable {
           } finally {
             source.dispose();
           }
-        }
+        },
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {

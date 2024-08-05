@@ -29,7 +29,7 @@ export class HtmlMode implements LanguageMode {
   constructor(
     _config: Configuration,
     private cache: LanguageModelCache<LanguageCacheEntry>,
-    private cssConfig: CssConfig
+    private cssConfig: CssConfig,
   ) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
@@ -103,7 +103,7 @@ export class HtmlMode implements LanguageMode {
           } catch (e) {
             logError(e, "do complete");
           }
-        })
+        }),
       );
     }
 
@@ -166,7 +166,7 @@ export class HtmlMode implements LanguageMode {
           } catch (e) {
             logError(e, "find definition");
           }
-        })
+        }),
       );
     }
 
@@ -278,7 +278,7 @@ export class HtmlMode implements LanguageMode {
           } catch (e) {
             logError(e, "do rename");
           }
-        })
+        }),
       );
     }
 
@@ -309,7 +309,7 @@ export class HtmlMode implements LanguageMode {
     cursor: TreeCursor,
     newName: string,
     charCode: number,
-    fn: (name: string, forEach: (range: Range) => void) => void
+    fn: (name: string, forEach: (range: Range) => void) => void,
   ) {
     if (newName.charCodeAt(0) === charCode) {
       if (newName.length <= 1) {

@@ -13,7 +13,7 @@ export class SassMode implements LanguageMode {
   constructor(
     private config: Configuration,
     private cache: LanguageModelCache<LanguageCacheEntry>,
-    private referenceMap: ReferenceMap
+    private referenceMap: ReferenceMap,
   ) {}
 
   async findReferences(document: TextDocument, position: Position): Promise<Location[] | undefined> {
@@ -87,7 +87,7 @@ export class SassMode implements LanguageMode {
         } catch (e) {
           logError(e, "find references");
         }
-      })
+      }),
     );
 
     return references;

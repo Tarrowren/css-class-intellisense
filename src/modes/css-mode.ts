@@ -15,7 +15,7 @@ export class CssMode implements LanguageMode {
     private config: Configuration,
     private cache: LanguageModelCache<LanguageCacheEntry>,
     private referenceMap: ReferenceMap,
-    private canNested: boolean = false
+    private canNested: boolean = false,
   ) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
@@ -61,7 +61,7 @@ export class CssMode implements LanguageMode {
         } catch (e) {
           logError(e, "do complete");
         }
-      })
+      }),
     );
 
     return [...items.values()];
@@ -108,7 +108,7 @@ export class CssMode implements LanguageMode {
         } catch (e) {
           logError(e, "find references");
         }
-      })
+      }),
     );
 
     return references;
