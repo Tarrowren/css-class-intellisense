@@ -1,4 +1,4 @@
-import { SyntaxNodeRef, Tree, parseMixed } from "@lezer/common";
+import { NodeProp, SyntaxNodeRef, Tree, parseMixed } from "@lezer/common";
 import * as LEZER_CSS from "@lezer/css";
 import * as LEZER_HTML from "@lezer/html";
 import * as LEZER_PHP from "@lezer/php";
@@ -12,6 +12,7 @@ import { getText } from "../util/text-document";
 import { LanguageCacheEntry } from "./language-caches";
 
 const HTML_PARSER = LEZER_HTML.parser.configure({
+  dialect: "noMatch",
   wrap: parseMixed((node) => {
     if (node.type === HTML_NODE_TYPE.StyleText) {
       return { parser: LEZER_CSS.parser };
@@ -23,11 +24,16 @@ const HTML_PARSER = LEZER_HTML.parser.configure({
 
 const PHP_PARSER = LEZER_PHP.parser.configure({
   wrap: parseMixed((node) => {
-    if (node.type === PHP_NODE_TYPE.Text) {
-      return { parser: HTML_PARSER };
+    if (node.type.isTop) {
+      return {
+        parser: HTML_PARSER,
+        overlay(node) {
+          return node.type === PHP_NODE_TYPE.Text;
+        },
+      };
+    } else {
+      return null;
     }
-
-    return null;
   }),
 });
 
@@ -40,8 +46,10 @@ export class PhpCacheEntry implements LanguageCacheEntry {
   ids: Map<string, Range[]>;
 
   constructor(private document: TextDocument) {
-    this.tree = PHP_PARSER.parse(document.getText());
+    const phpTree = PHP_PARSER.parse(document.getText());
+    const mountedTree = phpTree.prop(NodeProp.mounted);
 
+    this.tree = mountedTree ? mountedTree.tree : Tree.empty;
     this.hrefs = new Set<string>();
     this.usedClassNames = new Map<string, Range[]>();
     this.usedIds = new Map<string, Range[]>();
