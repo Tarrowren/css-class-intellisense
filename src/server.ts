@@ -58,7 +58,7 @@ export class GlobalLanguageServer implements LanguageServer {
       workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
       languages.registerCompletionItemProvider(
         allLanguages,
-        new CssCompletionItemProvider(runtime, this.languageModes)
+        new CssCompletionItemProvider(runtime, this.languageModes),
       ),
       languages.registerDefinitionProvider(htmlLanguages, new CssDefinitionProvider(runtime, this.languageModes)),
       languages.registerReferenceProvider(allLanguages, new CssReferenceProvider(runtime, this.languageModes)),
@@ -68,7 +68,7 @@ export class GlobalLanguageServer implements LanguageServer {
           await runtime.request.clearCache();
           await window.showInformationMessage(l10n.t("Cache cleaned up."));
         }
-      })
+      }),
     );
   }
 
@@ -82,13 +82,16 @@ export class GlobalLanguageServer implements LanguageServer {
 }
 
 class CssCompletionItemProvider implements CompletionItemProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes,
+  ) {}
 
   provideCompletionItems(
     document: TextDocument,
     position: Position,
     token: CancellationToken,
-    _context: CompletionContext
+    _context: CompletionContext,
   ): ProviderResult<CompletionItem[] | CompletionList<CompletionItem>> {
     return runSafeAsync(
       this.runtime,
@@ -102,18 +105,21 @@ class CssCompletionItemProvider implements CompletionItemProvider {
       },
       null,
       "completion item provider",
-      token
+      token,
     );
   }
 }
 
 class CssDefinitionProvider implements DefinitionProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes,
+  ) {}
 
   provideDefinition(
     document: TextDocument,
     position: Position,
-    token: CancellationToken
+    token: CancellationToken,
   ): ProviderResult<Definition | LocationLink[]> {
     return runSafeAsync(
       this.runtime,
@@ -127,19 +133,22 @@ class CssDefinitionProvider implements DefinitionProvider {
       },
       null,
       "definition provider",
-      token
+      token,
     );
   }
 }
 
 class CssReferenceProvider implements ReferenceProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes,
+  ) {}
 
   provideReferences(
     document: TextDocument,
     position: Position,
     _context: ReferenceContext,
-    token: CancellationToken
+    token: CancellationToken,
   ): ProviderResult<Location[]> {
     return runSafeAsync(
       this.runtime,
@@ -153,19 +162,22 @@ class CssReferenceProvider implements ReferenceProvider {
       },
       null,
       "reference provider",
-      token
+      token,
     );
   }
 }
 
 class CssRenameProvider implements RenameProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes,
+  ) {}
 
   provideRenameEdits(
     document: TextDocument,
     position: Position,
     newName: string,
-    token: CancellationToken
+    token: CancellationToken,
   ): ProviderResult<WorkspaceEdit> {
     return runSafeAsync(
       this.runtime,
@@ -179,7 +191,7 @@ class CssRenameProvider implements RenameProvider {
       },
       null,
       "rename provider",
-      token
+      token,
     );
   }
 

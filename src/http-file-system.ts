@@ -42,7 +42,7 @@ export class HttpFileSystemProvider implements FileSystemProvider {
   writeFile(
     _uri: Uri,
     _content: Uint8Array,
-    _options: { readonly create: boolean; readonly overwrite: boolean }
+    _options: { readonly create: boolean; readonly overwrite: boolean },
   ): void | Thenable<void> {
     throw new Error("Method not implemented.");
   }

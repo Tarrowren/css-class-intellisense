@@ -25,7 +25,7 @@ export class JsxMode implements LanguageMode {
   constructor(
     _config: Configuration,
     private cache: LanguageModelCache<LanguageCacheEntry>,
-    private cssConfig: CssConfig
+    private cssConfig: CssConfig,
   ) {}
 
   async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
@@ -58,7 +58,7 @@ export class JsxMode implements LanguageMode {
             } catch (e) {
               logError(e, "do complete");
             }
-          })
+          }),
         );
       }
 
@@ -104,7 +104,7 @@ export class JsxMode implements LanguageMode {
             } catch (e) {
               logError(e, "find definition");
             }
-          })
+          }),
         );
       }
 
@@ -161,7 +161,7 @@ export class JsxMode implements LanguageMode {
             } catch (e) {
               logError(e, "do rename");
             }
-          })
+          }),
         );
       }
 
