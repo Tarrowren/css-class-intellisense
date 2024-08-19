@@ -7,6 +7,9 @@ Html/Vue/Jsx/PHP id/class attribute completion
 ## Features
 
 - Html/Vue/Jsx/PHP id/class attribute completion (Include Vue/Jsx imported CSS/SCSS/LESS file)
+
+  **the official VUE plugin has implemented CSS intellisense, use this configuration item `"cssci.languages.vue": false` if there is a conflict.**
+
 - Jump to definition or reference
 - Rename (May conflict with other extensions, cannot currently be resolved, use with care)
 - Limited language support for web extensions ([issues](https://github.com/microsoft/vscode-test-web/issues/4))
@@ -36,7 +39,7 @@ Using the `include` and `exclude` properties:
 ### Embed
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <style>
@@ -64,7 +67,7 @@ Using the `include` and `exclude` properties:
 ### Link
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <link rel="stylesheet" href="https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css" />

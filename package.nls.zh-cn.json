@@ -1,5 +1,6 @@
 {
   "cssci.description": "CSS Class 智能提示",
   "cssci.clearCache": "清除文件缓存",
-  "cssci.lightweight.description": "初始化时不检查文件之间的引用，禁用 CSS 文件的自动完成和跳转到引用。"
+  "cssci.lightweight.description": "初始化时不检查文件之间的引用，禁用 CSS 文件的自动完成和跳转到引用。",
+  "cssci.languages.vue.description": "对VUE文件启用语言功能（VUE官方插件已实现了CSS提示，若发生冲突，请禁用该功能）"
 }

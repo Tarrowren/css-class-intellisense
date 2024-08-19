@@ -40,6 +40,26 @@ export class GlobalLanguageServer implements LanguageServer {
   private languageCache: LanguageModelCache<LanguageCacheEntry>;
   private referenceMap: ReferenceMap;
   private languageModes: LanguageModes;
+  private languages: Disposable | null | undefined;
+
+  private registerLanguages(runtime: RuntimeEnvironment, config: Configuration) {
+    const htmlLanguages = config.vueLanguage
+      ? ["html", "vue", "javascriptreact", "typescriptreact", "php"]
+      : ["html", "javascriptreact", "typescriptreact", "php"];
+    const cssLanguages = ["css", "scss", "sass", "less"];
+    const allLanguages = [...htmlLanguages, ...cssLanguages];
+
+    this.languages?.dispose();
+    this.languages = Disposable.from(
+      languages.registerCompletionItemProvider(
+        allLanguages,
+        new CssCompletionItemProvider(runtime, this.languageModes)
+      ),
+      languages.registerDefinitionProvider(htmlLanguages, new CssDefinitionProvider(runtime, this.languageModes)),
+      languages.registerReferenceProvider(allLanguages, new CssReferenceProvider(runtime, this.languageModes)),
+      languages.registerRenameProvider(allLanguages, new CssRenameProvider(runtime, this.languageModes))
+    );
+  }
 
   constructor(context: ExtensionContext, runtime: RuntimeEnvironment) {
     this.config = new Configuration();
@@ -48,26 +68,21 @@ export class GlobalLanguageServer implements LanguageServer {
     this.referenceMap = new GlobalReferenceMap(runtime, this.config, this.languageCache, this.cssConfig);
     this.languageModes = new GlobalLanguageModes(this.config, this.languageCache, this.referenceMap, this.cssConfig);
 
-    const htmlLanguages = ["html", "vue", "javascriptreact", "typescriptreact", "php"];
-    const cssLanguages = ["css", "scss", "sass", "less"];
-    const allLanguages = [...htmlLanguages, ...cssLanguages];
-
     const fileSystemOptions = { isCaseSensitive: true, isReadonly: true };
+
+    this.registerLanguages(runtime, this.config);
+
     context.subscriptions.push(
       workspace.registerFileSystemProvider(CSSCI_HTTP_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
       workspace.registerFileSystemProvider(CSSCI_HTTPS_SCHEME, new HttpFileSystemProvider(runtime), fileSystemOptions),
-      languages.registerCompletionItemProvider(
-        allLanguages,
-        new CssCompletionItemProvider(runtime, this.languageModes)
-      ),
-      languages.registerDefinitionProvider(htmlLanguages, new CssDefinitionProvider(runtime, this.languageModes)),
-      languages.registerReferenceProvider(allLanguages, new CssReferenceProvider(runtime, this.languageModes)),
-      languages.registerRenameProvider(allLanguages, new CssRenameProvider(runtime, this.languageModes)),
       commands.registerCommand("cssci.clearCache", async () => {
         if (runtime.request.clearCache) {
           await runtime.request.clearCache();
           await window.showInformationMessage(l10n.t("Cache cleaned up."));
         }
+      }),
+      this.config.on.vueLanguage((_v) => {
+        this.registerLanguages(runtime, this.config);
       })
     );
   }
@@ -78,11 +93,15 @@ export class GlobalLanguageServer implements LanguageServer {
     this.languageCache.dispose();
     this.referenceMap.dispose();
     this.languageModes.dispose();
+    this.languages?.dispose();
   }
 }
 
 class CssCompletionItemProvider implements CompletionItemProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes
+  ) {}
 
   provideCompletionItems(
     document: TextDocument,
@@ -108,7 +127,10 @@ class CssCompletionItemProvider implements CompletionItemProvider {
 }
 
 class CssDefinitionProvider implements DefinitionProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes
+  ) {}
 
   provideDefinition(
     document: TextDocument,
@@ -133,7 +155,10 @@ class CssDefinitionProvider implements DefinitionProvider {
 }
 
 class CssReferenceProvider implements ReferenceProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes
+  ) {}
 
   provideReferences(
     document: TextDocument,
@@ -159,7 +184,10 @@ class CssReferenceProvider implements ReferenceProvider {
 }
 
 class CssRenameProvider implements RenameProvider {
-  constructor(private runtime: RuntimeEnvironment, private languageModes: LanguageModes) {}
+  constructor(
+    private runtime: RuntimeEnvironment,
+    private languageModes: LanguageModes
+  ) {}
 
   provideRenameEdits(
     document: TextDocument,

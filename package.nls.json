@@ -1,5 +1,6 @@
 {
   "cssci.description": "CSS Class Intellisense",
   "cssci.clearCache": "Clear file cache",
-  "cssci.lightweight.description": "Initialize without checking references between files, disable \"Autocomplete\" and \"Jump to reference\" features for css files."
+  "cssci.lightweight.description": "Initialize without checking references between files, disable \"Autocomplete\" and \"Jump to reference\" features for css files.",
+  "cssci.languages.vue.description": "Enable the language function for VUE. (the official VUE plugin has implemented CSS intellisense, disable the function if there is a conflict)"
 }
