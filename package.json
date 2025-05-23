@@ -50,14 +50,15 @@
       }
     ]
   },
-  "main": "dist/node/main.js",
-  "browser": "dist/browser/main.js",
+  "main": "dist/node/client.js",
+  "browser": "dist/browser/client.js",
   "l10n": "l10n",
   "scripts": {
     "watch:check": "tsc -b -w",
-    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. .",
+    "check": "tsc -b",
     "lint": "eslint --config eslint.config.ts",
-    "build": "tsc -b && jiti esbuild.ts --production"
+    "build": "jiti esbuild.ts --production",
+    "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {
     "type": "git",

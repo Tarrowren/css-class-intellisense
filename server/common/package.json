@@ -1,5 +1,11 @@
 {
   "name": "server-common",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "main": "src/main.ts",
+  "dependencies": {
+    "shared": "*",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  }
 }

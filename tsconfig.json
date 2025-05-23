@@ -2,13 +2,13 @@
   "files": [],
   "include": [],
   "references": [
-    // { "path": "./client/common" },
-    // { "path": "./client/browser" },
-    // { "path": "./client/node" },
-    // { "path": "./server/common" },
-    // { "path": "./server/browser" },
-    // { "path": "./server/node" },
-    // { "path": "./shared" },
+    { "path": "./shared" },
+    { "path": "./client/common" },
+    { "path": "./client/browser" },
+    { "path": "./client/node" },
+    { "path": "./server/common" },
+    { "path": "./server/browser" },
+    { "path": "./server/node" },
     { "path": "./tsconfig.esbuild.json" },
     { "path": "./tsconfig.eslint.json" }
   ]

@@ -1,5 +1,9 @@
 {
   "name": "server-browser",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "server-common": "*",
+    "vscode-languageserver": "^9.0.1"
+  }
 }

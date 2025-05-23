@@ -1,5 +1,13 @@
 {
   "name": "client-common",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "main": "src/main.ts",
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
+  },
+  "dependencies": {
+    "shared": "*",
+    "vscode-languageclient": "^9.0.1"
+  }
 }

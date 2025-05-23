@@ -1,5 +1,9 @@
 {
   "name": "shared",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "main": "src/main.ts",
+  "dependencies": {
+    "vscode-jsonrpc": "^8.2.0"
+  }
 }

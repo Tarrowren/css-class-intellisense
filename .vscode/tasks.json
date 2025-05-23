@@ -1,4 +1,181 @@
 {
   "version": "2.0.0",
-  "tasks": []
+  "tasks": [
+    {
+      "label": "watch",
+      "dependsOn": [
+        "tsc-watch:check",
+        "esbuild-watch:node-client",
+        "esbuild-watch:node-server",
+        "esbuild-watch:browser-client",
+        "esbuild-watch:browser-server"
+      ],
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "tsc-watch:check",
+      "type": "npm",
+      "script": "watch:check",
+      "group": "build",
+      "problemMatcher": ["$tsc-watch"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "esbuild-watch:node-client",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jiti", "esbuild.ts", "--watch", "node-client"],
+      "group": "build",
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "fileLocation": ["relative", "${cwd}"],
+          "pattern": [
+            {
+              "regexp": "^([^\\s]*) (\\d+):(\\d+) - \\[(error|warning|info)\\] (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": "^\\[watch\\] build started$"
+            },
+            "endsPattern": {
+              "regexp": "^\\[watch\\] build finished$"
+            }
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "esbuild-watch:node-server",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jiti", "esbuild.ts", "--watch", "node-server"],
+      "group": "build",
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "fileLocation": ["relative", "${cwd}"],
+          "pattern": [
+            {
+              "regexp": "^([^\\s]*) (\\d+):(\\d+) - \\[(error|warning|info)\\] (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": "^\\[watch\\] build started$"
+            },
+            "endsPattern": {
+              "regexp": "^\\[watch\\] build finished$"
+            }
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "esbuild-watch:browser-client",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jiti", "esbuild.ts", "--watch", "browser-client"],
+      "group": "build",
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "fileLocation": ["relative", "${cwd}"],
+          "pattern": [
+            {
+              "regexp": "^([^\\s]*) (\\d+):(\\d+) - \\[(error|warning|info)\\] (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": "^\\[watch\\] build started$"
+            },
+            "endsPattern": {
+              "regexp": "^\\[watch\\] build finished$"
+            }
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "esbuild-watch:browser-server",
+      "type": "shell",
+      "command": "npx",
+      "args": ["jiti", "esbuild.ts", "--watch", "browser-server"],
+      "group": "build",
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "fileLocation": ["relative", "${cwd}"],
+          "pattern": [
+            {
+              "regexp": "^([^\\s]*) (\\d+):(\\d+) - \\[(error|warning|info)\\] (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": "^\\[watch\\] build started$"
+            },
+            "endsPattern": {
+              "regexp": "^\\[watch\\] build finished$"
+            }
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    }
+  ]
 }

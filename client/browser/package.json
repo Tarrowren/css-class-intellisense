@@ -1,5 +1,12 @@
 {
   "name": "client-browser",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
+  },
+  "dependencies": {
+    "client-common": "*",
+    "vscode-languageclient": "^9.0.1"
+  }
 }

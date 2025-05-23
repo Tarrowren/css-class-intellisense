@@ -1,5 +1,13 @@
 {
   "name": "client-node",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^16.18.126",
+    "@types/vscode": "^1.80.0"
+  },
+  "dependencies": {
+    "client-common": "*",
+    "vscode-languageclient": "^9.0.1"
+  }
 }

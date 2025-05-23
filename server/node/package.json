@@ -1,5 +1,12 @@
 {
   "name": "server-node",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^16.18.126"
+  },
+  "dependencies": {
+    "server-common": "*",
+    "vscode-languageserver": "^9.0.1"
+  }
 }

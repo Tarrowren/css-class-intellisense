@@ -13,7 +13,7 @@ export default tseslint.config(
       "server/browser/src/**/*.ts",
     ],
   },
-  { ignores: ["*.ts"] },
+  { ignores: ["*.ts", "dist"] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -38,5 +38,3 @@ export default tseslint.config(
     },
   },
 );
-
-function yi() {}
