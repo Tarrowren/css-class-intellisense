@@ -1,35 +1,4 @@
 {
   "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "node",
-      "type": "npm",
-      "script": "watch:node",
-      "problemMatcher": ["$ts-webpack-watch"],
-      "isBackground": true,
-      "presentation": {
-        "reveal": "never",
-        "group": "watchers"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    },
-    {
-      "label": "browser",
-      "type": "npm",
-      "script": "watch:browser",
-      "problemMatcher": ["$ts-webpack-watch"],
-      "isBackground": true,
-      "presentation": {
-        "reveal": "never",
-        "group": "watchers"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    }
-  ]
+  "tasks": []
 }

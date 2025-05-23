@@ -1,12 +1,15 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "lib": ["ES2020"],
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["webpack/", "webpack.*.ts"]
+  "files": [],
+  "include": [],
+  "references": [
+    // { "path": "./client/common" },
+    // { "path": "./client/browser" },
+    // { "path": "./client/node" },
+    // { "path": "./server/common" },
+    // { "path": "./server/browser" },
+    // { "path": "./server/node" },
+    // { "path": "./shared" },
+    { "path": "./tsconfig.esbuild.json" },
+    { "path": "./tsconfig.eslint.json" }
+  ]
 }
