@@ -1,0 +1,23 @@
+# none {"top": "UsedIdName"}
+
+'    '
+
+==>
+
+UsedIdName
+
+# one {"top": "UsedIdName"}
+
+'  abc  '
+
+==>
+
+UsedIdName(UsedName)
+
+# unquoted {"top": "UsedIdName"}
+
+abc
+
+==>
+
+UsedIdName(UsedName)

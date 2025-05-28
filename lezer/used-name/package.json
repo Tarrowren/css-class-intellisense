@@ -1,0 +1,19 @@
+{
+  "name": "used-name",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/parser.js",
+  "scripts": {
+    "build": "lezer-generator src/name.grammar -o src/parser",
+    "prepare": "npm run build",
+    "test": "mocha test/test-*.js"
+  },
+  "devDependencies": {
+    "@lezer/generator": "^1.7.3",
+    "mocha": "^11.5.0"
+  },
+  "dependencies": {
+    "@lezer/common": "^1.2.3",
+    "@lezer/lr": "^1.4.2"
+  }
+}

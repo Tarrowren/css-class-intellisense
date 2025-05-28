@@ -1,22 +1,23 @@
 import { CustomMessages } from "shared";
-import {
-  CompletionItem,
-  TextDocuments,
-  TextDocumentSyncKind,
-  type Connection,
-  type InitializeResult,
-} from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { FileChangeType, TextDocumentSyncKind, type Connection, type InitializeResult } from "vscode-languageserver";
+import { DocumentStore } from "./document-store";
+import { CompletionItemProvider } from "./features/completions";
+import { DefinitionProvider } from "./features/definitions";
+import { Languages } from "./languages";
+import { SymbolIndex } from "./symbol-index";
+import { MemorySymbolStorage } from "./symbol-storage";
+import { Trees } from "./trees";
 
 export class Server {
   static create(connection: Connection) {
-    const documents = new TextDocuments(TextDocument);
-    documents.onDidChangeContent(({ document }) => {
-      logger.info(`[ChangeContent] ${document.uri}`);
-    });
-    documents.listen(connection);
+    const languages = new Languages();
+    const documents = new DocumentStore(connection, languages);
+    const trees = new Trees(documents);
 
-    connection.onInitialize((params, token, workDoneProgress, resultProgress) => {
+    const storage = new MemorySymbolStorage();
+    const symbols = new SymbolIndex(documents, languages, trees, storage);
+
+    connection.onInitialize(() => {
       return {
         capabilities: {
           textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -28,32 +29,57 @@ export class Server {
       } satisfies InitializeResult;
     });
 
-    connection.onCompletion((params, token, workDoneProgress, resultProgress) => {
-      return [CompletionItem.create("test")];
+    const completions = new CompletionItemProvider(languages, documents, trees, symbols);
+    connection.onCompletion(async (params) => {
+      return await completions.provideCompletionItems(params);
     });
 
-    connection.onDefinition((params, token, workDoneProgress, resultProgress) => {
+    const definitions = new DefinitionProvider(languages, documents, trees, symbols);
+    connection.onDefinition(async (params) => {
+      return await definitions.provideDefinition(params);
+    });
+
+    connection.onReferences((params) => {
       return [];
     });
 
-    connection.onReferences((params, token, workDoneProgress, resultProgress) => {
-      return [];
-    });
-
-    connection.onRenameRequest((params, token, workDoneProgress, resultProgress) => {
+    connection.onRenameRequest((params) => {
       return {};
     });
 
-    connection.onRequest(CustomMessages.QueueInit, (uris) => {
-      // TODO
+    connection.onRequest(CustomMessages.QueueInit, async (uris) => {
+      await symbols.initFiles(uris);
+      await symbols.unleashFiles();
     });
-
-    connection.onDidChangeWatchedFiles(({ changes }) => {
-      for (const { type, uri } of changes) {
-        logger.info(`[ChangeWatchedFiles] ${type} ${uri}`);
+    documents.onDidChangeContent(({ uri }) => {
+      symbols.addFile(uri);
+    });
+    connection.onDidChangeWatchedFiles((e) => {
+      for (const { type, uri } of e.changes) {
+        switch (type) {
+          case FileChangeType.Created:
+            symbols.addFile(uri);
+            break;
+          case FileChangeType.Deleted:
+            documents.removeFile(uri);
+            symbols.removeFile(uri);
+            break;
+          case FileChangeType.Changed:
+            if (documents.removeFile(uri)) {
+              symbols.addFile(uri);
+            }
+            break;
+        }
       }
     });
 
     connection.listen();
+    connection.onExit(() => {
+      symbols.dispose();
+      storage.dispose();
+      trees.dispose();
+      documents.dispose();
+      languages.dispose();
+    });
   }
 }

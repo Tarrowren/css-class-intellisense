@@ -1,0 +1,33 @@
+# none {"top": "UsedClassNames"}
+
+'    '
+
+==>
+
+UsedClassNames
+
+# one {"top": "UsedClassNames"}
+
+'  abc  '
+
+==>
+
+UsedClassNames(UsedName)
+
+
+# list {"top": "UsedClassNames"}
+
+"  a1  b2  c3  "
+
+==>
+
+UsedClassNames(UsedName,UsedName,UsedName)
+
+
+# unquoted {"top": "UsedClassNames"}
+
+abc
+
+==>
+
+UsedClassNames(UsedName)

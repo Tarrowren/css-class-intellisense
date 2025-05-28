@@ -1,0 +1,18 @@
+@top UsedClassNames {
+  '"' UsedName* '"' |
+  "'" UsedName* "'" |
+  UsedName
+}
+
+@top UsedIdName {
+  '"' UsedName? '"' |
+  "'" UsedName? "'" |
+  UsedName
+}
+
+@tokens {
+  UsedName { !["'\r\n\t\f\v ]+ }
+  space { $[\r\n\t\f\v ]+ }
+}
+
+@skip { space }

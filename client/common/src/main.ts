@@ -1,4 +1,4 @@
-import { CustomMessages, languages } from "shared";
+import { CustomMessages, languageConfigs } from "shared";
 import { CancellationTokenSource, Uri, window, workspace, type ExtensionContext, type LogOutputChannel } from "vscode";
 import { type BaseLanguageClient, type LanguageClientOptions } from "vscode-languageclient";
 
@@ -45,7 +45,7 @@ export class Client {
     );
 
     // init
-    const lang_pattern = `**/*.{${languages.join(",")}}`;
+    const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
     const exclude = `{${[
       ...Object.keys(workspace.getConfiguration("search", null).get("exclude") ?? {}),
       ...Object.keys(workspace.getConfiguration("files", null).get("exclude") ?? {}),
@@ -74,9 +74,13 @@ export class Client {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
     const logger = window.createOutputChannel(name, { log: true });
+    const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
+    const watcher = workspace.createFileSystemWatcher(lang_pattern);
+    context.subscriptions.push(watcher);
     const client_options: LanguageClientOptions = {
-      documentSelector: languages,
       outputChannel: logger,
+      documentSelector: languageConfigs.map((lang) => lang.languageId),
+      synchronize: { fileEvents: watcher },
     };
 
     return new Client(factory(id, name, client_options), context, logger);
