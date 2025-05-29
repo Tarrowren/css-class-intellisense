@@ -1,7 +1,14 @@
 import type { ChangedRange } from "@lezer/common";
 import { CustomMessages } from "shared";
-import { Disposable, Emitter, Event, TextDocumentContentChangeEvent, type Connection } from "vscode-languageserver";
-import { TextDocument, type DocumentUri } from "vscode-languageserver-textdocument";
+import {
+  Emitter,
+  TextDocumentContentChangeEvent,
+  type Connection,
+  type Disposable,
+  type DocumentUri,
+  type Event,
+} from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { Cache } from "./cache";
 import { Empty } from "./empty";
 import type { Languages } from "./languages";

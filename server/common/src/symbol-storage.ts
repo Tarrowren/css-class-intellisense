@@ -1,5 +1,4 @@
-import type { Disposable } from "vscode-languageserver";
-import type { DocumentUri } from "vscode-languageserver-textdocument";
+import type { Disposable, DocumentUri } from "vscode-languageserver";
 import type { SourceFile } from "./type";
 
 export interface SymbolStorage extends Disposable {

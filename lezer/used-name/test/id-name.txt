@@ -1,23 +1,23 @@
-# none {"top": "UsedIdName"}
+# none {"top": "IdAttributeValue"}
 
 '    '
 
 ==>
 
-UsedIdName
+IdAttributeValue
 
-# one {"top": "UsedIdName"}
+# one {"top": "IdAttributeValue"}
 
 '  abc  '
 
 ==>
 
-UsedIdName(UsedName)
+IdAttributeValue(UsedIdName)
 
-# unquoted {"top": "UsedIdName"}
+# unquoted {"top": "IdAttributeValue"}
 
 abc
 
 ==>
 
-UsedIdName(UsedName)
+IdAttributeValue(UsedIdName)

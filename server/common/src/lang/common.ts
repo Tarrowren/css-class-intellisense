@@ -1,4 +1,5 @@
 import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
+import type { SymbolRange } from "../type";
 
 export function isCanDoCompleteCssNode(node: SyntaxNode, nested: boolean): boolean {
   const type = node.type;
@@ -21,11 +22,7 @@ export function isCanDoCompleteCssNode(node: SyntaxNode, nested: boolean): boole
     return false;
   }
 
-  if (nested) {
-    return true;
-  }
-
-  return nonNested(node);
+  return nested || nonNested(node);
 }
 
 function nonNested(node: SyntaxNode): boolean {
@@ -45,49 +42,20 @@ function nonNested(node: SyntaxNode): boolean {
   }
 }
 
-export function getCssEditRange(
-  text: string,
-  offset: number,
-  tree: Tree,
-  node: SyntaxNodeRef,
-): [number, number] | undefined {
+export function getCssEditRange(pos: number, tree: Tree, node: SyntaxNodeRef): SymbolRange | undefined {
+  return (
+    _getCssEditRange(node) ??
+    _getCssEditRange(tree.resolve(pos, -1)) ??
+    _getCssEditRange(tree.resolve(pos, 1)) ??
+    _getCssEditRange(tree.resolve(pos + 1, 1))
+  );
+}
+
+function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
   if (node.type.is("ClassName") || node.type.is("IdName")) {
     return [node.from - 1, node.to];
   }
-
-  const right = tree.cursorAt(offset, 1);
-  if (right.type.is("ClassName") || right.type.is("IdName")) {
-    return [right.from - 1, right.to];
-  }
-
-  const rightChar = text.substring(offset, offset + 1);
-  const rightCursorRight = tree.cursorAt(offset + 1, 1);
-  if (rightChar === ".") {
-    return checkRight(text, offset, rightCursorRight, "ClassName");
-  } else if (rightChar === "#") {
-    return checkRight(text, offset, rightCursorRight, "IdName");
-  }
-
-  const left = tree.cursorAt(offset, -1);
-  if (left.type.is("ClassName") || left.type.is("IdName")) {
-    return [left.from - 1, left.to];
-  }
-
-  const leftChar = text.substring(offset - 1, offset);
-  if (leftChar === "." || leftChar === "#") {
-    return [offset - 1, offset];
-  }
-}
-
-function checkRight(text: string, offset: number, node: SyntaxNodeRef, typeName: string): [number, number] {
-  if (node.type.is(typeName)) {
-    const leftChar = text.substring(offset - 1, offset);
-    if (leftChar === "." || leftChar === "#") {
-      return [offset - 1, offset];
-    } else {
-      return [node.from - 1, node.to];
-    }
-  } else {
-    return [offset, offset + 1];
+  if (node.type.is(".") || node.type.is("#")) {
+    return [node.from, node.to];
   }
 }

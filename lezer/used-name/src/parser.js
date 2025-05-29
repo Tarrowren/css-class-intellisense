@@ -2,15 +2,15 @@
 import {LRParser} from "@lezer/lr"
 export const parser = LRParser.deserialize({
   version: 14,
-  states: "!pOVQPOOObQPOOOmQPOOOuQPOOQOQPOOO}QPOOO!VQPOOOOQO'#C`'#C`OmQPOOOuQPOOOpQPOOOxQPOOOOQO-E6^-E6^",
-  stateData: "!_~OVOS~OQSOWQOXRO~OQSOWTOXUO~OQVOWSO~OQVOXSO~OQYOWSO~OQZOXSO~O",
-  goto: "`TPPPPUQWQQXRT[WX",
-  nodeNames: "⚠ UsedClassNames UsedName UsedIdName",
-  maxTerm: 9,
+  states: "!pOVQPOOObQQOOOmQPOOOuQPOOQOQPOOO}QQOOO!VQQOOOOQO'#Ca'#CaOmQPOOOuQPOOOpQPOOOxQPOOOOQO-E6_-E6_",
+  stateData: "!_~OWOS~OQSOXQOYRO~OSSOXTOYUO~OQVOXSO~OQVOYSO~OSYOXSO~OSZOYSO~O",
+  goto: "aUPPPPPVQWQQXRT[WX",
+  nodeNames: "⚠ ClassAttributeValue UsedClassName IdAttributeValue UsedIdName",
+  maxTerm: 10,
   skippedNodes: [0],
   repeatNodeCount: 1,
-  tokenData: "#q~RaOX!WXY#OYZ#OZ[!W[]#O]^#O^p!Wpq#Oqr!Wrs#gsw!Wwx#lx#j!W#j#k#O#k;'S!W;'S;=`!x<%lO!W~!]XQ~OX!WZ[!W^p!Wqr!Wsw!Wx#j!W#k;'S!W;'S;=`!x<%lO!W~!{P;=`<%l!W~#TUV~XY#OYZ#O[]#O]^#Opq#O#j#k#O~#lOW~~#qOX~",
-  tokenizers: [0],
-  topRules: {"UsedClassNames":[0,1],"UsedIdName":[1,3]},
+  tokenData: "#s~RaOX!WXY#QYZ#QZ[!W[]#Q]^#Q^p!Wpq#Qqr!Wrs#isw!Wwx#nx#j!W#j#k#Q#k;'S!W;'S;=`!z<%lO!WR!_XQPSQOX!WZ[!W^p!Wqr!Wsw!Wx#j!W#k;'S!W;'S;=`!z<%lO!WR!}P;=`<%l!W~#VUW~XY#QYZ#Q[]#Q]^#Qpq#Q#j#k#Q~#nOX~~#sOY~",
+  tokenizers: [0, 1],
+  topRules: {"ClassAttributeValue":[0,1],"IdAttributeValue":[1,3]},
   tokenPrec: 0
 })

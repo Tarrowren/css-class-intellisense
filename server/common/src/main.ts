@@ -3,6 +3,8 @@ import { FileChangeType, TextDocumentSyncKind, type Connection, type InitializeR
 import { DocumentStore } from "./document-store";
 import { CompletionItemProvider } from "./features/completions";
 import { DefinitionProvider } from "./features/definitions";
+import { ReferenceProvider } from "./features/references";
+import { RenameProvider } from "./features/renames";
 import { Languages } from "./languages";
 import { SymbolIndex } from "./symbol-index";
 import { MemorySymbolStorage } from "./symbol-storage";
@@ -22,9 +24,9 @@ export class Server {
         capabilities: {
           textDocumentSync: TextDocumentSyncKind.Incremental,
           completionProvider: {},
-          definitionProvider: {},
-          referencesProvider: {},
-          renameProvider: {},
+          definitionProvider: true,
+          referencesProvider: true,
+          renameProvider: { prepareProvider: true },
         },
       } satisfies InitializeResult;
     });
@@ -39,12 +41,17 @@ export class Server {
       return await definitions.provideDefinition(params);
     });
 
-    connection.onReferences((params) => {
-      return [];
+    const references = new ReferenceProvider(languages, documents, trees, symbols);
+    connection.onReferences(async (params) => {
+      return await references.provideReferences(params);
     });
 
-    connection.onRenameRequest((params) => {
-      return {};
+    const renames = new RenameProvider(languages, documents, trees, symbols);
+    connection.onPrepareRename(async (params) => {
+      return await renames.prepareRename(params);
+    });
+    connection.onRenameRequest(async (params) => {
+      return await renames.provideRenameEdits(params);
     });
 
     connection.onRequest(CustomMessages.QueueInit, async (uris) => {

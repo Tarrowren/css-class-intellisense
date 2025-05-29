@@ -1,22 +1,20 @@
 import { parseMixed, type SyntaxNode, type SyntaxNodeRef, type Tree } from "@lezer/common";
-import * as CSS from "@lezer/css";
-import * as HTML from "@lezer/html";
+import { parser as cssParser } from "@lezer/css";
+import { parser as htmlParser } from "@lezer/html";
 import type { LRParser } from "@lezer/lr";
-import * as NAME from "used-name";
-import { CompletionSymbolKind, type CompletionSymbolInfo } from "../features/completions";
-import { DefinitionSymbolKind, type DefinitionSymbolInfo } from "../features/definitions";
+import { parser as classNamesParser } from "used-name";
+import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
 import { getCssEditRange, isCanDoCompleteCssNode } from "./common";
 
-const classNamesParser = NAME.parser.configure({ top: "UsedClassNames" });
-const idNameParser = NAME.parser.configure({ top: "UsedIdName" });
+const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
 export default class HtmlLanguage implements Language {
-  readonly parser: LRParser = HTML.parser.configure({
+  readonly parser: LRParser = htmlParser.configure({
     wrap: parseMixed((node, input) => {
       if (node.type.is("StyleText")) {
-        return { parser: CSS.parser };
+        return { parser: cssParser };
       }
 
       if (node.type.is("AttributeValue") || node.type.is("UnquotedAttributeValue")) {
@@ -41,77 +39,18 @@ export default class HtmlLanguage implements Language {
     }),
   });
 
-  getDefinitionSymbolInfo(input: string, pos: number, tree: Tree): DefinitionSymbolInfo | undefined {
+  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
-    if (node.type.is("UsedClassNames")) {
-      let node = tree.resolve(pos, 1);
-      if (!node.type.is("UsedName")) {
-        node = tree.resolve(pos, -1);
-        if (!node.type.is("UsedName")) {
-          return;
-        }
-      }
-
-      const name = nodeText(input, node);
-      return { kind: DefinitionSymbolKind.Class, name };
+    if (node.type.is("ClassAttributeValue") || node.type.is("UsedClassName")) {
+      return { kind: CompletionTriggeredSymbolKind.ClassName };
     }
-
-    if (node.type.is("UsedIdName")) {
-      let node = tree.resolve(pos, 1);
-      if (!node.type.is("UsedName")) {
-        node = tree.resolve(pos, -1);
-        if (!node.type.is("UsedName")) {
-          return;
-        }
-      }
-
-      const name = nodeText(input, node);
-      return { kind: DefinitionSymbolKind.Id, name };
-    }
-
-    if (node.type.is("UsedName")) {
-      const parent = node.parent;
-      if (!parent) {
-        return;
-      }
-
-      const name = nodeText(input, node);
-      if (parent.type.is("UsedClassNames")) {
-        return { kind: DefinitionSymbolKind.Class, name };
-      }
-      if (parent.type.is("UsedIdName")) {
-        return { kind: DefinitionSymbolKind.Id, name };
-      }
-    }
-  }
-
-  getCompletionSymbolInfo(input: string, pos: number, tree: Tree): CompletionSymbolInfo | undefined {
-    const node = tree.resolve(pos);
-
-    if (node.type.is("UsedClassNames")) {
-      return { kind: CompletionSymbolKind.Class };
-    }
-    if (node.type.is("UsedIdName")) {
-      return { kind: CompletionSymbolKind.Id };
-    }
-
-    if (node.type.is("UsedName")) {
-      const parent = node.parent;
-      if (!parent) {
-        return;
-      }
-
-      if (parent.type.is("UsedClassNames")) {
-        return { kind: CompletionSymbolKind.Class };
-      }
-      if (parent.type.is("UsedIdName")) {
-        return { kind: CompletionSymbolKind.Id };
-      }
+    if (node.type.is("IdAttributeValue") || node.type.is("UsedIdName")) {
+      return { kind: CompletionTriggeredSymbolKind.IdName };
     }
 
     if (isCanDoCompleteCssNode(node, false)) {
-      return { kind: CompletionSymbolKind.Css, editRange: getCssEditRange(input, pos, tree, node) };
+      return { kind: CompletionTriggeredSymbolKind.Css, editRange: getCssEditRange(pos, tree, node) };
     }
   }
 
@@ -166,16 +105,10 @@ export default class HtmlLanguage implements Language {
 
           break;
         }
-      } else if (cursor.type.is("UsedClassNames")) {
-        const nodes = cursor.node.getChildren("UsedName");
-        for (const node of nodes) {
-          collect(input, node, used_class_names);
-        }
+      } else if (cursor.type.is("UsedClassName")) {
+        collect(input, cursor, used_class_names);
       } else if (cursor.type.is("UsedIdName")) {
-        const node = cursor.node.getChild("UsedName");
-        if (node) {
-          collect(input, node, used_id_names);
-        }
+        collect(input, cursor, used_id_names);
       } else if (cursor.type.is("ClassName")) {
         collect(input, cursor, class_names);
       } else if (cursor.type.is("IdName")) {

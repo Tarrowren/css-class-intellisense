@@ -4,13 +4,15 @@ import {
   type CompletionItem,
   type CompletionList,
   type CompletionParams,
+  type DocumentUri,
 } from "vscode-languageserver";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import type { SourceFile, SymbolRange } from "../type";
+import type { SourceFile } from "../type";
 import { lspRange } from "../util";
+import { CompletionTriggeredSymbolKind } from "./common";
 
 export class CompletionItemProvider {
   constructor(
@@ -33,12 +35,12 @@ export class CompletionItemProvider {
     }
 
     const tree = await this._trees.getParseTree(document, language);
-    const completionSymbolInfo = language.getCompletionSymbolInfo(
+    const info = language.getCompletionTriggeredSymbolInfo(
       document.getText(),
       document.offsetAt(params.position),
       tree,
     );
-    if (!completionSymbolInfo) {
+    if (!info) {
       return;
     }
 
@@ -48,78 +50,66 @@ export class CompletionItemProvider {
       return;
     }
 
-    const tmp = new Map<string, CompletionItem>();
-    switch (completionSymbolInfo.kind) {
-      case CompletionSymbolKind.Class:
-        this._collectDefinition(sourceFile, "class_names", tmp);
+    let items: Map<string, CompletionItem>;
+    switch (info.kind) {
+      case CompletionTriggeredSymbolKind.ClassName:
+        items = this._collectDefinition(sourceFile, "class_names");
         break;
-      case CompletionSymbolKind.Id:
-        this._collectDefinition(sourceFile, "id_names", tmp);
+      case CompletionTriggeredSymbolKind.IdName:
+        items = this._collectDefinition(sourceFile, "id_names");
         break;
-      case CompletionSymbolKind.Css:
-        this._collectUsed(sourceFile, tmp);
-        for (const refSourceFile of this._symbols.index.values()) {
-          if (refSourceFile.refs.has(uri)) {
-            this._collectUsed(refSourceFile, tmp);
-          }
-        }
+      case CompletionTriggeredSymbolKind.Css:
+        items = this._collectReference(uri);
         break;
     }
 
-    if (tmp.size === 0) {
+    if (items.size === 0) {
       return;
     }
 
-    let lspEditRange: Range | undefined;
-    if (completionSymbolInfo.editRange) {
-      lspEditRange = lspRange(document, completionSymbolInfo.editRange);
+    let editRange: Range | undefined;
+    if (info.editRange) {
+      editRange = lspRange(document, info.editRange);
     }
 
-    return {
-      isIncomplete: false,
-      itemDefaults: { editRange: lspEditRange },
-      items: [...tmp.values()],
-    };
+    return { isIncomplete: false, itemDefaults: { editRange }, items: [...items.values()] };
   }
 
-  private _collectDefinition(
-    sourceFile: SourceFile,
-    prop: "class_names" | "id_names",
-    tmp: Map<string, CompletionItem>,
-  ) {
+  private _collectDefinition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
+    const result = new Map<string, CompletionItem>();
+
     for (const [name] of sourceFile[prop]) {
-      tmp.set(name, { label: name, kind: CompletionItemKind.Variable });
+      result.set(name, { label: name, kind: CompletionItemKind.Variable });
     }
 
-    for (const defSourceFileUri of sourceFile.refs) {
-      const defSourceFile = this._symbols.index.get(defSourceFileUri);
-      if (!defSourceFile) {
+    for (const _uri of sourceFile.refs) {
+      const _sourceFile = this._symbols.index.get(_uri);
+      if (!_sourceFile) {
         continue;
       }
 
-      for (const [name] of defSourceFile[prop]) {
-        tmp.set(name, { label: name, kind: CompletionItemKind.Variable });
+      for (const [name] of _sourceFile[prop]) {
+        result.set(name, { label: name, kind: CompletionItemKind.Variable });
       }
     }
+
+    return result;
   }
 
-  private _collectUsed(sourceFile: SourceFile, tmp: Map<string, CompletionItem>) {
-    for (const [name] of sourceFile.used_class_names) {
-      tmp.set(name, { label: "." + name, kind: CompletionItemKind.Variable });
+  private _collectReference(uri: DocumentUri): Map<string, CompletionItem> {
+    const result = new Map<string, CompletionItem>();
+
+    for (const [_uri, _sourceFile] of this._symbols.index) {
+      if (_sourceFile.refs.has(uri) || uri === _uri) {
+        for (const [name] of _sourceFile.used_class_names) {
+          result.set(name, { label: "." + name, kind: CompletionItemKind.Variable });
+        }
+        for (const [name] of _sourceFile.used_id_names) {
+          result.set(name, { label: "#" + name, kind: CompletionItemKind.Variable });
+        }
+      }
     }
-    for (const [name] of sourceFile.used_id_names) {
-      tmp.set(name, { label: "#" + name, kind: CompletionItemKind.Variable });
-    }
+
+    return result;
   }
-}
-
-export interface CompletionSymbolInfo {
-  kind: CompletionSymbolKind;
-  editRange?: SymbolRange;
-}
-
-export enum CompletionSymbolKind {
-  Class,
-  Id,
-  Css,
 }

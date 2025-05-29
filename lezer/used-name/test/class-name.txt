@@ -1,33 +1,33 @@
-# none {"top": "UsedClassNames"}
+# none
 
 '    '
 
 ==>
 
-UsedClassNames
+ClassAttributeValue
 
-# one {"top": "UsedClassNames"}
+# one
 
 '  abc  '
 
 ==>
 
-UsedClassNames(UsedName)
+ClassAttributeValue(UsedClassName)
 
 
-# list {"top": "UsedClassNames"}
+# list
 
 "  a1  b2  c3  "
 
 ==>
 
-UsedClassNames(UsedName,UsedName,UsedName)
+ClassAttributeValue(UsedClassName,UsedClassName,UsedClassName)
 
 
-# unquoted {"top": "UsedClassNames"}
+# unquoted
 
 abc
 
 ==>
 
-UsedClassNames(UsedName)
+ClassAttributeValue(UsedClassName)

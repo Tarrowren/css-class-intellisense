@@ -1,4 +1,4 @@
-import type { DocumentUri } from "vscode-languageserver-textdocument";
+import type { DocumentUri } from "vscode-languageserver";
 
 export interface SourceFile {
   refs: Set<DocumentUri>;

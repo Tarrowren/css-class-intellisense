@@ -1,10 +1,8 @@
 import type { Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
 import { languageConfigs, type LanguageConfig } from "shared";
-import type { Disposable } from "vscode-languageserver";
-import type { DocumentUri } from "vscode-languageserver-textdocument";
-import type { CompletionSymbolInfo } from "./features/completions";
-import type { DefinitionSymbolInfo } from "./features/definitions";
+import type { Disposable, DocumentUri } from "vscode-languageserver";
+import type { CompletionTriggeredSymbolInfo } from "./features/common";
 import HtmlLanguage from "./lang/html";
 import type { SourceFile } from "./type";
 
@@ -89,7 +87,6 @@ export class Languages implements Disposable {
 export interface Language {
   readonly parser: LRParser;
 
-  getCompletionSymbolInfo(input: string, pos: number, tree: Tree): CompletionSymbolInfo | undefined;
-  getDefinitionSymbolInfo(input: string, pos: number, tree: Tree): DefinitionSymbolInfo | undefined;
+  getCompletionTriggeredSymbolInfo(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
   query(input: string, tree: Tree): SourceFile;
 }

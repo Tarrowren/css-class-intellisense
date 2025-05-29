@@ -1,17 +1,18 @@
-@top UsedClassNames {
-  '"' UsedName* '"' |
-  "'" UsedName* "'" |
-  UsedName
+@top ClassAttributeValue {
+  '"' UsedClassName* '"' |
+  "'" UsedClassName* "'" |
+  UsedClassName
 }
 
-@top UsedIdName {
-  '"' UsedName? '"' |
-  "'" UsedName? "'" |
-  UsedName
+@top IdAttributeValue {
+  '"' UsedIdName? '"' |
+  "'" UsedIdName? "'" |
+  UsedIdName
 }
 
 @tokens {
-  UsedName { !["'\r\n\t\f\v ]+ }
+  UsedClassName { !["'\r\n\t\f\v ]+ }
+  UsedIdName { !["'\r\n\t\f\v ]+ }
   space { $[\r\n\t\f\v ]+ }
 }
 
