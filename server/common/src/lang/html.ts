@@ -1,16 +1,20 @@
-import { parseMixed, type SyntaxNode, type SyntaxNodeRef, type Tree } from "@lezer/common";
+import { parseMixed, type SyntaxNode, type Tree } from "@lezer/common";
 import { parser as cssParser } from "@lezer/css";
 import { parser as htmlParser } from "@lezer/html";
 import type { LRParser } from "@lezer/lr";
 import { parser as classNamesParser } from "used-name";
+import type { DocumentUri } from "vscode-languageserver";
+import type { Configuration } from "../configuration";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
-import { getCssEditRange, isCanDoCompleteCssNode } from "./common";
+import { collectSymbolInfos, getCssEditRange, getNodeText, isCanDoCompleteCssNode } from "./common";
 
 const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
 export default class HtmlLanguage implements Language {
+  constructor(private readonly _configuration: Configuration) {}
+
   readonly parser: LRParser = htmlParser.configure({
     wrap: parseMixed((node, input) => {
       if (node.type.is("StyleText")) {
@@ -54,7 +58,7 @@ export default class HtmlLanguage implements Language {
     }
   }
 
-  query(input: string, tree: Tree): SourceFile {
+  query(uri: DocumentUri, input: string, tree: Tree): SourceFile {
     const cursor = tree.cursor();
 
     const refs = new Set<string>();
@@ -76,7 +80,7 @@ export default class HtmlLanguage implements Language {
           continue;
         }
 
-        const tagName = nodeText(input, tagNameNode);
+        const tagName = getNodeText(input, tagNameNode);
         if (tagName !== "link") {
           continue;
         }
@@ -86,33 +90,30 @@ export default class HtmlLanguage implements Language {
           if (!attNameNode) {
             continue;
           }
-          const attName = nodeText(input, attNameNode);
+          const attName = getNodeText(input, attNameNode);
           if (attName !== "href") {
             continue;
           }
 
-          // TODO
           let attValueNode: SyntaxNode | null;
           if ((attValueNode = att.getChild("AttributeValue"))) {
-            const attValue = nodeText(input, attValueNode);
-            logger.info("AttributeValue href " + attValue);
+            const attValue = getNodeText(input, attValueNode).slice(1, -1);
+            refs.add(this._configuration.resolve(uri, attValue));
           } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-            const attValue = nodeText(input, attValueNode);
-            logger.info("UnquotedAttributeValue href " + attValue);
-          } else {
-            continue;
+            const attValue = getNodeText(input, attValueNode);
+            refs.add(this._configuration.resolve(uri, attValue));
           }
 
           break;
         }
       } else if (cursor.type.is("UsedClassName")) {
-        collect(input, cursor, used_class_names);
+        collectSymbolInfos(input, cursor, used_class_names);
       } else if (cursor.type.is("UsedIdName")) {
-        collect(input, cursor, used_id_names);
+        collectSymbolInfos(input, cursor, used_id_names);
       } else if (cursor.type.is("ClassName")) {
-        collect(input, cursor, class_names);
+        collectSymbolInfos(input, cursor, class_names);
       } else if (cursor.type.is("IdName")) {
-        collect(input, cursor, id_names);
+        collectSymbolInfos(input, cursor, id_names);
       }
     } while (cursor.next());
 
@@ -124,20 +125,4 @@ export default class HtmlLanguage implements Language {
       used_id_names,
     };
   }
-}
-
-function collect(input: string, node: SyntaxNodeRef, map: Map<string, SymbolInfo>) {
-  const name = nodeText(input, node);
-
-  let ranges = map.get(name);
-  if (!ranges) {
-    ranges = [];
-    map.set(name, ranges);
-  }
-
-  ranges.push([node.from, node.to]);
-}
-
-function nodeText(input: string, { from, to }: SyntaxNodeRef): string {
-  return input.substring(from, to);
 }

@@ -5,8 +5,19 @@ export class CustomMessages {
   static readonly QueueInit = new RequestType<string[], void, void>("queue/init");
 }
 
+export type LanguageId =
+  | "html"
+  | "javascriptreact"
+  | "typescriptreact"
+  | "vue"
+  | "php"
+  | "css"
+  | "scss"
+  | "sass"
+  | "less";
+
 export interface LanguageConfig {
-  languageId: string;
+  languageId: LanguageId;
   suffixes: ReadonlyArray<string>;
 }
 

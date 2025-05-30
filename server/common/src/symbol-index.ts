@@ -84,19 +84,18 @@ export class SymbolIndex implements Disposable {
     };
   }
 
-  private async _doIndex(document: TextDocument, sourceFile?: SourceFile): Promise<void> {
-    if (!sourceFile) {
-      const language = this._languages.getLanguage(document.languageId);
-      if (!language) {
-        return;
-      }
-
-      const tree = await this._trees.getParseTree(document, language);
-      sourceFile = language.query(document.getText(), tree);
+  private async _doIndex(document: TextDocument): Promise<void> {
+    const language = this._languages.getLanguage(document.languageId);
+    if (!language) {
+      return;
     }
 
-    this.index.set(document.uri, sourceFile);
-    this._storage.insert(document.uri, sourceFile);
+    const tree = await this._trees.getParseTree(document, language);
+    const uri = document.uri;
+
+    const sourceFile = language.query(uri, document.getText(), tree);
+    this.index.set(uri, sourceFile);
+    this._storage.insert(uri, sourceFile);
   }
 
   async initFiles(_uris: ReadonlyArray<DocumentUri>): Promise<void> {
@@ -117,24 +116,26 @@ export class SymbolIndex implements Disposable {
       }
     }
 
+    for (const uri of uris) {
+      this._syncQueue.enqueue(uri);
+    }
+
     await this._storage.delete(obsolete);
 
     logger.log(
       `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
     );
-  }
 
-  async unleashFiles() {
     await this.update();
 
     for (;;) {
       if (this._source.token.isCancellationRequested) {
-        return;
+        break;
       }
 
       const uris = this._asyncQueue.consume(32, (_uri) => true);
       if (uris.length === 0) {
-        return;
+        break;
       }
 
       const time = performance.now();

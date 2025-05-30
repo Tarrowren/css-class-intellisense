@@ -1,5 +1,6 @@
 import { CustomMessages } from "shared";
 import { FileChangeType, TextDocumentSyncKind, type Connection, type InitializeResult } from "vscode-languageserver";
+import { Configuration } from "./configuration";
 import { DocumentStore } from "./document-store";
 import { CompletionItemProvider } from "./features/completions";
 import { DefinitionProvider } from "./features/definitions";
@@ -12,7 +13,8 @@ import { Trees } from "./trees";
 
 export class Server {
   static create(connection: Connection) {
-    const languages = new Languages();
+    const configuration = new Configuration(connection);
+    const languages = new Languages(configuration);
     const documents = new DocumentStore(connection, languages);
     const trees = new Trees(documents);
 
@@ -56,7 +58,6 @@ export class Server {
 
     connection.onRequest(CustomMessages.QueueInit, async (uris) => {
       await symbols.initFiles(uris);
-      await symbols.unleashFiles();
     });
     documents.onDidChangeContent(({ uri }) => {
       symbols.addFile(uri);

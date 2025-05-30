@@ -1,5 +1,5 @@
 import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
-import type { SymbolRange } from "../type";
+import type { SymbolInfo, SymbolRange } from "../type";
 
 export function isCanDoCompleteCssNode(node: SyntaxNode, nested: boolean): boolean {
   const type = node.type;
@@ -58,4 +58,20 @@ function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
   if (node.type.is(".") || node.type.is("#")) {
     return [node.from, node.to];
   }
+}
+
+export function collectSymbolInfos(input: string, node: SyntaxNodeRef, map: Map<string, SymbolInfo>) {
+  const name = getNodeText(input, node);
+
+  let ranges = map.get(name);
+  if (!ranges) {
+    ranges = [];
+    map.set(name, ranges);
+  }
+
+  ranges.push([node.from, node.to]);
+}
+
+export function getNodeText(input: string, { from, to }: SyntaxNodeRef): string {
+  return input.substring(from, to);
 }
