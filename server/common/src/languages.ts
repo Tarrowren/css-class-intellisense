@@ -8,6 +8,7 @@ import type { CompletionTriggeredSymbolInfo } from "./features/common";
 import CssLanguage from "./lang/css";
 import HtmlLanguage from "./lang/html";
 import SassLanguage from "./lang/sass";
+import VueLanguage from "./lang/vue";
 import type { SourceFile } from "./type";
 
 export class Languages implements Disposable {
@@ -45,8 +46,8 @@ export class Languages implements Disposable {
       //   break;
       // case "typescriptreact":
       //   break;
-      // case "vue":
-      //   break;
+      case "vue":
+        return new VueLanguage(this._configuration);
       // case "php":
       //   break;
       case "css":

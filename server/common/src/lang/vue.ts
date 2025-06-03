@@ -1,25 +1,37 @@
-import { parseMixed, type SyntaxNode, type Tree } from "@lezer/common";
+import { parseMixed, type Input, type NestedParse, type SyntaxNode, type Tree } from "@lezer/common";
 import { parser as cssParser } from "@lezer/css";
 import { parser as htmlParser } from "@lezer/html";
+import { parser as jsParser } from "@lezer/javascript";
 import type { LRParser } from "@lezer/lr";
+import { parser as scssParser } from "@lezer/sass";
 import { parser as classNamesParser } from "used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import type { Configuration } from "../configuration";
-import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
-import { SymbolRange, type SourceFile, type SymbolInfo } from "../type";
-import { collectSymbolInfos, getCssEditRange, getNodeText, isCanDoCompleteCssNode } from "./common";
+import { SymbolRange, type SourceFile, type SuffixInfo, type SymbolInfo } from "../type";
+import { collectSuffixInfos, collectSymbolInfos, getCssEditRange, isCanDoCompleteCssNode } from "./common";
+
+const jsxParser = jsParser.configure({ dialect: "jsx" });
+const tsParser = jsParser.configure({ dialect: "ts" });
+const tsxParser = jsParser.configure({ dialect: "ts jsx" });
+
+const sassParser = scssParser.configure({ dialect: "indented" });
 
 const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
-export default class HtmlLanguage implements Language {
+export default class VueLanguage implements Language {
   constructor(private readonly _configuration: Configuration) {}
 
   readonly parser: LRParser = htmlParser.configure({
+    dialect: "selfClosing",
     wrap: parseMixed((node, input) => {
       if (node.type.is("StyleText")) {
-        return { parser: cssParser };
+        return _style(node.node, input);
+      }
+
+      if (node.type.is("ScriptText")) {
+        return _script(node.node, input);
       }
 
       if (node.type.is("AttributeValue") || node.type.is("UnquotedAttributeValue")) {
@@ -80,12 +92,12 @@ export default class HtmlLanguage implements Language {
       return { kind: CompletionTriggeredSymbolKind.IdName, editRange: SymbolRange.fromNode(node) };
     }
 
-    if (isCanDoCompleteCssNode(node, false)) {
+    if (isCanDoCompleteCssNode(node, true)) {
       return { kind: CompletionTriggeredSymbolKind.Css, editRange: getCssEditRange(pos, tree, node) };
     }
   }
 
-  query(uri: DocumentUri, input: string, tree: Tree): SourceFile {
+  query(_uri: DocumentUri, input: string, tree: Tree): SourceFile {
     const cursor = tree.cursor();
 
     const refs = new Set<string>();
@@ -93,47 +105,10 @@ export default class HtmlLanguage implements Language {
     const id_names = new Map<string, SymbolInfo>();
     const used_class_names = new Map<string, SymbolInfo>();
     const used_id_names = new Map<string, SymbolInfo>();
+    const suffixes = new Map<number, SuffixInfo>();
 
     do {
-      if (cursor.type.is("Element")) {
-        const elNode = cursor.node;
-        const openTagNode = elNode.firstChild;
-        if (!openTagNode) {
-          continue;
-        }
-
-        const tagNameNode = openTagNode.getChild("TagName");
-        if (!tagNameNode) {
-          continue;
-        }
-
-        const tagName = getNodeText(input, tagNameNode);
-        if (tagName !== "link") {
-          continue;
-        }
-
-        for (const att of openTagNode.getChildren("Attribute")) {
-          const attNameNode = att.getChild("AttributeName");
-          if (!attNameNode) {
-            continue;
-          }
-          const attName = getNodeText(input, attNameNode);
-          if (attName !== "href") {
-            continue;
-          }
-
-          let attValueNode: SyntaxNode | null;
-          if ((attValueNode = att.getChild("AttributeValue"))) {
-            const attValue = getNodeText(input, attValueNode).slice(1, -1);
-            refs.add(this._configuration.resolve(uri, attValue));
-          } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-            const attValue = getNodeText(input, attValueNode);
-            refs.add(this._configuration.resolve(uri, attValue));
-          }
-
-          break;
-        }
-      } else if (cursor.type.is("UsedClassName")) {
+      if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);
       } else if (cursor.type.is("UsedIdName")) {
         collectSymbolInfos(used_id_names, input, cursor);
@@ -141,6 +116,8 @@ export default class HtmlLanguage implements Language {
         collectSymbolInfos(class_names, input, cursor);
       } else if (cursor.type.is("IdName")) {
         collectSymbolInfos(id_names, input, cursor);
+      } else if (cursor.type.is("Suffix")) {
+        collectSuffixInfos(suffixes, class_names, id_names, input, cursor.node);
       }
     } while (cursor.next());
 
@@ -150,7 +127,66 @@ export default class HtmlLanguage implements Language {
       id_names,
       used_class_names,
       used_id_names,
-      suffixes: Empty.map(),
+      suffixes,
     };
+  }
+}
+
+function _style(node: SyntaxNode, input: Input): NestedParse {
+  const lang = _lang(node, input);
+  switch (lang) {
+    case "scss":
+      return { parser: scssParser };
+    case "sass":
+      return { parser: sassParser };
+    default:
+      return { parser: cssParser };
+  }
+}
+
+function _script(node: SyntaxNode, input: Input): NestedParse {
+  const lang = _lang(node, input);
+  switch (lang) {
+    case "jsx":
+      return { parser: jsxParser };
+    case "ts":
+      return { parser: tsParser };
+    case "tsx":
+      return { parser: tsxParser };
+    default:
+      return { parser: jsParser };
+  }
+}
+
+function _lang(node: SyntaxNode, input: Input): string | undefined {
+  const elNode = node.parent;
+  if (!elNode) {
+    return;
+  }
+
+  const openTagNode = elNode.firstChild;
+  if (!openTagNode) {
+    return;
+  }
+
+  for (const att of openTagNode.getChildren("Attribute")) {
+    const attNameNode = att.getChild("AttributeName");
+    if (!attNameNode) {
+      continue;
+    }
+
+    const attName = input.read(attNameNode.from, attNameNode.to);
+    if (attName !== "lang") {
+      continue;
+    }
+
+    let attValueNode: SyntaxNode | null;
+    if ((attValueNode = att.getChild("AttributeValue"))) {
+      return input.read(attValueNode.from, attValueNode.to).slice(1, -1);
+    } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
+      return input.read(attValueNode.from, attValueNode.to);
+    }
+
+    return;
   }
 }
