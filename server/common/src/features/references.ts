@@ -1,9 +1,10 @@
-import type { SyntaxNodeRef } from "@lezer/common";
+import type { SyntaxNode } from "@lezer/common";
 import { Location, type CancellationToken, type DocumentUri, type ReferenceParams } from "vscode-languageserver";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
+import { SymbolRange } from "../type";
 import { lspRange, parallel } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
@@ -29,7 +30,6 @@ export class ReferenceProvider {
 
     const tree = await this._trees.getParseTree(document, language);
     const pos = document.offsetAt(params.position);
-
     const info =
       this._getInfo(tree.resolve(pos, -1)) ??
       this._getInfo(tree.resolve(pos, 1)) ??
@@ -40,44 +40,83 @@ export class ReferenceProvider {
 
     await this._symbols.update();
 
-    return await this._provideReferences(uri, info.kind, document.getText().substring(...info.range));
-  }
+    if (info.kind === "suffix") {
+      const sourceFile = this._symbols.index.get(uri);
+      if (!sourceFile) {
+        return;
+      }
 
-  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
-    if (node.type.is("ClassName")) {
-      return { kind: TriggeredSymbolKind.ClassName, range: [node.from, node.to] };
-    }
-    if (node.type.is("IdName")) {
-      return { kind: TriggeredSymbolKind.IdName, range: [node.from, node.to] };
+      const suffixes = sourceFile.suffixes.get(info.from);
+      if (!suffixes) {
+        return;
+      }
+
+      const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
+      for (const [_uri, _sourceFile] of this._symbols.index) {
+        if (_sourceFile.refs.has(uri) || uri === _uri) {
+          for (const symbol of suffixes) {
+            const prop = this._getProp(symbol.kind);
+
+            const ranges = _sourceFile[prop].get(symbol.name);
+            if (ranges) {
+              tasks.push(this._createTask(_uri, ranges));
+            }
+          }
+        }
+      }
+
+      const result = await parallel(tasks, 32);
+      return result.flat();
+    } else {
+      return await this._provideReferences(
+        uri,
+        info.kind,
+        document.getText().substring(info.range.from, info.range.to),
+      );
     }
   }
 
   private async _provideReferences(uri: DocumentUri, kind: TriggeredSymbolKind, name: string): Promise<Location[]> {
-    let prop: "used_class_names" | "used_id_names";
-    switch (kind) {
-      case TriggeredSymbolKind.ClassName:
-        prop = "used_class_names";
-        break;
-      case TriggeredSymbolKind.IdName:
-        prop = "used_id_names";
-        break;
-    }
-
+    const prop = this._getProp(kind);
     const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
     for (const [_uri, _sourceFile] of this._symbols.index) {
       if (_sourceFile.refs.has(uri) || uri === _uri) {
         const ranges = _sourceFile[prop].get(name);
-
         if (ranges) {
-          tasks.push(async () => {
-            const document = await this._documents.retrieve(_uri);
-            return ranges.map((range) => Location.create(_uri, lspRange(document, range)));
-          });
+          tasks.push(this._createTask(_uri, ranges));
         }
       }
     }
 
     const result = await parallel(tasks, 32);
     return result.flat();
+  }
+
+  private _createTask(uri: DocumentUri, ranges: SymbolRange[]): (token?: CancellationToken) => Promise<Location[]> {
+    return async () => {
+      const document = await this._documents.retrieve(uri);
+      return ranges.map((range) => Location.create(uri, lspRange(document, range)));
+    };
+  }
+
+  private _getInfo(node: SyntaxNode): TriggeredSymbolInfo | { kind: "suffix"; from: number } | undefined {
+    if (node.type.is("ClassName")) {
+      return { kind: TriggeredSymbolKind.ClassName, range: SymbolRange.fromNode(node) };
+    }
+    if (node.type.is("IdName")) {
+      return { kind: TriggeredSymbolKind.IdName, range: SymbolRange.fromNode(node) };
+    }
+    if (node.type.is("Suffix")) {
+      return { kind: "suffix", from: node.from };
+    }
+  }
+
+  private _getProp(kind: TriggeredSymbolKind): "used_class_names" | "used_id_names" {
+    switch (kind) {
+      case TriggeredSymbolKind.ClassName:
+        return "used_class_names";
+      case TriggeredSymbolKind.IdName:
+        return "used_id_names";
+    }
   }
 }

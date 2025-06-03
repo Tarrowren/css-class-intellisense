@@ -5,6 +5,7 @@ import type { LRParser } from "@lezer/lr";
 import { parser as classNamesParser } from "used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import type { Configuration } from "../configuration";
+import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
@@ -107,13 +108,13 @@ export default class HtmlLanguage implements Language {
           break;
         }
       } else if (cursor.type.is("UsedClassName")) {
-        collectSymbolInfos(input, cursor, used_class_names);
+        collectSymbolInfos(used_class_names, input, cursor);
       } else if (cursor.type.is("UsedIdName")) {
-        collectSymbolInfos(input, cursor, used_id_names);
+        collectSymbolInfos(used_id_names, input, cursor);
       } else if (cursor.type.is("ClassName")) {
-        collectSymbolInfos(input, cursor, class_names);
+        collectSymbolInfos(class_names, input, cursor);
       } else if (cursor.type.is("IdName")) {
-        collectSymbolInfos(input, cursor, id_names);
+        collectSymbolInfos(id_names, input, cursor);
       }
     } while (cursor.next());
 
@@ -123,6 +124,7 @@ export default class HtmlLanguage implements Language {
       id_names,
       used_class_names,
       used_id_names,
+      suffixes: Empty.map(),
     };
   }
 }

@@ -73,5 +73,15 @@ export class StopWatch {
 }
 
 export function lspRange(document: TextDocument, range: SymbolRange): Range {
-  return Range.create(document.positionAt(range[0]), document.positionAt(range[1]));
+  return Range.create(document.positionAt(range.from), document.positionAt(range.to));
+}
+
+/**
+ * including `#` or `.` prefix
+ * @param document
+ * @param range
+ * @returns
+ */
+export function lspRange2(document: TextDocument, range: SymbolRange): Range {
+  return Range.create(document.positionAt(range.from - 1), document.positionAt(range.to));
 }

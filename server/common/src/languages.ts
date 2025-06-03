@@ -7,6 +7,7 @@ import type { Configuration } from "./configuration";
 import type { CompletionTriggeredSymbolInfo } from "./features/common";
 import CssLanguage from "./lang/css";
 import HtmlLanguage from "./lang/html";
+import SassLanguage from "./lang/sass";
 import type { SourceFile } from "./type";
 
 export class Languages implements Disposable {
@@ -50,10 +51,10 @@ export class Languages implements Disposable {
       //   break;
       case "css":
         return new CssLanguage(this._configuration);
-      // case "scss":
-      //   break;
-      // case "sass":
-      //   break;
+      case "scss":
+        return new SassLanguage(this._configuration);
+      case "sass":
+        return new SassLanguage(this._configuration, true);
       // case "less":
       //   break;
       default:
@@ -69,6 +70,6 @@ export class Languages implements Disposable {
 export interface Language {
   readonly parser: LRParser;
 
-  getCompletionTriggeredSymbolInfo(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
+  getCompletionTriggeredSymbolInfo?(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
   query(uri: DocumentUri, input: string, tree: Tree): SourceFile;
 }

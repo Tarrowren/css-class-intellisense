@@ -30,9 +30,9 @@ export default class CssLanguage implements Language {
 
     do {
       if (cursor.type.is("ClassName")) {
-        collectSymbolInfos(input, cursor, class_names);
+        collectSymbolInfos(class_names, input, cursor);
       } else if (cursor.type.is("IdName")) {
-        collectSymbolInfos(input, cursor, id_names);
+        collectSymbolInfos(id_names, input, cursor);
       }
     } while (cursor.next());
 
@@ -42,6 +42,7 @@ export default class CssLanguage implements Language {
       id_names,
       used_class_names: Empty.map(),
       used_id_names: Empty.map(),
+      suffixes: Empty.map(),
     };
   }
 }

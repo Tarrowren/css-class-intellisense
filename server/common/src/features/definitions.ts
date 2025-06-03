@@ -4,8 +4,8 @@ import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import type { SourceFile } from "../type";
-import { lspRange, parallel } from "../util";
+import { SymbolRange, type SourceFile } from "../type";
+import { lspRange, lspRange2, parallel } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class DefinitionProvider {
@@ -41,17 +41,8 @@ export class DefinitionProvider {
       return;
     }
 
-    const name = document.getText().substring(...info.range);
+    const name = document.getText().substring(info.range.from, info.range.to);
     return await this._provideDefinition(uri, sourceFile, info.kind, name);
-  }
-
-  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
-    if (node.type.is("UsedClassName")) {
-      return { kind: TriggeredSymbolKind.ClassName, range: [node.from, node.to] };
-    }
-    if (node.type.is("UsedIdName")) {
-      return { kind: TriggeredSymbolKind.IdName, range: [node.from, node.to] };
-    }
   }
 
   private async _provideDefinition(
@@ -60,21 +51,12 @@ export class DefinitionProvider {
     kind: TriggeredSymbolKind,
     name: string,
   ): Promise<Location[]> {
-    let prop: "class_names" | "id_names";
-    switch (kind) {
-      case TriggeredSymbolKind.ClassName:
-        prop = "class_names";
-        break;
-      case TriggeredSymbolKind.IdName:
-        prop = "id_names";
-        break;
-    }
-
+    const prop = this._getProp(kind);
     const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
 
-    const task = this._createTask(uri, sourceFile, prop, name);
-    if (task) {
-      tasks.push(task);
+    const ranges = sourceFile[prop].get(name);
+    if (ranges) {
+      tasks.push(this._createTask(uri, ranges));
     }
 
     for (const _uri of sourceFile.refs) {
@@ -83,9 +65,9 @@ export class DefinitionProvider {
         continue;
       }
 
-      const task = this._createTask(_uri, _sourceFile, prop, name);
-      if (task) {
-        tasks.push(task);
+      const ranges = _sourceFile[prop].get(name);
+      if (ranges) {
+        tasks.push(this._createTask(_uri, ranges));
       }
     }
 
@@ -93,16 +75,35 @@ export class DefinitionProvider {
     return result.flat();
   }
 
-  private _createTask(uri: DocumentUri, sourceFile: SourceFile, prop: "class_names" | "id_names", name: string) {
-    const ranges = sourceFile[prop].get(name);
-    if (!ranges) {
-      return;
-    }
-
+  private _createTask(uri: DocumentUri, ranges: SymbolRange[]) {
     return async () => {
       const document = await this._documents.retrieve(uri);
-      // range[0] - 1, add the pos of '#' or '.'
-      return ranges.map((range) => Location.create(uri, lspRange(document, [range[0] - 1, range[1]])));
+
+      return ranges.map((range) =>
+        Location.create(
+          uri,
+          // range.from - 1, add the pos of '#' or '.'
+          range.suffix ? lspRange(document, range) : lspRange2(document, range),
+        ),
+      );
     };
+  }
+
+  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
+    if (node.type.is("UsedClassName")) {
+      return { kind: TriggeredSymbolKind.ClassName, range: SymbolRange.fromNode(node) };
+    }
+    if (node.type.is("UsedIdName")) {
+      return { kind: TriggeredSymbolKind.IdName, range: SymbolRange.fromNode(node) };
+    }
+  }
+
+  private _getProp(kind: TriggeredSymbolKind): "class_names" | "id_names" {
+    switch (kind) {
+      case TriggeredSymbolKind.ClassName:
+        return "class_names";
+      case TriggeredSymbolKind.IdName:
+        return "id_names";
+    }
   }
 }

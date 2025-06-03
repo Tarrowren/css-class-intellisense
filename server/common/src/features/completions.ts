@@ -30,7 +30,7 @@ export class CompletionItemProvider {
     }
 
     const language = this._languages.getLanguage(document.languageId);
-    if (!language) {
+    if (!language || !language.getCompletionTriggeredSymbolInfo) {
       return;
     }
 

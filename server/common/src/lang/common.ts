@@ -1,5 +1,5 @@
 import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
-import type { SymbolInfo, SymbolRange } from "../type";
+import { SymbolRange, type SymbolInfo } from "../type";
 
 export function isCanDoCompleteCssNode(node: SyntaxNode, nested: boolean): boolean {
   const type = node.type;
@@ -53,23 +53,24 @@ export function getCssEditRange(pos: number, tree: Tree, node: SyntaxNodeRef): S
 
 function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
   if (node.type.is("ClassName") || node.type.is("IdName")) {
-    return [node.from - 1, node.to];
+    return SymbolRange.of(node.from - 1, node.to);
   }
   if (node.type.is(".") || node.type.is("#")) {
-    return [node.from, node.to];
+    return SymbolRange.fromNode(node);
   }
 }
 
-export function collectSymbolInfos(input: string, node: SyntaxNodeRef, map: Map<string, SymbolInfo>) {
-  const name = getNodeText(input, node);
-
-  let ranges = map.get(name);
-  if (!ranges) {
-    ranges = [];
-    map.set(name, ranges);
+export function append<K, V>(data: Map<K, V[]>, key: K, value: V): void {
+  const values = data.get(key);
+  if (values) {
+    values.push(value);
+  } else {
+    data.set(key, [value]);
   }
+}
 
-  ranges.push([node.from, node.to]);
+export function collectSymbolInfos(data: Map<string, SymbolInfo>, input: string, node: SyntaxNodeRef): void {
+  append(data, getNodeText(input, node), SymbolRange.fromNode(node));
 }
 
 export function getNodeText(input: string, { from, to }: SyntaxNodeRef): string {
