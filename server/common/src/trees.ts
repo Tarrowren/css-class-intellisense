@@ -74,7 +74,7 @@ export class Trees implements Disposable {
       this._cache.set(uri, { version, tree, fragments, edits: [] });
     }
 
-    logger.log(`[${entry ? "incparse" : "parse"}] ${document.uri} ${sw.elapsed()}ms`);
+    logger.log(`[${entry ? "incparse" : "parse"}] ${document.uri} ${sw.elapsed(2)}ms`);
     return tree;
   }
 }

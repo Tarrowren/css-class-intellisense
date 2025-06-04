@@ -142,3 +142,16 @@ export function collectSuffixInfos(
     append(symbol.kind === TriggeredSymbolKind.ClassName ? class_names : id_names, symbol.name, range);
   }
 }
+
+export function getHrefFromImport(input: string, node: SyntaxNodeRef): string | undefined {
+  const str = node.node.getChild("String");
+  if (!str) {
+    return;
+  }
+
+  const module = getNodeText(input, str).slice(1, -1);
+
+  if (/(?<!\.module)\.(?:c|sc|sa|le)ss/.test(module)) {
+    return module;
+  }
+}

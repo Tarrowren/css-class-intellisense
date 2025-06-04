@@ -25,6 +25,8 @@ export async function parallel<T>(
     result.push(...partResult);
 
     start = end;
+
+    await scheduler.yield();
   }
   return result;
 }
@@ -66,9 +68,24 @@ export class Queue<T> implements Disposable {
 
 export class StopWatch {
   private readonly _start = performance.now();
+  public _elapsed: number | null = null;
 
-  elapsed(): string {
-    return (performance.now() - this._start).toFixed(2);
+  private _stop(): number {
+    if (this._elapsed === null) {
+      this._elapsed = performance.now() - this._start;
+    }
+
+    return this._elapsed;
+  }
+
+  elapsed(fractionDigits: number): string;
+  elapsed(): number;
+  elapsed(fractionDigits?: number): number | string {
+    if (fractionDigits) {
+      return this._stop().toFixed(2);
+    } else {
+      return this._stop();
+    }
   }
 }
 

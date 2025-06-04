@@ -10,7 +10,13 @@ import type { Configuration } from "../configuration";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
 import { SymbolRange, type SourceFile, type SuffixInfo, type SymbolInfo } from "../type";
-import { collectSuffixInfos, collectSymbolInfos, getCssEditRange, isCanDoCompleteCssNode } from "./common";
+import {
+  collectSuffixInfos,
+  collectSymbolInfos,
+  getCssEditRange,
+  getHrefFromImport,
+  isCanDoCompleteCssNode,
+} from "./common";
 
 const jsxParser = jsParser.configure({ dialect: "jsx" });
 const tsParser = jsParser.configure({ dialect: "ts" });
@@ -97,7 +103,7 @@ export default class VueLanguage implements Language {
     }
   }
 
-  query(_uri: DocumentUri, input: string, tree: Tree): SourceFile {
+  query(uri: DocumentUri, input: string, tree: Tree): SourceFile {
     const cursor = tree.cursor();
 
     const refs = new Set<string>();
@@ -108,7 +114,12 @@ export default class VueLanguage implements Language {
     const suffixes = new Map<number, SuffixInfo>();
 
     do {
-      if (cursor.type.is("UsedClassName")) {
+      if (cursor.type.is("ImportDeclaration")) {
+        const href = getHrefFromImport(input, cursor);
+        if (href) {
+          refs.add(this._configuration.resolve(uri, href));
+        }
+      } else if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);
       } else if (cursor.type.is("UsedIdName")) {
         collectSymbolInfos(used_id_names, input, cursor);

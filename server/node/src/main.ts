@@ -1,3 +1,4 @@
+import { cpus } from "node:os";
 import { Server } from "server-common";
 import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 
@@ -28,5 +29,7 @@ _global.scheduler = {
     return new Promise<void>((c) => setImmediate(c));
   },
 };
+
+_global.concurrency = cpus().length;
 
 Server.create(connection);

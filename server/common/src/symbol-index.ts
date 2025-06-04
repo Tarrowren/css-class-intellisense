@@ -1,5 +1,6 @@
 import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
+import type { Configuration } from "./configuration";
 import type { DocumentStore } from "./document-store";
 import type { Languages } from "./languages";
 import type { SymbolStorage } from "./symbol-storage";
@@ -15,6 +16,7 @@ export class SymbolIndex implements Disposable {
   private readonly _source = new CancellationTokenSource();
 
   constructor(
+    private readonly _configuration: Configuration,
     private readonly _documents: DocumentStore,
     private readonly _languages: Languages,
     private readonly _trees: Trees,
@@ -48,7 +50,7 @@ export class SymbolIndex implements Disposable {
 
     const sw = new StopWatch();
     const tasks = uris.map(this._createIndexTask, this);
-    const stats = await parallel(tasks, 32, this._source.token);
+    const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
 
     let totalRetrieve = 0;
     let totalIndex = 0;
@@ -58,7 +60,7 @@ export class SymbolIndex implements Disposable {
     }
 
     logger.log(
-      `[index] (${async ? "async" : "sync"}) added ${uris.length} files ${sw.elapsed()}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms) (files: ${uris})`,
+      `[index] (${async ? "async" : "sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
     );
   }
 
@@ -67,18 +69,18 @@ export class SymbolIndex implements Disposable {
   ): () => Promise<{ readonly durationRetrieve: number; readonly durationIndex: number }> {
     return async () => {
       // fetch document
-      const _retrieve_time = performance.now();
+      const _retrieve_time = new StopWatch();
       const document = await this._documents.retrieve(uri);
-      const durationRetrieve = performance.now() - _retrieve_time;
+      const durationRetrieve = _retrieve_time.elapsed();
 
       // update index
-      const _index_time = performance.now();
+      const _index_time = new StopWatch();
       try {
         await this._doIndex(document);
       } catch (e) {
         logger.log(`FAILED to index ${uri} ${e}`);
       }
-      const durationIndex = performance.now() - _index_time;
+      const durationIndex = _index_time.elapsed();
 
       return { durationRetrieve, durationIndex };
     };
@@ -123,7 +125,7 @@ export class SymbolIndex implements Disposable {
     await this._storage.delete(obsolete);
 
     logger.log(
-      `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed()}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
+      `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
     );
 
     await this.update();
@@ -133,14 +135,14 @@ export class SymbolIndex implements Disposable {
         break;
       }
 
-      const uris = this._asyncQueue.consume(32, (_uri) => true);
+      const uris = this._asyncQueue.consume(this._configuration.parallel, (_uri) => true);
       if (uris.length === 0) {
         break;
       }
 
-      const time = performance.now();
+      const sw = new StopWatch();
       await this._doUpdate(uris, true);
-      await scheduler.wait((performance.now() - time) * 4, this._source.token);
+      await scheduler.wait(sw.elapsed() * 4, this._source.token);
     }
   }
 

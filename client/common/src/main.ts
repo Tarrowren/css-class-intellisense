@@ -4,6 +4,7 @@ import { type BaseLanguageClient, type LanguageClientOptions } from "vscode-lang
 
 export class Client {
   private _source: CancellationTokenSource | null | undefined;
+  private readonly _encoder = new TextEncoder();
 
   private constructor(
     private readonly _client: BaseLanguageClient,
@@ -16,31 +17,11 @@ export class Client {
     await this._client.start();
 
     // readfile
-    const encoder = new TextEncoder();
     this._context.subscriptions.push(
       this._client.onRequest(CustomMessages.FileRead, async (uri_string) => {
         const uri = Uri.parse(uri_string);
 
-        if (uri.scheme === "vscode-notebook-cell") {
-          try {
-            const doc = await workspace.openTextDocument(uri);
-            return Array.from(encoder.encode(doc.getText()));
-          } catch (err) {
-            this._logger.warn("read file fail", err);
-            return [];
-          }
-        }
-
-        if (workspace.fs.isWritableFileSystem(uri.scheme) === undefined) {
-          return [];
-        }
-
-        try {
-          return Array.from(await workspace.fs.readFile(uri));
-        } catch (err) {
-          this._logger.warn("read file fail", err);
-          return [];
-        }
+        return await this._fs_read(uri);
       }),
     );
 
@@ -70,20 +51,50 @@ export class Client {
     await this._client.stop();
   }
 
+  private async _vscode_read(uri: Uri) {
+    try {
+      const doc = await workspace.openTextDocument(uri);
+      return Array.from(this._encoder.encode(doc.getText()));
+    } catch (err) {
+      this._logger.warn("read file fail", err);
+      return [];
+    }
+  }
+
+  private async _fs_read(uri: Uri) {
+    if (uri.scheme === "vscode-notebook-cell") {
+      return await this._vscode_read(uri);
+    }
+
+    if (workspace.fs.isWritableFileSystem(uri.scheme) === undefined) {
+      return [];
+    }
+
+    try {
+      return Array.from(await workspace.fs.readFile(uri));
+    } catch (err) {
+      this._logger.warn("read file fail", err);
+      return [];
+    }
+  }
+
   static create(factory: LanguageClientFactory, context: ExtensionContext) {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
-    const logger = window.createOutputChannel(name, { log: true });
     const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
     const watcher = workspace.createFileSystemWatcher(lang_pattern);
     context.subscriptions.push(watcher);
     const client_options: LanguageClientOptions = {
-      outputChannel: logger,
+      outputChannel: window.createOutputChannel(name + " Server", { log: true }),
       documentSelector: languageConfigs.map((lang) => lang.languageId),
       synchronize: { fileEvents: watcher },
     };
 
-    return new Client(factory(id, name, client_options), context, logger);
+    return new Client(
+      factory(id, name, client_options),
+      context,
+      window.createOutputChannel(name + " Client", { log: true }),
+    );
   }
 }
 

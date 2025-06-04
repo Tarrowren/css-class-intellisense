@@ -34,4 +34,6 @@ _global.scheduler = {
   },
 };
 
+_global.concurrency = navigator.hardwareConcurrency ?? 4;
+
 Server.create(connection);

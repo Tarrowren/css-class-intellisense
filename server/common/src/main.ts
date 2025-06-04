@@ -19,7 +19,7 @@ export class Server {
     const trees = new Trees(documents);
 
     const storage = new MemorySymbolStorage();
-    const symbols = new SymbolIndex(documents, languages, trees, storage);
+    const symbols = new SymbolIndex(configuration, documents, languages, trees, storage);
 
     connection.onInitialize(() => {
       return {
@@ -38,17 +38,17 @@ export class Server {
       return await completions.provideCompletionItems(params);
     });
 
-    const definitions = new DefinitionProvider(languages, documents, trees, symbols);
+    const definitions = new DefinitionProvider(configuration, languages, documents, trees, symbols);
     connection.onDefinition(async (params) => {
       return await definitions.provideDefinition(params);
     });
 
-    const references = new ReferenceProvider(languages, documents, trees, symbols);
+    const references = new ReferenceProvider(configuration, languages, documents, trees, symbols);
     connection.onReferences(async (params) => {
       return await references.provideReferences(params);
     });
 
-    const renames = new RenameProvider(languages, documents, trees, symbols);
+    const renames = new RenameProvider(configuration, languages, documents, trees, symbols);
     connection.onPrepareRename(async (params) => {
       return await renames.prepareRename(params);
     });

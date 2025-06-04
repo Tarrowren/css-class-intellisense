@@ -2,6 +2,7 @@ import { type Connection, type DocumentUri } from "vscode-languageserver";
 import { URI, Utils } from "vscode-uri";
 
 export class Configuration {
+  readonly parallel: number = concurrency;
   constructor(private readonly _connection: Connection) {}
 
   resolve(base: DocumentUri, ref: string): DocumentUri {

@@ -16,3 +16,5 @@ declare const scheduler: {
 };
 
 declare const performance: { now(): number };
+
+declare const concurrency: number;
