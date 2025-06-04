@@ -7,6 +7,7 @@ import type { Configuration } from "./configuration";
 import type { CompletionTriggeredSymbolInfo } from "./features/common";
 import CssLanguage from "./lang/css";
 import HtmlLanguage from "./lang/html";
+import JsxLanguage from "./lang/javascriptreact";
 import SassLanguage from "./lang/sass";
 import VueLanguage from "./lang/vue";
 import type { SourceFile } from "./type";
@@ -42,10 +43,10 @@ export class Languages implements Disposable {
     switch (languageId) {
       case "html":
         return new HtmlLanguage(this._configuration);
-      // case "javascriptreact":
-      //   break;
-      // case "typescriptreact":
-      //   break;
+      case "javascriptreact":
+        return new JsxLanguage(this._configuration);
+      case "typescriptreact":
+        return new JsxLanguage(this._configuration, true);
       case "vue":
         return new VueLanguage(this._configuration);
       // case "php":
