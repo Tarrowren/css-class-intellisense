@@ -9,7 +9,7 @@ export const parser = LRParser.deserialize({
   maxTerm: 10,
   skippedNodes: [0],
   repeatNodeCount: 1,
-  tokenData: "#s~RaOX!WXY#QYZ#QZ[!W[]#Q]^#Q^p!Wpq#Qqr!Wrs#isw!Wwx#nx#j!W#j#k#Q#k;'S!W;'S;=`!z<%lO!WR!_XQPSQOX!WZ[!W^p!Wqr!Wsw!Wx#j!W#k;'S!W;'S;=`!z<%lO!WR!}P;=`<%l!W~#VUW~XY#QYZ#Q[]#Q]^#Qpq#Q#j#k#Q~#nOX~~#sOY~",
+  tokenData: "#a~R^OX}XY!tYZ!tZ]}]^!t^p}pq!tqr}rs#Vsw}wx#[x;'S};'S;=`!n<%lO}R!UWQPSQOX}Z]}^p}qr}sw}x;'S};'S;=`!n<%lO}R!qP;=`<%l}~!ySW~XY!tYZ!t]^!tpq!t~#[OX~~#aOY~",
   tokenizers: [0, 1],
   topRules: {"ClassAttributeValue":[0,1],"IdAttributeValue":[1,3]},
   tokenPrec: 0

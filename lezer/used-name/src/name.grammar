@@ -11,9 +11,10 @@
 }
 
 @tokens {
-  UsedClassName { !["'\r\n\t\f\v ]+ }
-  UsedIdName { !["'\r\n\t\f\v ]+ }
-  space { $[\r\n\t\f\v ]+ }
+  UsedClassName { name }
+  UsedIdName { name }
+  name { !["' \t\n\r]+ }
+  space { $[ \t\n\r]+ }
 }
 
 @skip { space }
