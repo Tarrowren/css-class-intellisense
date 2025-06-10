@@ -5,8 +5,8 @@ import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import { SymbolRange, type SourceFile } from "../type";
-import { lspRange, lspRange2, parallel } from "../util";
+import type { SourceFile, SymbolInfo } from "../type";
+import { lspRange, lspRange2, parallel, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class DefinitionProvider {
@@ -56,20 +56,20 @@ export class DefinitionProvider {
     const prop = this._getProp(kind);
     const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
 
-    const ranges = sourceFile[prop].get(name);
-    if (ranges) {
-      tasks.push(this._createTask(uri, ranges));
+    const info = sourceFile[prop].get(name);
+    if (info) {
+      tasks.push(this._createTask(uri, sourceFile, info));
     }
 
-    for (const _uri of sourceFile.refs) {
+    for (const _uri of sourceFile.refs.keys()) {
       const _sourceFile = this._symbols.index.get(_uri);
       if (!_sourceFile) {
         continue;
       }
 
-      const ranges = _sourceFile[prop].get(name);
-      if (ranges) {
-        tasks.push(this._createTask(_uri, ranges));
+      const _info = _sourceFile[prop].get(name);
+      if (_info) {
+        tasks.push(this._createTask(_uri, _sourceFile, _info));
       }
     }
 
@@ -77,26 +77,39 @@ export class DefinitionProvider {
     return result.flat();
   }
 
-  private _createTask(uri: DocumentUri, ranges: SymbolRange[]) {
+  private _createTask(
+    uri: DocumentUri,
+    { suffixes }: SourceFile,
+    { ranges, suffix_ranges }: SymbolInfo,
+  ): () => Promise<Location[]> {
     return async () => {
       const document = await this._documents.retrieve(uri);
 
-      return ranges.map((range) =>
-        Location.create(
-          uri,
-          // range.from - 1, add the pos of '#' or '.'
-          range.suffix ? lspRange(document, range) : lspRange2(document, range),
-        ),
-      );
+      const result: Location[] = [];
+      for (const range of ranges) {
+        // range.from - 1, add the pos of '#' or '.'
+        result.push(Location.create(uri, lspRange2(document, range)));
+      }
+
+      if (suffix_ranges) {
+        for (const from of suffix_ranges) {
+          const info = suffixes.get(from);
+          if (info) {
+            result.push(Location.create(uri, lspRange(document, { from, to: info.to })));
+          }
+        }
+      }
+
+      return result;
     };
   }
 
   private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
     if (node.type.is("UsedClassName")) {
-      return { kind: TriggeredSymbolKind.ClassName, range: SymbolRange.fromNode(node) };
+      return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
     if (node.type.is("UsedIdName")) {
-      return { kind: TriggeredSymbolKind.IdName, range: SymbolRange.fromNode(node) };
+      return { kind: TriggeredSymbolKind.IdName, range: textRange(node) };
     }
   }
 

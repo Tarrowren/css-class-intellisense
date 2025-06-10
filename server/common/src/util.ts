@@ -1,3 +1,4 @@
+import type { SyntaxNodeRef } from "@lezer/common";
 import { Range, type CancellationToken, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SymbolRange } from "./type";
@@ -87,6 +88,10 @@ export class StopWatch {
       return this._stop();
     }
   }
+}
+
+export function textRange(node: SyntaxNodeRef): SymbolRange {
+  return { from: node.from, to: node.to };
 }
 
 export function lspRange(document: TextDocument, range: SymbolRange): Range {

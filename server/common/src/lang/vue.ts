@@ -9,7 +9,8 @@ import type { DocumentUri } from "vscode-languageserver";
 import type { Configuration } from "../configuration";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
-import { SymbolRange, type SourceFile, type SuffixInfo, type SymbolInfo } from "../type";
+import type { SourceFile, SuffixInfo, SymbolInfo } from "../type";
+import { textRange } from "../util";
 import {
   collectSuffixInfos,
   collectSymbolInfos,
@@ -68,34 +69,34 @@ export default class VueLanguage implements Language {
     if (node.type.is("ClassAttributeValue")) {
       let name = tree.resolve(pos, -1);
       if (name.type.is("UsedClassName")) {
-        return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: SymbolRange.fromNode(name) };
+        return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: textRange(name) };
       }
 
       name = tree.resolve(pos, 1);
       if (name.type.is("UsedClassName")) {
-        return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: SymbolRange.fromNode(name) };
+        return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: textRange(name) };
       }
 
       return { kind: CompletionTriggeredSymbolKind.ClassName };
     }
     if (node.type.is("UsedClassName")) {
-      return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: SymbolRange.fromNode(node) };
+      return { kind: CompletionTriggeredSymbolKind.ClassName, editRange: textRange(node) };
     }
     if (node.type.is("IdAttributeValue")) {
       let name = tree.resolve(pos, -1);
       if (name.type.is("UsedIdName")) {
-        return { kind: CompletionTriggeredSymbolKind.IdName, editRange: SymbolRange.fromNode(name) };
+        return { kind: CompletionTriggeredSymbolKind.IdName, editRange: textRange(name) };
       }
 
       name = tree.resolve(pos, 1);
       if (name.type.is("UsedIdName")) {
-        return { kind: CompletionTriggeredSymbolKind.IdName, editRange: SymbolRange.fromNode(name) };
+        return { kind: CompletionTriggeredSymbolKind.IdName, editRange: textRange(name) };
       }
 
       return { kind: CompletionTriggeredSymbolKind.IdName };
     }
     if (node.type.is("UsedIdName")) {
-      return { kind: CompletionTriggeredSymbolKind.IdName, editRange: SymbolRange.fromNode(node) };
+      return { kind: CompletionTriggeredSymbolKind.IdName, editRange: textRange(node) };
     }
 
     if (isCanDoCompleteCssNode(node, true)) {
@@ -106,7 +107,7 @@ export default class VueLanguage implements Language {
   query(uri: DocumentUri, input: string, tree: Tree): SourceFile {
     const cursor = tree.cursor();
 
-    const refs = new Set<string>();
+    const refs = new Map<string, true>();
     const class_names = new Map<string, SymbolInfo>();
     const id_names = new Map<string, SymbolInfo>();
     const used_class_names = new Map<string, SymbolInfo>();
@@ -117,7 +118,7 @@ export default class VueLanguage implements Language {
       if (cursor.type.is("ImportDeclaration")) {
         const href = getHrefFromImport(input, cursor);
         if (href) {
-          refs.add(this._configuration.resolve(uri, href));
+          refs.set(this._configuration.resolve(uri, href), true);
         }
       } else if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);

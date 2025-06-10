@@ -1,8 +1,8 @@
 import { TreeFragment, type ChangedRange, type Tree } from "@lezer/common";
 import type { Disposable } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Cache } from "./cache";
 import type { DocumentStore } from "./document-store";
-import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Language } from "./languages";
 import { StopWatch } from "./util";
 

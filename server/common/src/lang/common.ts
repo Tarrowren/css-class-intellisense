@@ -1,6 +1,7 @@
 import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import { TriggeredSymbolKind } from "../features/common";
-import { SuffixSymbol, SymbolRange, type SuffixInfo, type SymbolInfo } from "../type";
+import type { SuffixInfo, SymbolInfo, SymbolRange } from "../type";
+import { textRange } from "../util";
 
 export function isCanDoCompleteCssNode(node: SyntaxNode, nested: boolean): boolean {
   const type = node.type;
@@ -54,29 +55,27 @@ export function getCssEditRange(pos: number, tree: Tree, node: SyntaxNodeRef): S
 
 function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
   if (node.type.is("ClassName") || node.type.is("IdName")) {
-    return SymbolRange.of(node.from - 1, node.to);
+    return { from: node.from - 1, to: node.to };
   }
   if (node.type.is(".") || node.type.is("#")) {
     const nextSibling = node.node.nextSibling;
     if (nextSibling && (nextSibling.type.is("ClassName") || nextSibling.type.is("IdName"))) {
-      return SymbolRange.of(nextSibling.from - 1, nextSibling.to);
+      return { from: nextSibling.from - 1, to: nextSibling.to };
     } else {
-      return SymbolRange.fromNode(node);
+      return textRange(node);
     }
   }
 }
 
-export function append<K, V>(data: Map<K, V[]>, key: K, value: V): void {
-  const values = data.get(key);
-  if (values) {
-    values.push(value);
-  } else {
-    data.set(key, [value]);
-  }
-}
-
 export function collectSymbolInfos(data: Map<string, SymbolInfo>, input: string, node: SyntaxNodeRef): void {
-  append(data, getNodeText(input, node), SymbolRange.fromNode(node));
+  const name = getNodeText(input, node);
+
+  const info = data.get(name);
+  if (info) {
+    info.ranges.push(textRange(node));
+  } else {
+    data.set(name, { ranges: [textRange(node)], suffix_ranges: [] });
+  }
 }
 
 export function getNodeText(input: string, { from, to }: SyntaxNodeRef): string {
@@ -90,9 +89,9 @@ export function collectSuffixInfos(
   input: string,
   node: SyntaxNode,
 ): void {
-  const suffix = getNodeText(input, node);
+  const suffixName = getNodeText(input, node);
 
-  const info: SuffixSymbol[] = [];
+  const full_names = new Map<string, TriggeredSymbolKind>();
 
   let findBlockNode: SyntaxNode | null = node;
   while ((findBlockNode = findBlockNode.parent)) {
@@ -109,18 +108,22 @@ export function collectSuffixInfos(
       let findName: SyntaxNode | null = findSelector;
       while ((findName = findName.lastChild)) {
         if (findName.type.is("ClassName")) {
-          const name = getNodeText(input, findName) + suffix;
-          info.push(new SuffixSymbol(TriggeredSymbolKind.ClassName, name));
+          const name = getNodeText(input, findName) + suffixName;
+          const kinds = full_names.get(name) ?? 0;
+          full_names.set(name, kinds | TriggeredSymbolKind.ClassName);
           break;
         } else if (findName.type.is("IdName")) {
-          const name = getNodeText(input, findName) + suffix;
-          info.push(new SuffixSymbol(TriggeredSymbolKind.IdName, name));
+          const name = getNodeText(input, findName) + suffixName;
+          const kinds = full_names.get(name) ?? 0;
+          full_names.set(name, kinds | TriggeredSymbolKind.IdName);
           break;
         } else if (findName.type.is("Suffix")) {
-          const parentSuffixes = suffixes.get(findName.from);
-          if (parentSuffixes) {
-            for (const parent of parentSuffixes) {
-              info.push(new SuffixSymbol(parent.kind, parent.name + suffix));
+          const suffixInfo = suffixes.get(findName.from);
+          if (suffixInfo) {
+            for (const [parentName, parentKinds] of suffixInfo.full_names) {
+              const name = parentName + suffixName;
+              const kinds = full_names.get(name) ?? 0;
+              full_names.set(name, kinds | parentKinds);
             }
           }
           break;
@@ -131,15 +134,32 @@ export function collectSuffixInfos(
     break;
   }
 
-  if (info.length === 0) {
+  if (full_names.size === 0) {
     return;
   }
 
-  suffixes.set(node.from, info);
+  suffixes.set(node.from, { to: node.to, full_names });
 
-  const range = SymbolRange.fromNode(node, true);
-  for (const symbol of info) {
-    append(symbol.kind === TriggeredSymbolKind.ClassName ? class_names : id_names, symbol.name, range);
+  for (const [name, kinds] of full_names) {
+    if (kinds & TriggeredSymbolKind.ClassName) {
+      const info = class_names.get(name);
+
+      if (info) {
+        info.suffix_ranges.push(node.from);
+      } else {
+        class_names.set(name, { ranges: [], suffix_ranges: [node.from] });
+      }
+    }
+
+    if (kinds & TriggeredSymbolKind.IdName) {
+      const info = id_names.get(name);
+
+      if (info) {
+        info.suffix_ranges.push(node.from);
+      } else {
+        id_names.set(name, { ranges: [], suffix_ranges: [node.from] });
+      }
+    }
   }
 }
 

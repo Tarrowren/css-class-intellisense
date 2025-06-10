@@ -5,6 +5,11 @@ export class CustomMessages {
   static readonly QueueInit = new RequestType<string[], void, void>("queue/init");
 }
 
+export interface InitOptions {
+  databaseName?: string;
+  storagePath?: string;
+}
+
 export type LanguageId =
   | "html"
   | "javascriptreact"

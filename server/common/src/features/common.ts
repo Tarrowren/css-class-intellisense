@@ -6,8 +6,8 @@ export interface TriggeredSymbolInfo {
 }
 
 export enum TriggeredSymbolKind {
-  ClassName,
-  IdName,
+  ClassName = 1 << 0,
+  IdName = 1 << 1,
 }
 
 export interface CompletionTriggeredSymbolInfo {
@@ -16,7 +16,7 @@ export interface CompletionTriggeredSymbolInfo {
 }
 
 export enum CompletionTriggeredSymbolKind {
-  ClassName,
-  IdName,
-  Css,
+  ClassName = 1 << 0,
+  IdName = 1 << 1,
+  Css = 1 << 2,
 }

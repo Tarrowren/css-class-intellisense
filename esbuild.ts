@@ -1,3 +1,4 @@
+import UnpluginTypia from "@ryoppippi/unplugin-typia/esbuild";
 import { context, type BuildContext, type BuildOptions, type Plugin } from "esbuild";
 import minimist from "minimist";
 import { rm } from "node:fs/promises";
@@ -43,6 +44,7 @@ const clientBuildOptions: BuildOptions = {
 
 const serverBuildOptions: BuildOptions = {
   ...baseBuildOptions,
+  plugins: [...(baseBuildOptions.plugins ?? []), UnpluginTypia({})],
 };
 
 const options: BuildOptions[] = [];

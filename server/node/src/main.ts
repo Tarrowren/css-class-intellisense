@@ -1,6 +1,8 @@
 import { cpus } from "node:os";
 import { Server } from "server-common";
+import { NoopSymbolStorage } from "server-common/src/symbol-storage";
 import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
+import { FileSymbolStorage } from "./storage";
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -32,4 +34,12 @@ _global.scheduler = {
 
 _global.concurrency = cpus().length;
 
-Server.create(connection);
+Server.create(connection, {
+  async create(options) {
+    if (options.storagePath) {
+      return await FileSymbolStorage.create(options.storagePath);
+    } else {
+      return new NoopSymbolStorage();
+    }
+  },
+});

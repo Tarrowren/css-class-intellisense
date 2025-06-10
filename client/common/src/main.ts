@@ -1,4 +1,4 @@
-import { CustomMessages, languageConfigs } from "shared";
+import { CustomMessages, languageConfigs, type InitOptions } from "shared";
 import { CancellationTokenSource, Uri, window, workspace, type ExtensionContext, type LogOutputChannel } from "vscode";
 import { type BaseLanguageClient, type LanguageClientOptions } from "vscode-languageclient";
 
@@ -78,7 +78,7 @@ export class Client {
     }
   }
 
-  static create(factory: LanguageClientFactory, context: ExtensionContext) {
+  static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions) {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
     const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
@@ -88,6 +88,7 @@ export class Client {
       outputChannel: window.createOutputChannel(name + " Server", { log: true }),
       documentSelector: languageConfigs.map((lang) => lang.languageId),
       synchronize: { fileEvents: watcher },
+      initializationOptions,
     };
 
     return new Client(

@@ -6,7 +6,7 @@ import type { Configuration } from "../configuration";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Language } from "../languages";
-import { type SourceFile, type SuffixInfo, type SymbolInfo } from "../type";
+import type { SourceFile, SuffixInfo, SymbolInfo } from "../type";
 import { collectSuffixInfos, collectSymbolInfos, getCssEditRange, isCanDoCompleteCssNode } from "./common";
 
 export default class SassLanguage implements Language {
@@ -45,7 +45,7 @@ export default class SassLanguage implements Language {
     } while (cursor.next());
 
     return {
-      refs: Empty.set(),
+      refs: Empty.map(),
       class_names,
       id_names,
       used_class_names: Empty.map(),

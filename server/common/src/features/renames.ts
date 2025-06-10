@@ -14,8 +14,8 @@ import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import { SymbolRange, type SourceFile } from "../type";
-import { lspRange, parallel } from "../util";
+import type { SourceFile, SymbolRange } from "../type";
+import { lspRange, parallel, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class RenameProvider {
@@ -86,8 +86,8 @@ export class RenameProvider {
     }
 
     if (info.kind === "suffix") {
-      const suffixes = sourceFile.suffixes.get(info.range.from);
-      if (!suffixes) {
+      const suffix = sourceFile.suffixes.get(info.range.from);
+      if (!suffix) {
         return;
       }
 
@@ -98,27 +98,60 @@ export class RenameProvider {
       for (const [_uri, _sourceFile] of this._symbols.index) {
         if (_sourceFile.refs.has(uri) || sourceFile.refs.has(_uri) || uri === _uri) {
           const ranges: [SymbolRange, string?][] = [];
-          const duplicateSuffixes = new Set<number>();
+          const duplicates = new Set<number>();
 
-          for (const symbol of suffixes) {
-            const [defProp, refProp] = this._getProp(symbol.kind);
-            const defRanges = _sourceFile[defProp].get(symbol.name);
-            const refRanges = _sourceFile[refProp].get(symbol.name);
+          for (const [name, kinds] of suffix.full_names) {
+            if (kinds & TriggeredSymbolKind.ClassName) {
+              const [defProp, refProp] = this._getProp(TriggeredSymbolKind.ClassName);
+              const defRanges = _sourceFile[defProp].get(name);
+              const refRanges = _sourceFile[refProp].get(name);
 
-            if (defRanges) {
-              for (const range of defRanges) {
-                // remove duplicate suffixes range
-                if (range.suffix && !duplicateSuffixes.has(range.from)) {
-                  duplicateSuffixes.add(range.from);
-                  ranges.push([range]);
+              if (defRanges) {
+                for (const from of defRanges.suffix_ranges) {
+                  if (duplicates.has(from)) {
+                    continue;
+                  }
+                  duplicates.add(from);
+
+                  const _suffixInfo = _sourceFile.suffixes.get(from);
+                  if (_suffixInfo) {
+                    ranges.push([{ from, to: _suffixInfo.to }]);
+                  }
+                }
+              }
+
+              if (refRanges) {
+                const fullNewText = name.slice(0, -suffixLen) + newText;
+                for (const range of refRanges.ranges) {
+                  ranges.push([range, fullNewText]);
                 }
               }
             }
 
-            if (refRanges) {
-              const fullNewText = symbol.name.slice(0, -suffixLen) + newText;
-              for (const range of refRanges) {
-                ranges.push([range, fullNewText]);
+            if (kinds & TriggeredSymbolKind.IdName) {
+              const [defProp, refProp] = this._getProp(TriggeredSymbolKind.IdName);
+              const defRanges = _sourceFile[defProp].get(name);
+              const refRanges = _sourceFile[refProp].get(name);
+
+              if (defRanges) {
+                for (const from of defRanges.suffix_ranges) {
+                  if (duplicates.has(from)) {
+                    continue;
+                  }
+                  duplicates.add(from);
+
+                  const _suffixInfo = _sourceFile.suffixes.get(from);
+                  if (_suffixInfo) {
+                    ranges.push([{ from, to: _suffixInfo.to }]);
+                  }
+                }
+              }
+
+              if (refRanges) {
+                const fullNewText = name.slice(0, -suffixLen) + newText;
+                for (const range of refRanges.ranges) {
+                  ranges.push([range, fullNewText]);
+                }
               }
             }
           }
@@ -163,15 +196,11 @@ export class RenameProvider {
 
         const ranges: SymbolRange[] = [];
         if (defRanges) {
-          for (const range of defRanges) {
-            if (!range.suffix) {
-              ranges.push(range);
-            }
-          }
+          ranges.push(...defRanges.ranges);
         }
 
         if (refRanges) {
-          ranges.push(...refRanges);
+          ranges.push(...refRanges.ranges);
         }
 
         if (ranges.length > 0) {
@@ -190,13 +219,13 @@ export class RenameProvider {
 
   private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | { kind: "suffix"; range: SymbolRange } | undefined {
     if (node.type.is("ClassName") || node.type.is("UsedClassName")) {
-      return { kind: TriggeredSymbolKind.ClassName, range: SymbolRange.fromNode(node) };
+      return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
     if (node.type.is("IdName") || node.type.is("UsedIdName")) {
-      return { kind: TriggeredSymbolKind.IdName, range: SymbolRange.fromNode(node) };
+      return { kind: TriggeredSymbolKind.IdName, range: textRange(node) };
     }
     if (node.type.is("Suffix")) {
-      return { kind: "suffix", range: SymbolRange.fromNode(node, true) };
+      return { kind: "suffix", range: textRange(node) };
     }
   }
 

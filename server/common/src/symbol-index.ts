@@ -114,7 +114,6 @@ export class SymbolIndex implements Disposable {
         this._asyncQueue.enqueue(uri);
       } else {
         obsolete.add(uri);
-        this._syncQueue.enqueue(uri);
       }
     }
 
@@ -122,7 +121,7 @@ export class SymbolIndex implements Disposable {
       this._syncQueue.enqueue(uri);
     }
 
-    await this._storage.delete(obsolete);
+    this._storage.delete(obsolete);
 
     logger.log(
       `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,

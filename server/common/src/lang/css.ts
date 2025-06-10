@@ -37,7 +37,7 @@ export default class CssLanguage implements Language {
     } while (cursor.next());
 
     return {
-      refs: Empty.set(),
+      refs: Empty.map(),
       class_names,
       id_names,
       used_class_names: Empty.map(),

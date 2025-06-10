@@ -1,4 +1,5 @@
 import { Server } from "server-common";
+import { NoopSymbolStorage } from "server-common/src/symbol-storage";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -6,6 +7,7 @@ import {
   createConnection,
   ProposedFeatures,
 } from "vscode-languageserver/browser";
+import { IndexedDBSymbolStorage } from "./storage";
 
 const messageReader = new BrowserMessageReader(self);
 const messageWriter = new BrowserMessageWriter(self);
@@ -36,4 +38,12 @@ _global.scheduler = {
 
 _global.concurrency = navigator.hardwareConcurrency ?? 4;
 
-Server.create(connection);
+Server.create(connection, {
+  async create(options) {
+    if (options.databaseName) {
+      return await IndexedDBSymbolStorage.create(options.databaseName);
+    } else {
+      return new NoopSymbolStorage();
+    }
+  },
+});

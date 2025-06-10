@@ -1,7 +1,7 @@
-import { type Connection, type DocumentUri } from "vscode-languageserver";
+import { Disposable, type Connection, type DocumentUri } from "vscode-languageserver";
 import { URI, Utils } from "vscode-uri";
 
-export class Configuration {
+export class Configuration implements Disposable {
   readonly parallel: number = concurrency;
   constructor(private readonly _connection: Connection) {}
 
@@ -19,4 +19,6 @@ export class Configuration {
     logger.warn("can't resolve uri  " + ref);
     return ref;
   }
+
+  dispose(): void {}
 }

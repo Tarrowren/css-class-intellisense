@@ -1,30 +1,21 @@
 import type { Disposable, DocumentUri } from "vscode-languageserver";
+import { Empty } from "./empty";
 import type { SourceFile } from "./type";
 
 export interface SymbolStorage extends Disposable {
   insert(uri: DocumentUri, info: SourceFile): void;
+  delete(uris: Set<DocumentUri>): void;
   getAll(): Promise<Map<DocumentUri, SourceFile>>;
-  delete(uris: Set<DocumentUri>): Promise<void>;
 }
 
-export class MemorySymbolStorage implements SymbolStorage {
-  private readonly _cache = new Map<string, SourceFile>();
+export class NoopSymbolStorage implements SymbolStorage {
+  insert(_uri: DocumentUri, _info: SourceFile): void {}
 
-  insert(uri: string, info: SourceFile): void {
-    this._cache.set(uri, info);
+  delete(_uris: Set<DocumentUri>): void {}
+
+  async getAll(): Promise<Map<DocumentUri, SourceFile>> {
+    return Empty.map();
   }
 
-  async getAll(): Promise<Map<string, SourceFile>> {
-    return this._cache;
-  }
-
-  async delete(uris: Set<string>): Promise<void> {
-    for (const uri of uris) {
-      this._cache.delete(uri);
-    }
-  }
-
-  dispose(): void {
-    this._cache.clear();
-  }
+  dispose(): void {}
 }

@@ -4,6 +4,7 @@
   "type": "commonjs",
   "dependencies": {
     "server-common": "*",
+    "typia": "^9.3.1",
     "vscode-languageserver": "^9.0.1"
   }
 }

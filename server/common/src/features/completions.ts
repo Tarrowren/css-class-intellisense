@@ -78,17 +78,17 @@ export class CompletionItemProvider {
   private _collectDefinition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
-    for (const [name] of sourceFile[prop]) {
+    for (const name of sourceFile[prop].keys()) {
       result.set(name, { label: name, kind: CompletionItemKind.Variable });
     }
 
-    for (const _uri of sourceFile.refs) {
+    for (const _uri of sourceFile.refs.keys()) {
       const _sourceFile = this._symbols.index.get(_uri);
       if (!_sourceFile) {
         continue;
       }
 
-      for (const [name] of _sourceFile[prop]) {
+      for (const name of _sourceFile[prop].keys()) {
         result.set(name, { label: name, kind: CompletionItemKind.Variable });
       }
     }
@@ -101,10 +101,10 @@ export class CompletionItemProvider {
 
     for (const [_uri, _sourceFile] of this._symbols.index) {
       if (_sourceFile.refs.has(uri) || uri === _uri) {
-        for (const [name] of _sourceFile.used_class_names) {
+        for (const name of _sourceFile.used_class_names.keys()) {
           result.set(name, { label: "." + name, kind: CompletionItemKind.Variable });
         }
-        for (const [name] of _sourceFile.used_id_names) {
+        for (const name of _sourceFile.used_id_names.keys()) {
           result.set(name, { label: "#" + name, kind: CompletionItemKind.Variable });
         }
       }
