@@ -26,7 +26,7 @@ export class Client {
     );
 
     // init
-    const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
+    const lang_pattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
     const exclude = `{${[
       ...Object.keys(workspace.getConfiguration("search", null).get("exclude") ?? {}),
       ...Object.keys(workspace.getConfiguration("files", null).get("exclude") ?? {}),
@@ -81,7 +81,7 @@ export class Client {
   static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions) {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
-    const lang_pattern = `**/*.{${languageConfigs.map((lang) => lang.languageId).join(",")}}`;
+    const lang_pattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
     const watcher = workspace.createFileSystemWatcher(lang_pattern);
     context.subscriptions.push(watcher);
     const client_options: LanguageClientOptions = {
