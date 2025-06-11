@@ -30,24 +30,22 @@ export class FileSymbolStorage implements SymbolStorage {
   async getAll(): Promise<Map<DocumentUri, SourceFile>> {
     this._data.clear();
 
-    let wrap: _Wrap | null | undefined;
+    let wrap: _Wrap;
     try {
       const raw = await readFile(this._db_path);
-      wrap = typia.protobuf.isDecode<_Wrap>(raw);
+      wrap = typia.protobuf.assertDecode<_Wrap>(raw);
     } catch (_err) {
-      // ignore
-    }
-
-    if (!wrap) {
       return Empty.map();
     }
 
     const result = new Map<DocumentUri, SourceFile>();
     for (const [uri, raw] of wrap.data) {
-      const info = typia.protobuf.isDecode<SourceFile>(raw);
-      if (info) {
+      try {
+        const info = typia.protobuf.assertDecode<SourceFile>(raw);
         this._data.set(uri, raw);
         result.set(uri, info);
+      } catch (_err) {
+        // ignore
       }
     }
     return result;

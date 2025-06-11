@@ -37,9 +37,11 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
         }
 
         if (typeof cursor.result.key === "string" && cursor.result.value instanceof Uint8Array) {
-          const value = typia.protobuf.isDecode(cursor.result.value);
-          if (value) {
+          try {
+            const value = typia.protobuf.assertDecode<SourceFile>(cursor.result.value);
             data.set(cursor.result.key, value);
+          } catch (_err) {
+            // ignore
           }
         }
 
