@@ -16,6 +16,8 @@ export class SassCacheEntry implements LanguageCacheEntry {
   usedIds: Map<string, Range[]>;
   classNames: Map<string, Range[]>;
   ids: Map<string, Range[]>;
+  classRules?: Map<string, string>;
+  idRules?: Map<string, string>;
 
   constructor(document: TextDocument, indented = false) {
     this.tree = LEZER_SASS.parser.configure({ dialect: indented ? "indented" : undefined }).parse(document.getText());
@@ -25,6 +27,8 @@ export class SassCacheEntry implements LanguageCacheEntry {
     this.usedIds = emptyMap();
     this.classNames = new Map<string, Range[]>();
     this.ids = new Map<string, Range[]>();
+    this.classRules = undefined;
+    this.idRules = undefined;
 
     this.tree.cursor().iterate((ref) => {
       if (ref.type === SASS_NODE_TYPE.ClassName) {

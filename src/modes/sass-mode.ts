@@ -1,12 +1,16 @@
-import { Location, Position, Range, TextDocument, Uri, workspace } from "vscode";
+import { CompletionItem, CompletionItemKind, Location, Position, Range, TextDocument, Uri, workspace } from "vscode";
 import { LanguageModelCache } from "../caches/cache";
 import { LanguageCacheEntry } from "../caches/language-caches";
 import { SassCacheEntry } from "../caches/sass-cache";
 import { Configuration } from "../config";
+import { CSS_NODE_TYPE } from "../lezer/css";
 import { SASS_NODE_TYPE } from "../lezer/sass";
 import { ReferenceMap } from "../reference-map";
 import { logError } from "../runner";
+import { cssDoComplete } from "../util/css-class-name";
+import { getCssInsertionRange } from "../util/name-range";
 import { getText } from "../util/text-document";
+import { getRangeFromTuple } from "../util/text-document";
 import { LanguageMode } from "./language-modes";
 
 export class SassMode implements LanguageMode {
@@ -15,6 +19,69 @@ export class SassMode implements LanguageMode {
     private cache: LanguageModelCache<LanguageCacheEntry>,
     private referenceMap: ReferenceMap
   ) {}
+
+  async doComplete(document: TextDocument, position: Position): Promise<CompletionItem[] | undefined> {
+    if (this.config.lightweight) {
+      return;
+    }
+
+    const entry = this.cache.get(document);
+
+    const offset = document.offsetAt(position);
+    const cursor = entry.tree.cursorAt(offset);
+
+    if (!cssDoComplete(cursor.node, true)) { // For SASS, we allow nesting
+      return;
+    }
+
+    const refs = await this.referenceMap.getRefs(document.uri);
+    if (!refs || refs.size === 0) {
+      return;
+    }
+
+    const items = new Map<string, CompletionItem>();
+    const range = getRangeFromTuple(document, getCssInsertionRange(document.getText(), offset, entry.tree, cursor));
+
+    await Promise.all(
+      [...refs].map(async (ref) => {
+        try {
+          const uri = Uri.parse(ref);
+          const document = await workspace.openTextDocument(uri);
+          const entry = this.cache.get(document);
+          for (const name of entry.usedClassNames.keys()) {
+            const label = "." + name;
+            const item = new CompletionItem(label, CompletionItemKind.Field);
+            item.range = range;
+
+            // Add CSS rule content to the completion item if available
+            if (entry.classRules && entry.classRules.has(name)) {
+              const ruleContent = entry.classRules.get(name);
+              item.documentation = ruleContent;
+            }
+
+            items.set(label, item);
+          }
+          for (const name of entry.usedIds.keys()) {
+            const label = "#" + name;
+            const item = new CompletionItem(label, CompletionItemKind.Field);
+            item.range = range;
+
+            // Add CSS rule content to the completion item if available
+            if (entry.idRules && entry.idRules.has(name)) {
+              const ruleContent = entry.idRules.get(name);
+              item.documentation = ruleContent;
+            }
+
+            items.set(label, item);
+          }
+        } catch (e) {
+          logError(e, "do complete");
+        }
+      })
+    );
+
+    return [...items.values()];
+  }
 
   async findReferences(document: TextDocument, position: Position): Promise<Location[] | undefined> {
     if (this.config.lightweight) {

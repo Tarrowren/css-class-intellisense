@@ -46,6 +46,13 @@ export class HtmlMode implements LanguageMode {
         const label = "." + name;
         const item = new CompletionItem(label, CompletionItemKind.Field);
         item.range = range;
+
+        // Add CSS rule content to the completion item if available
+        if (entry.classRules && entry.classRules.has(name)) {
+          const ruleContent = entry.classRules.get(name);
+          item.documentation = ruleContent;
+        }
+
         items.set(label, item);
       }
 
@@ -53,6 +60,13 @@ export class HtmlMode implements LanguageMode {
         const label = "#" + name;
         const item = new CompletionItem(label, CompletionItemKind.Field);
         item.range = range;
+
+        // Add CSS rule content to the completion item if available
+        if (entry.idRules && entry.idRules.has(name)) {
+          const ruleContent = entry.idRules.get(name);
+          item.documentation = ruleContent;
+        }
+
         items.set(label, item);
       }
 
@@ -62,12 +76,15 @@ export class HtmlMode implements LanguageMode {
     const attr = this.getAttributeName(document, cursor);
 
     let fn: (entry: LanguageCacheEntry) => Map<string, Range[]>;
+    let fnRules: (entry: LanguageCacheEntry) => Map<string, string> | undefined;
     let kind: CompletionItemKind;
     if (attr === "class") {
       fn = (entry) => entry.classNames;
+      fnRules = (entry) => entry.classRules;
       kind = CompletionItemKind.Class;
     } else if (attr === "id") {
       fn = (entry) => entry.ids;
+      fnRules = (entry) => entry.idRules;
       kind = CompletionItemKind.Field;
     } else {
       return;
@@ -80,6 +97,14 @@ export class HtmlMode implements LanguageMode {
       if (!items.has(label)) {
         const item = new CompletionItem(label, kind);
         item.range = range;
+
+        // Add CSS rule content to the completion item if available
+        const rules = fnRules(entry);
+        if (rules && rules.has(label)) {
+          const ruleContent = rules.get(label);
+          item.documentation = ruleContent;
+        }
+
         items.set(label, item);
       }
     }
@@ -97,6 +122,14 @@ export class HtmlMode implements LanguageMode {
               if (!items.has(label)) {
                 const item = new CompletionItem(label, kind);
                 item.range = range;
+
+                // Add CSS rule content to the completion item if available
+                const rules = fnRules(entry);
+                if (rules && rules.has(label)) {
+                  const ruleContent = rules.get(label);
+                  item.documentation = ruleContent;
+                }
+
                 items.set(label, item);
               }
             }

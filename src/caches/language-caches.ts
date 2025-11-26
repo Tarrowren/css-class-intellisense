@@ -38,4 +38,6 @@ export interface LanguageCacheEntry {
   readonly usedIds: Map<string, Range[]>;
   readonly classNames: Map<string, Range[]>;
   readonly ids: Map<string, Range[]>;
+  readonly classRules?: Map<string, string>; // CSS rule content for each class name
+  readonly idRules?: Map<string, string>; // CSS rule content for each id
 }

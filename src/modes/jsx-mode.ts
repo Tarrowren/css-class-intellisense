@@ -52,6 +52,13 @@ export class JsxMode implements LanguageMode {
                 if (!items.has(label)) {
                   const item = new CompletionItem(label, CompletionItemKind.Class);
                   item.range = range;
+
+                  // Add CSS rule content to the completion item if available
+                  if (entry.classRules && entry.classRules.has(label)) {
+                    const ruleContent = entry.classRules.get(label);
+                    item.documentation = ruleContent;
+                  }
+
                   items.set(label, item);
                 }
               }

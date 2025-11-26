@@ -50,12 +50,26 @@ export class CssMode implements LanguageMode {
             const label = "." + name;
             const item = new CompletionItem(label, CompletionItemKind.Field);
             item.range = range;
+
+            // Add CSS rule content to the completion item if available
+            if (entry.classRules && entry.classRules.has(name)) {
+              const ruleContent = entry.classRules.get(name);
+              item.documentation = ruleContent;
+            }
+
             items.set(label, item);
           }
           for (const name of entry.usedIds.keys()) {
             const label = "#" + name;
             const item = new CompletionItem(label, CompletionItemKind.Field);
             item.range = range;
+
+            // Add CSS rule content to the completion item if available
+            if (entry.idRules && entry.idRules.has(name)) {
+              const ruleContent = entry.idRules.get(name);
+              item.documentation = ruleContent;
+            }
+
             items.set(label, item);
           }
         } catch (e) {

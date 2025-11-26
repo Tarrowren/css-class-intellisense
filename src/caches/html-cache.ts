@@ -26,6 +26,8 @@ export class HtmlCacheEntry implements LanguageCacheEntry {
   usedIds: Map<string, Range[]>;
   classNames: Map<string, Range[]>;
   ids: Map<string, Range[]>;
+  classRules?: Map<string, string>;
+  idRules?: Map<string, string>;
 
   constructor(private document: TextDocument) {
     this.tree = HTML_PARSER.parse(document.getText());
@@ -35,6 +37,8 @@ export class HtmlCacheEntry implements LanguageCacheEntry {
     this.usedIds = new Map<string, Range[]>();
     this.classNames = new Map<string, Range[]>();
     this.ids = new Map<string, Range[]>();
+    this.classRules = undefined;
+    this.idRules = undefined;
 
     this.tree.cursor().iterate((ref) => {
       if (ref.type === HTML_NODE_TYPE.SelfClosingTag) {

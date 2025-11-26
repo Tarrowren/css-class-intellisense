@@ -15,6 +15,8 @@ export class JsxCacheEntry implements LanguageCacheEntry {
   usedIds: Map<string, Range[]>;
   classNames: Map<string, Range[]>;
   ids: Map<string, Range[]>;
+  classRules?: Map<string, string>;
+  idRules?: Map<string, string>;
 
   constructor(document: TextDocument, ts = false) {
     this.tree = LEZER_JS.parser.configure({ dialect: ts ? "ts jsx" : "jsx" }).parse(document.getText());
@@ -24,6 +26,8 @@ export class JsxCacheEntry implements LanguageCacheEntry {
     this.usedIds = emptyMap();
     this.classNames = emptyMap();
     this.ids = emptyMap();
+    this.classRules = undefined;
+    this.idRules = undefined;
 
     this.tree.cursor().iterate((ref) => {
       if (ref.type === JS_NODE_TYPE.ImportDeclaration) {
