@@ -9,7 +9,7 @@
     { "path": "./server/common" },
     { "path": "./server/browser" },
     { "path": "./server/node" },
-    { "path": "./tsconfig.esbuild.json" },
-    { "path": "./tsconfig.eslint.json" }
+    //
+    { "path": "./tsconfig.config.json" }
   ]
 }

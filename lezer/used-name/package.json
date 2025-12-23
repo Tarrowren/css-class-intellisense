@@ -5,15 +5,13 @@
   "main": "src/parser.js",
   "scripts": {
     "build": "lezer-generator src/name.grammar -o src/parser",
-    "prepare": "npm run build",
-    "test": "mocha test/test-*.js"
+    "prepare": "npm run build"
   },
   "devDependencies": {
-    "@lezer/generator": "^1.7.3",
-    "mocha": "^11.5.0"
+    "@lezer/generator": "^1.8.0"
   },
   "dependencies": {
-    "@lezer/common": "^1.2.3",
-    "@lezer/lr": "^1.4.2"
+    "@lezer/common": "^1.5.0",
+    "@lezer/lr": "^1.4.5"
   }
 }

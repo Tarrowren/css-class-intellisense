@@ -9,7 +9,7 @@
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
       "outFiles": ["${workspaceFolder}/dist/node/**/*.js"],
       "autoAttachChildProcesses": true,
-      "preLaunchTask": "watch"
+      "preLaunchTask": "tsc-watch:check"
     }
   ]
 }

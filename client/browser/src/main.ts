@@ -5,7 +5,7 @@ import { LanguageClient } from "vscode-languageclient/browser";
 let client: Client | null | undefined;
 
 export async function activate(context: ExtensionContext) {
-  const server = Uri.joinPath(context.extensionUri, "dist/browser/server.js").toString();
+  const server = Uri.joinPath(context.extensionUri, "dist/browser/server.iife.js").toString();
 
   let databaseName = context.workspaceState.get<string>("dbName");
   if (!databaseName) {

@@ -50,14 +50,16 @@
       }
     ]
   },
-  "main": "dist/node/client.js",
-  "browser": "dist/browser/client.js",
+  "main": "dist/node/client.cjs",
+  "browser": "dist/browser/client.umd.js",
   "l10n": "l10n",
   "scripts": {
     "watch:check": "tsc -b -w",
+    "watch": "tsdown",
     "check": "tsc -b",
     "lint": "eslint --config eslint.config.ts",
-    "build": "jiti esbuild.ts --production",
+    "test": "vitest --run",
+    "build": "tsdown --env.NODE_ENV=production",
     "open-in-browser": "vscode-test-web --extensionDevelopmentPath=. ."
   },
   "repository": {
@@ -95,16 +97,14 @@
     "lezer/used-name"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.27.0",
-    "@ryoppippi/unplugin-typia": "^2.6.4",
-    "@types/minimist": "^1.2.5",
-    "@types/node": "^22.15.21",
-    "@vscode/test-web": "^0.0.69",
-    "esbuild": "^0.25.4",
-    "eslint": "^9.27.0",
-    "jiti": "^2.4.2",
-    "minimist": "^1.2.8",
+    "@eslint/js": "^9.39.2",
+    "@ryoppippi/unplugin-typia": "^2.6.5",
+    "@types/node": "^22.19.3",
+    "@vscode/test-web": "^0.0.77",
+    "eslint": "^9.39.2",
+    "tsdown": "^0.18.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.32.1"
+    "typescript-eslint": "^8.50.1",
+    "vitest": "^4.0.16"
   }
 }
