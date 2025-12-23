@@ -1,10 +1,13 @@
-import eslint from "@eslint/js";
+import { includeIgnoreFile } from "@eslint/compat";
+import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
-import tseslint from "typescript-eslint";
+import { resolve } from "node:path";
+import ts from "typescript-eslint";
 
 export default defineConfig(
   {
     files: [
+      "lezer/used-name/test/**/*.ts",
       "shared/src/**/*.ts",
       "client/common/src/**/*.ts",
       "client/node/src/**/*.ts",
@@ -14,9 +17,10 @@ export default defineConfig(
       "server/browser/src/**/*.ts",
     ],
   },
-  { ignores: ["*.ts", "dist"] },
-  eslint.configs.recommended,
-  tseslint.configs.recommended,
+  includeIgnoreFile(resolve(".gitignore")),
+  { ignores: ["*.config.mts", "lezer/used-name/src/**/*"] },
+  js.configs.recommended,
+  ts.configs.recommended,
   {
     rules: {
       "@typescript-eslint/no-empty-object-type": "off",

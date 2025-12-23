@@ -9,6 +9,7 @@ function entry(type: "client" | "server", platform: "node" | "browser"): TsdownI
 
 export default defineConfig(({ env }) => {
   const production = env?.NODE_ENV === "production";
+  const platform = env?.PLATFORM;
 
   const baseBuildOptions: UserConfig = {
     outDir: "dist",
@@ -36,7 +37,7 @@ export default defineConfig(({ env }) => {
     platform: "browser",
   };
 
-  return [
+  const node: UserConfig[] = [
     {
       ...clientBuildOptions,
       ...nodeBuildOptions,
@@ -47,6 +48,9 @@ export default defineConfig(({ env }) => {
       ...nodeBuildOptions,
       entry: entry("server", "node"),
     },
+  ];
+
+  const browser: UserConfig[] = [
     {
       ...clientBuildOptions,
       ...browserBuildOptions,
@@ -64,4 +68,13 @@ export default defineConfig(({ env }) => {
       entry: entry("server", "browser"),
     },
   ];
+
+  switch (platform) {
+    case "node":
+      return node;
+    case "browser":
+      return browser;
+    default:
+      return [...node, ...browser];
+  }
 });

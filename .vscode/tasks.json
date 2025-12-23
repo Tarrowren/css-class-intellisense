@@ -2,6 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "watch",
+      "dependsOn": ["tsc-watch:check", "tsdown-watch"],
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
       "label": "tsc-watch:check",
       "type": "npm",
       "script": "watch:check",
@@ -35,10 +46,10 @@
           "background": {
             "activeOnStart": true,
             "beginsPattern": {
-              "regexp": "^ℹ Found"
+              "regexp": "^ℹ"
             },
             "endsPattern": {
-              "regexp": "^✔ Rebuilt in"
+              "regexp": "^✔"
             }
           }
         }
