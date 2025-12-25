@@ -2,7 +2,7 @@ import { parseMixed, type Tree } from "@lezer/common";
 import { parser as cssParser } from "@lezer/css";
 import { parser as htmlParser } from "@lezer/html";
 import type { LRParser } from "@lezer/lr";
-import { parser as classNamesParser } from "used-name";
+import { parser as classNamesParser } from "lezer-used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";

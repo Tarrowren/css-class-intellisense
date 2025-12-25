@@ -9,6 +9,7 @@ import { Href } from "./href";
 import CssLanguage from "./lang/css";
 import HtmlLanguage from "./lang/html";
 import JsxLanguage from "./lang/javascriptreact";
+import LessLanguage from "./lang/less";
 import PhpLanguage from "./lang/php";
 import SassLanguage from "./lang/sass";
 import VueLanguage from "./lang/vue";
@@ -62,8 +63,8 @@ export class Languages implements Disposable {
         return new SassLanguage(this._configuration);
       case "sass":
         return new SassLanguage(this._configuration, true);
-      // case "less":
-      //   break;
+      case "less":
+        return new LessLanguage(this._configuration);
       default:
         return null;
     }

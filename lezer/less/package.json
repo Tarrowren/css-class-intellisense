@@ -1,10 +1,10 @@
 {
-  "name": "lezer-used-name",
+  "name": "lezer-less",
   "version": "1.0.0",
   "type": "module",
   "main": "src/parser.js",
   "scripts": {
-    "build": "lezer-generator src/name.grammar -o src/parser",
+    "build": "lezer-generator src/less.grammar -o src/parser",
     "prepare": "npm run build"
   },
   "devDependencies": {

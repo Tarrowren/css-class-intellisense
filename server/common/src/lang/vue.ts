@@ -4,7 +4,7 @@ import { parser as htmlParser } from "@lezer/html";
 import { parser as jsParser } from "@lezer/javascript";
 import type { LRParser } from "@lezer/lr";
 import { parser as scssParser } from "@lezer/sass";
-import { parser as classNamesParser } from "used-name";
+import { parser as classNamesParser } from "lezer-used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Href } from "../href";

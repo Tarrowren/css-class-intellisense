@@ -94,7 +94,8 @@
     "server/common",
     "server/node",
     "server/browser",
-    "lezer/used-name"
+    "lezer/used-name",
+    "lezer/less"
   ],
   "devDependencies": {
     "@eslint/compat": "^2.0.0",
