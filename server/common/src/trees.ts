@@ -5,6 +5,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Cache } from "./cache";
 import type { DocumentStore } from "./document-store";
 import type { Language } from "./languages";
+import { Spin } from "./spin";
 import { StopWatch } from "./stop-watch";
 
 interface Edit {
@@ -108,7 +109,7 @@ export class Trees implements Disposable {
   }
 }
 
-let spin = 4096;
+const spin = Spin.create(4096);
 async function parse(
   parser: LRParser,
   input: string,
@@ -121,7 +122,7 @@ async function parse(
   for (;;) {
     const sw = StopWatch.create();
 
-    for (let i = 0; i < spin; i++) {
+    for (let i = 0; i < spin.value; i++) {
       tree = parse.advance();
       if (tree) {
         break;
@@ -132,7 +133,7 @@ async function parse(
     logger.debug(`[Async Parse] spin: ${spin}, time: ${time.toFixed(2)}`);
 
     if (time > 16) {
-      spin >>= 1;
+      spin.decrease();
     }
 
     if (tree) {
@@ -140,7 +141,7 @@ async function parse(
     }
 
     if (time <= 16) {
-      spin += spin >> 4;
+      spin.increase();
     }
 
     await scheduler.yield();

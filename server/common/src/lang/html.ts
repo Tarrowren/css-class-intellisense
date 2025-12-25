@@ -1,21 +1,21 @@
-import { parseMixed, type SyntaxNode, type Tree } from "@lezer/common";
+import { parseMixed, type Tree } from "@lezer/common";
 import { parser as cssParser } from "@lezer/css";
 import { parser as htmlParser } from "@lezer/html";
 import type { LRParser } from "@lezer/lr";
 import { parser as classNamesParser } from "used-name";
 import type { DocumentUri } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
+import type { Href } from "../href";
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
 import { textRange } from "../util";
-import { collectSymbolInfos, getCssEditRange, getNodeText, isCanDoCompleteCssNode } from "./common";
+import { collectSymbolInfos, getCssEditRange, getHrefFromLink, isCanDoCompleteCssNode } from "./common";
 
 const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
 export default class HtmlLanguage implements Language {
-  constructor(private readonly _configuration: Configuration) {}
+  constructor(private readonly _href: Href) {}
 
   readonly parser: LRParser = htmlParser.configure({
     wrap: parseMixed((node, input) => {
@@ -97,42 +97,9 @@ export default class HtmlLanguage implements Language {
 
     do {
       if (cursor.type.is("Element")) {
-        const elNode = cursor.node;
-        const openTagNode = elNode.firstChild;
-        if (!openTagNode) {
-          continue;
-        }
-
-        const tagNameNode = openTagNode.getChild("TagName");
-        if (!tagNameNode) {
-          continue;
-        }
-
-        const tagName = getNodeText(input, tagNameNode);
-        if (tagName !== "link") {
-          continue;
-        }
-
-        for (const att of openTagNode.getChildren("Attribute")) {
-          const attNameNode = att.getChild("AttributeName");
-          if (!attNameNode) {
-            continue;
-          }
-          const attName = getNodeText(input, attNameNode);
-          if (attName !== "href") {
-            continue;
-          }
-
-          let attValueNode: SyntaxNode | null;
-          if ((attValueNode = att.getChild("AttributeValue"))) {
-            const attValue = getNodeText(input, attValueNode).slice(1, -1);
-            refs.set(this._configuration.resolve(uri, attValue), true);
-          } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-            const attValue = getNodeText(input, attValueNode);
-            refs.set(this._configuration.resolve(uri, attValue), true);
-          }
-
-          break;
+        const href = getHrefFromLink(input, cursor);
+        if (href) {
+          refs.set(this._href.resolve(uri, href), true);
         }
       } else if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);

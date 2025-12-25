@@ -6,8 +6,8 @@ import type { LRParser } from "@lezer/lr";
 import { parser as scssParser } from "@lezer/sass";
 import { parser as classNamesParser } from "used-name";
 import type { DocumentUri } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
+import type { Href } from "../href";
 import type { Language } from "../languages";
 import type { SourceFile, SuffixInfo, SymbolInfo } from "../type";
 import { textRange } from "../util";
@@ -28,7 +28,7 @@ const sassParser = scssParser.configure({ dialect: "indented" });
 const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
 export default class VueLanguage implements Language {
-  constructor(private readonly _configuration: Configuration) {}
+  constructor(private readonly _href: Href) {}
 
   readonly parser: LRParser = htmlParser.configure({
     dialect: "selfClosing",
@@ -118,7 +118,7 @@ export default class VueLanguage implements Language {
       if (cursor.type.is("ImportDeclaration")) {
         const href = getHrefFromImport(input, cursor);
         if (href) {
-          refs.set(this._configuration.resolve(uri, href), true);
+          refs.set(this._href.resolve(uri, href), true);
         }
       } else if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);

@@ -37,6 +37,7 @@ _global.scheduler = {
 };
 
 _global.concurrency = navigator.hardwareConcurrency ?? 4;
+_global.fs = {};
 
 Server.create(connection, {
   async create(options) {

@@ -18,7 +18,7 @@ export class DefinitionProvider {
     private readonly _symbols: SymbolIndex,
   ) {}
 
-  async provideDefinition(params: DefinitionParams): Promise<Location[] | undefined> {
+  async provideDefinition(params: DefinitionParams, token: CancellationToken): Promise<Location[] | undefined> {
     const uri = params.textDocument.uri;
     const document = this._documents.get(uri);
     if (!document) {
@@ -31,6 +31,9 @@ export class DefinitionProvider {
     }
 
     const tree = await this._trees.getParseTree(document, language);
+    if (token.isCancellationRequested) {
+      return;
+    }
     const pos = document.offsetAt(params.position);
     const info = this._getInfo(tree.resolve(pos, -1)) ?? this._getInfo(tree.resolve(pos, 1));
     if (!info) {
@@ -38,6 +41,9 @@ export class DefinitionProvider {
     }
 
     await this._symbols.update();
+    if (token.isCancellationRequested) {
+      return;
+    }
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;

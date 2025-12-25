@@ -5,17 +5,22 @@ import type { Disposable, DocumentUri } from "vscode-languageserver";
 import { URI, Utils } from "vscode-uri";
 import type { Configuration } from "./configuration";
 import type { CompletionTriggeredSymbolInfo } from "./features/common";
+import { Href } from "./href";
 import CssLanguage from "./lang/css";
 import HtmlLanguage from "./lang/html";
 import JsxLanguage from "./lang/javascriptreact";
+import PhpLanguage from "./lang/php";
 import SassLanguage from "./lang/sass";
 import VueLanguage from "./lang/vue";
 import type { SourceFile } from "./type";
 
 export class Languages implements Disposable {
   private readonly _instances = new Map<string, Language | null>();
+  private readonly _href: Href;
 
-  constructor(private readonly _configuration: Configuration) {}
+  constructor(private readonly _configuration: Configuration) {
+    this._href = new Href(_configuration);
+  }
 
   getLanguageIdByUri(uri: DocumentUri): string {
     const suffix = Utils.extname(URI.parse(uri)).substring(1);
@@ -42,15 +47,15 @@ export class Languages implements Disposable {
   private _createInstance(languageId: string): Language | null {
     switch (languageId) {
       case "html":
-        return new HtmlLanguage(this._configuration);
+        return new HtmlLanguage(this._href);
       case "javascriptreact":
-        return new JsxLanguage(this._configuration);
+        return new JsxLanguage(this._href);
       case "typescriptreact":
-        return new JsxLanguage(this._configuration, true);
+        return new JsxLanguage(this._href, true);
       case "vue":
-        return new VueLanguage(this._configuration);
-      // case "php":
-      //   break;
+        return new VueLanguage(this._href);
+      case "php":
+        return new PhpLanguage(this._href);
       case "css":
         return new CssLanguage(this._configuration);
       case "scss":

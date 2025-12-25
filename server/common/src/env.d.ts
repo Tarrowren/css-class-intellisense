@@ -8,6 +8,10 @@ declare class TextDecoder {
   decode(input: Uint8Array): string;
 }
 
+declare const fs: {
+  readFile?(path: string): Promise<Uint8Array>;
+};
+
 declare const logger: import("./logger").Logger;
 
 declare const scheduler: {

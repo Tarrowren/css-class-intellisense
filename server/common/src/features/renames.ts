@@ -57,7 +57,7 @@ export class RenameProvider {
     return lspRange(document, info.range);
   }
 
-  async provideRenameEdits(params: RenameParams): Promise<WorkspaceEdit | undefined> {
+  async provideRenameEdits(params: RenameParams, token: CancellationToken): Promise<WorkspaceEdit | undefined> {
     const uri = params.textDocument.uri;
     const document = this._documents.get(uri);
     if (!document) {
@@ -70,6 +70,9 @@ export class RenameProvider {
     }
 
     const tree = await this._trees.getParseTree(document, language);
+    if (token.isCancellationRequested) {
+      return;
+    }
     const pos = document.offsetAt(params.position);
     const info =
       this._getInfo(tree.resolve(pos, -1)) ??
@@ -80,6 +83,9 @@ export class RenameProvider {
     }
 
     await this._symbols.update();
+    if (token.isCancellationRequested) {
+      return;
+    }
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;

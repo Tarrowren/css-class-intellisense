@@ -7,6 +7,8 @@ import type { SourceFile } from "server-common/src/type";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
 
+declare const logger: import("server-common").Logger;
+
 enum ActionType {
   Save,
   Delete,
@@ -92,7 +94,7 @@ export class FileSymbolStorage implements SymbolStorage {
     this._queue.clear();
 
     const buf = typia.protobuf.encode<_Wrap>({ data: this._data });
-    console.log("[Index] length:", buf.byteLength);
+    logger.info(`[Index] file size: ${buf.byteLength}`);
 
     if (sync) {
       return writeFileSync(this._db_path, buf);

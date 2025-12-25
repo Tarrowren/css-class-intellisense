@@ -14,6 +14,7 @@ import { DefinitionProvider } from "./features/definitions";
 import { ReferenceProvider } from "./features/references";
 import { RenameProvider } from "./features/renames";
 import { Languages } from "./languages";
+import { StopWatch } from "./stop-watch";
 import { SymbolIndex } from "./symbol-index";
 import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
@@ -34,25 +35,50 @@ export class Server {
 
       const completions = new CompletionItemProvider(languages, documents, trees, symbols);
       connection.onCompletion(async (params, token) => {
-        return await run(() => completions.provideCompletionItems(params), null, token);
+        const sw = StopWatch.create();
+        try {
+          return await run(() => completions.provideCompletionItems(params, token), null, token);
+        } finally {
+          logger.info(`[Completion] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+        }
       });
 
       const definitions = new DefinitionProvider(configuration, languages, documents, trees, symbols);
       connection.onDefinition(async (params, token) => {
-        return await run(() => definitions.provideDefinition(params), null, token);
+        const sw = StopWatch.create();
+        try {
+          return await run(() => definitions.provideDefinition(params, token), null, token);
+        } finally {
+          logger.info(`[Definition] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+        }
       });
 
       const references = new ReferenceProvider(configuration, languages, documents, trees, symbols);
       connection.onReferences(async (params, token) => {
-        return await run(() => references.provideReferences(params), null, token);
+        const sw = StopWatch.create();
+        try {
+          return await run(() => references.provideReferences(params, token), null, token);
+        } finally {
+          logger.info(`[References] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+        }
       });
 
       const renames = new RenameProvider(configuration, languages, documents, trees, symbols);
       connection.onPrepareRename(async (params, token) => {
-        return await run(() => renames.prepareRename(params), { defaultBehavior: true }, token);
+        const sw = StopWatch.create();
+        try {
+          return await run(() => renames.prepareRename(params), { defaultBehavior: true }, token);
+        } finally {
+          logger.info(`[PrepareRename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+        }
       });
       connection.onRenameRequest(async (params, token) => {
-        return await run(() => renames.provideRenameEdits(params), null, token);
+        const sw = StopWatch.create();
+        try {
+          return await run(() => renames.provideRenameEdits(params, token), null, token);
+        } finally {
+          logger.info(`[Rename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+        }
       });
 
       connection.onRequest(CustomMessages.QueueInit, async (uris) => {

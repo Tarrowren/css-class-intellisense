@@ -9,6 +9,7 @@ import {
   type Event,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { URI } from "vscode-uri";
 import { Cache } from "./cache";
 import { Empty } from "./empty";
 import type { Languages } from "./languages";
@@ -36,8 +37,12 @@ export class DocumentStore implements Disposable {
   private readonly _onDidClose = new Emitter<TextDocumentCloseEvent>();
 
   private readonly _decoder = new TextDecoder();
-  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>();
+  // TODO ttl
+  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>(64);
   private readonly _subscriptions: Disposable[] = [];
+
+  // TODO config
+  private readonly _useNodeFS: boolean = true;
 
   constructor(
     private readonly _connection: Connection,
@@ -137,8 +142,15 @@ export class DocumentStore implements Disposable {
 
   private async _requestDocument(uri: string): Promise<TextDocument> {
     const languageId = this._languages.getLanguageIdByUri(uri);
-    const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
-    const bytes = new Uint8Array(elements);
+
+    let bytes: Uint8Array;
+    if (this._useNodeFS && fs.readFile) {
+      bytes = await fs.readFile(URI.parse(uri).fsPath);
+    } else {
+      const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
+      bytes = new Uint8Array(elements);
+    }
+
     return TextDocument.create(uri, languageId, 1, this._decoder.decode(bytes));
   }
 

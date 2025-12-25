@@ -2,7 +2,7 @@ export class StopWatch {
   private constructor() {}
 
   private readonly _start = performance.now();
-  public _elapsed: number | null = null;
+  private _elapsed: number | null = null;
 
   private _stop(): number {
     if (this._elapsed === null) {

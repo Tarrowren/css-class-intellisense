@@ -163,15 +163,57 @@ export function collectSuffixInfos(
   }
 }
 
+export function getHrefFromLink(input: string, node: SyntaxNodeRef): string | undefined {
+  const elNode = node.node;
+  const openTagNode = elNode.firstChild;
+  if (!openTagNode) {
+    return;
+  }
+
+  const tagNameNode = openTagNode.getChild("TagName");
+  if (!tagNameNode) {
+    return;
+  }
+
+  const tagName = getNodeText(input, tagNameNode);
+  if (tagName !== "link") {
+    return;
+  }
+
+  for (const att of openTagNode.getChildren("Attribute")) {
+    const attNameNode = att.getChild("AttributeName");
+    if (!attNameNode) {
+      continue;
+    }
+    const attName = getNodeText(input, attNameNode);
+    if (attName !== "href") {
+      continue;
+    }
+
+    let attValueNode: SyntaxNode | null;
+    if ((attValueNode = att.getChild("AttributeValue"))) {
+      return _checkHref(getNodeText(input, attValueNode).slice(1, -1));
+    } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
+      return _checkHref(getNodeText(input, attValueNode));
+    }
+
+    return;
+  }
+}
+
 export function getHrefFromImport(input: string, node: SyntaxNodeRef): string | undefined {
   const str = node.node.getChild("String");
   if (!str) {
     return;
   }
 
-  const module = getNodeText(input, str).slice(1, -1);
+  return _checkHref(getNodeText(input, str).slice(1, -1));
+}
 
-  if (/(?<!\.module)\.(?:c|sc|sa|le)ss/.test(module)) {
-    return module;
+function _checkHref(href: string | undefined) {
+  if (href && /(?<!\.module)\.(?:c|sc|sa|le)ss/.test(href)) {
+    return href;
   }
+
+  return;
 }

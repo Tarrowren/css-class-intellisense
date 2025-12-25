@@ -1,4 +1,5 @@
 import {
+  CancellationToken,
   CompletionItemKind,
   Range,
   type CompletionItem,
@@ -22,7 +23,10 @@ export class CompletionItemProvider {
     private readonly _symbols: SymbolIndex,
   ) {}
 
-  async provideCompletionItems(params: CompletionParams): Promise<CompletionList | undefined> {
+  async provideCompletionItems(
+    params: CompletionParams,
+    token: CancellationToken,
+  ): Promise<CompletionList | undefined> {
     const uri = params.textDocument.uri;
     const document = this._documents.get(uri);
     if (!document) {
@@ -35,6 +39,9 @@ export class CompletionItemProvider {
     }
 
     const tree = await this._trees.getParseTree(document, language);
+    if (token.isCancellationRequested) {
+      return;
+    }
     const info = language.getCompletionTriggeredSymbolInfo(
       document.getText(),
       document.offsetAt(params.position),
@@ -45,6 +52,9 @@ export class CompletionItemProvider {
     }
 
     await this._symbols.update();
+    if (token.isCancellationRequested) {
+      return;
+    }
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;

@@ -3,10 +3,11 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Configuration } from "./configuration";
 import type { DocumentStore } from "./document-store";
 import type { Languages } from "./languages";
+import { StopWatch } from "./stop-watch";
 import type { SymbolStorage } from "./symbol-storage";
 import type { Trees } from "./trees";
 import type { SourceFile } from "./type";
-import { parallel, Queue, StopWatch } from "./util";
+import { parallel, Queue } from "./util";
 
 export class SymbolIndex implements Disposable {
   readonly index = new Map<DocumentUri, SourceFile>();
@@ -48,7 +49,7 @@ export class SymbolIndex implements Disposable {
       return;
     }
 
-    const sw = new StopWatch();
+    const sw = StopWatch.create();
     const tasks = uris.map(this._createIndexTask, this);
     const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
 
@@ -60,7 +61,7 @@ export class SymbolIndex implements Disposable {
     }
 
     logger.info(
-      `[index] (${async ? "async" : "sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
+      `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
     );
   }
 
@@ -69,16 +70,16 @@ export class SymbolIndex implements Disposable {
   ): () => Promise<{ readonly durationRetrieve: number; readonly durationIndex: number }> {
     return async () => {
       // fetch document
-      const _retrieve_time = new StopWatch();
+      const _retrieve_time = StopWatch.create();
       const document = await this._documents.retrieve(uri);
       const durationRetrieve = _retrieve_time.elapsed();
 
       // update index
-      const _index_time = new StopWatch();
+      const _index_time = StopWatch.create();
       try {
         await this._doIndex(document);
       } catch (e) {
-        logger.info(`FAILED to index ${uri} ${e}`);
+        logger.warn(`[Symbol Index] FAILED to index ${uri} ${e}`);
       }
       const durationIndex = _index_time.elapsed();
 
@@ -102,9 +103,9 @@ export class SymbolIndex implements Disposable {
 
   async initFiles(_uris: ReadonlyArray<DocumentUri>): Promise<void> {
     const uris = new Set(_uris);
-    const sw = new StopWatch();
+    const sw = StopWatch.create();
 
-    logger.info(`[index] initializing index for ${uris.size} files.`);
+    logger.info(`[Symbol Index] initializing index for ${uris.size} files.`);
     const persisted = await this._storage.getAll();
     const obsolete = new Set<string>();
 
@@ -124,7 +125,7 @@ export class SymbolIndex implements Disposable {
     this._storage.delete(obsolete);
 
     logger.info(
-      `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
+      `[Symbol Index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
     );
 
     await this.update();
@@ -139,7 +140,7 @@ export class SymbolIndex implements Disposable {
         break;
       }
 
-      const sw = new StopWatch();
+      const sw = StopWatch.create();
       await this._doUpdate(uris, true);
       await scheduler.wait(sw.elapsed() * 4, this._source.token);
     }

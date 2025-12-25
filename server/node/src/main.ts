@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
 import { Logger, Server } from "server-common";
 import { NoopSymbolStorage } from "server-common/src/symbol-storage";
@@ -33,6 +34,11 @@ _global.scheduler = {
 };
 
 _global.concurrency = cpus().length;
+_global.fs = {
+  async readFile(path: string): Promise<Uint8Array> {
+    return await readFile(path);
+  },
+};
 
 Server.create(connection, {
   async create(options) {

@@ -18,7 +18,7 @@ export class ReferenceProvider {
     private readonly _symbols: SymbolIndex,
   ) {}
 
-  async provideReferences(params: ReferenceParams): Promise<Location[] | undefined> {
+  async provideReferences(params: ReferenceParams, token: CancellationToken): Promise<Location[] | undefined> {
     const uri = params.textDocument.uri;
     const document = this._documents.get(uri);
     if (!document) {
@@ -31,6 +31,9 @@ export class ReferenceProvider {
     }
 
     const tree = await this._trees.getParseTree(document, language);
+    if (token.isCancellationRequested) {
+      return;
+    }
     const pos = document.offsetAt(params.position);
     const info =
       this._getInfo(tree.resolve(pos, -1)) ??
@@ -41,6 +44,9 @@ export class ReferenceProvider {
     }
 
     await this._symbols.update();
+    if (token.isCancellationRequested) {
+      return;
+    }
 
     if (info.kind === "suffix") {
       const sourceFile = this._symbols.index.get(uri);
