@@ -17,6 +17,7 @@ import { Languages } from "./languages";
 import { SymbolIndex } from "./symbol-index";
 import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
+export * from "./logger";
 
 export class Server {
   static create(connection: Connection, factory: StorageFactory) {

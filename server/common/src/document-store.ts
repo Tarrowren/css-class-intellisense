@@ -15,10 +15,12 @@ import type { Languages } from "./languages";
 
 export interface TextDocumentOpenEvent {
   readonly uri: DocumentUri;
+  readonly version: number;
 }
 
 export interface TextDocumentChangeEvent {
   readonly uri: DocumentUri;
+  readonly version: number;
   readonly changes: ReadonlyArray<ChangedRange>;
 }
 
@@ -34,7 +36,7 @@ export class DocumentStore implements Disposable {
   private readonly _onDidClose = new Emitter<TextDocumentCloseEvent>();
 
   private readonly _decoder = new TextDecoder();
-  private readonly _fileDocuments = new Cache<DocumentUri, Promise<TextDocument>>();
+  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>();
   private readonly _subscriptions: Disposable[] = [];
 
   constructor(
@@ -46,8 +48,8 @@ export class DocumentStore implements Disposable {
         const document = TextDocument.create(uri, languageId, version, text);
 
         this._syncedDocuments.set(uri, document);
-        this._onDidOpen.fire({ uri });
-        this._onDidChangeContent.fire({ uri, changes: Empty.array() });
+        this._onDidOpen.fire({ uri, version });
+        this._onDidChangeContent.fire({ uri, version, changes: Empty.array() });
       }),
     );
 
@@ -67,6 +69,7 @@ export class DocumentStore implements Disposable {
         this._syncedDocuments.set(uri, document);
         this._onDidChangeContent.fire({
           uri,
+          version,
           changes: contentChanges
             .filter(TextDocumentContentChangeEvent.isIncremental)
             .map<ChangedRange>(({ range, rangeLength, text }) => {

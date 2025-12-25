@@ -8,7 +8,7 @@ declare class TextDecoder {
   decode(input: Uint8Array): string;
 }
 
-declare const logger: import("vscode-languageserver").Logger;
+declare const logger: import("./logger").Logger;
 
 declare const scheduler: {
   wait(ms: number, token?: import("vscode-languageserver").CancellationToken): Promise<void>;

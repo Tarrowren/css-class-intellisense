@@ -3,8 +3,7 @@ import { CancellationTokenSource, Uri, window, workspace, type ExtensionContext,
 import { type BaseLanguageClient, type LanguageClientOptions } from "vscode-languageclient";
 
 export class Client {
-  private _source: CancellationTokenSource | null | undefined;
-  private readonly _encoder = new TextEncoder();
+  private _source = new CancellationTokenSource();
 
   private constructor(
     private readonly _client: BaseLanguageClient,
@@ -13,67 +12,45 @@ export class Client {
   ) {}
 
   async start() {
-    this._source = new CancellationTokenSource();
     await this._client.start();
 
     // readfile
     this._context.subscriptions.push(
       this._client.onRequest(CustomMessages.FileRead, async (uri_string) => {
         const uri = Uri.parse(uri_string);
-
         return await this._fs_read(uri);
       }),
     );
 
     // init
-    const lang_pattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
+    const include = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
     const exclude = `{${[
-      ...Object.keys(workspace.getConfiguration("search", null).get("exclude") ?? {}),
-      ...Object.keys(workspace.getConfiguration("files", null).get("exclude") ?? {}),
+      ...Object.keys(workspace.getConfiguration("search").get("exclude", {})),
+      ...Object.keys(workspace.getConfiguration("files").get("exclude", {})),
     ].join(",")}}`;
 
-    const all = await workspace.findFiles(lang_pattern, exclude, undefined, this._source.token);
-    for (const uri of all) {
-      this._logger.debug("find file", uri.toString());
-    }
-    await this._client.sendRequest(
-      CustomMessages.QueueInit,
-      all.map((uri) => uri.toString()),
-      this._source.token,
-    );
+    this._logger.info("[Init Index] include:", include);
+    this._logger.info("[Init Index] exclude:", exclude);
+
+    const uris = await workspace.findFiles(include, exclude, undefined, this._source.token);
+    const files = uris.map((uri) => {
+      const file = uri.toString();
+      this._logger.debug("[Init Index] find file", file);
+      return file;
+    });
+    await this._client.sendRequest(CustomMessages.QueueInit, files, this._source.token);
   }
 
   async stop() {
-    if (this._source) {
-      this._source.cancel();
-      this._source = null;
-    }
+    this._source.cancel();
     await this._client.stop();
   }
 
-  private async _vscode_read(uri: Uri) {
-    try {
-      const doc = await workspace.openTextDocument(uri);
-      return Array.from(this._encoder.encode(doc.getText()));
-    } catch (err) {
-      this._logger.warn("read file fail", err);
-      return [];
-    }
-  }
-
-  private async _fs_read(uri: Uri) {
-    if (uri.scheme === "vscode-notebook-cell") {
-      return await this._vscode_read(uri);
-    }
-
-    if (workspace.fs.isWritableFileSystem(uri.scheme) === undefined) {
-      return [];
-    }
-
+  private async _fs_read(uri: Uri): Promise<number[]> {
     try {
       return Array.from(await workspace.fs.readFile(uri));
     } catch (err) {
-      this._logger.warn("read file fail", err);
+      this._logger.warn("[File Read] fail", err);
       return [];
     }
   }
@@ -81,11 +58,13 @@ export class Client {
   static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions) {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
+
     const lang_pattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
     const watcher = workspace.createFileSystemWatcher(lang_pattern);
     context.subscriptions.push(watcher);
+
     const client_options: LanguageClientOptions = {
-      outputChannel: window.createOutputChannel(name + " Server", { log: true }),
+      outputChannel: window.createOutputChannel(name + " Server"),
       documentSelector: languageConfigs.map((lang) => lang.languageId),
       synchronize: { fileEvents: watcher },
       initializationOptions,

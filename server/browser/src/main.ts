@@ -1,4 +1,4 @@
-import { Server } from "server-common";
+import { Logger, Server } from "server-common";
 import { NoopSymbolStorage } from "server-common/src/symbol-storage";
 import {
   BrowserMessageReader,
@@ -16,7 +16,7 @@ const connection = createConnection(ProposedFeatures.all, messageReader, message
 
 const _global = self as unknown as Record<string, unknown>;
 
-_global.logger = connection.console;
+_global.logger = Logger.create(connection.console);
 _global.scheduler = {
   wait(ms: number, token?: CancellationToken): Promise<void> {
     if (token?.isCancellationRequested) {
@@ -40,9 +40,9 @@ _global.concurrency = navigator.hardwareConcurrency ?? 4;
 
 Server.create(connection, {
   async create(options) {
-    if (options.databaseName) {
+    try {
       return await IndexedDBSymbolStorage.create(options.databaseName);
-    } else {
+    } catch (_err) {
       return new NoopSymbolStorage();
     }
   },

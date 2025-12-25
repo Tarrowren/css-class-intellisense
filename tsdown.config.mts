@@ -16,6 +16,7 @@ export default defineConfig(({ env }) => {
     target: "es2020",
     minify: production,
     sourcemap: !production,
+    clean: production,
   };
 
   const clientBuildOptions: UserConfig = {

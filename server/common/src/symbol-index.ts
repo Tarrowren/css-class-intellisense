@@ -59,7 +59,7 @@ export class SymbolIndex implements Disposable {
       totalIndex += stat.durationIndex;
     }
 
-    logger.log(
+    logger.info(
       `[index] (${async ? "async" : "sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
     );
   }
@@ -78,7 +78,7 @@ export class SymbolIndex implements Disposable {
       try {
         await this._doIndex(document);
       } catch (e) {
-        logger.log(`FAILED to index ${uri} ${e}`);
+        logger.info(`FAILED to index ${uri} ${e}`);
       }
       const durationIndex = _index_time.elapsed();
 
@@ -104,7 +104,7 @@ export class SymbolIndex implements Disposable {
     const uris = new Set(_uris);
     const sw = new StopWatch();
 
-    logger.log(`[index] initializing index for ${uris.size} files.`);
+    logger.info(`[index] initializing index for ${uris.size} files.`);
     const persisted = await this._storage.getAll();
     const obsolete = new Set<string>();
 
@@ -123,7 +123,7 @@ export class SymbolIndex implements Disposable {
 
     this._storage.delete(obsolete);
 
-    logger.log(
+    logger.info(
       `[index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
     );
 
