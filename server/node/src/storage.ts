@@ -7,7 +7,7 @@ import type { SourceFile } from "server-common/src/type";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
 
-declare const logger: import("server-common").Logger;
+declare const logger: import("vscode-languageserver").RemoteConsole;
 
 enum ActionType {
   Save,

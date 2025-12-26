@@ -1,4 +1,4 @@
-import { Logger, Server } from "server-common";
+import { Server } from "server-common";
 import { NoopSymbolStorage } from "server-common/src/symbol-storage";
 import {
   BrowserMessageReader,
@@ -16,7 +16,7 @@ const connection = createConnection(ProposedFeatures.all, messageReader, message
 
 const _global = self as unknown as Record<string, unknown>;
 
-_global.logger = Logger.create(connection.console);
+_global.logger = connection.console;
 _global.scheduler = {
   wait(ms: number, token?: CancellationToken): Promise<void> {
     if (token?.isCancellationRequested) {

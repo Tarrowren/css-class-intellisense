@@ -10,7 +10,7 @@ export async function activate(context: ExtensionContext) {
   client = Client.create(
     (id, name, clientOptions) => {
       const worker = new Worker(server);
-      return new LanguageClient(id, name, clientOptions, worker);
+      return new LanguageClient(id, name, worker, clientOptions);
     },
     context,
     { databaseName: "css_class_intellisense" },

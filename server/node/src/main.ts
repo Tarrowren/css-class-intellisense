@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
-import { Logger, Server } from "server-common";
+import { Server } from "server-common";
 import { NoopSymbolStorage } from "server-common/src/symbol-storage";
 import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
@@ -13,7 +13,7 @@ process.on("unhandledRejection", (e) => {
 
 const _global = global as unknown as Record<string, unknown>;
 
-_global.logger = Logger.create(connection.console);
+_global.logger = connection.console;
 _global.scheduler = {
   wait(ms: number, token?: CancellationToken): Promise<void> {
     if (token?.isCancellationRequested) {

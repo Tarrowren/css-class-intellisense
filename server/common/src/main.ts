@@ -18,7 +18,6 @@ import { StopWatch } from "./stop-watch";
 import { SymbolIndex } from "./symbol-index";
 import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
-export * from "./logger";
 
 export class Server {
   static create(connection: Connection, factory: StorageFactory) {

@@ -64,7 +64,7 @@ export class Client {
     context.subscriptions.push(watcher);
 
     const client_options: LanguageClientOptions = {
-      outputChannel: window.createOutputChannel(name + " Server"),
+      outputChannel: window.createOutputChannel(name + " Server", { log: true }),
       documentSelector: languageConfigs.map((lang) => lang.languageId),
       synchronize: { fileEvents: watcher },
       initializationOptions,

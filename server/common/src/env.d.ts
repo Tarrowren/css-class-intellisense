@@ -12,7 +12,7 @@ declare const fs: {
   readFile?(path: string): Promise<Uint8Array>;
 };
 
-declare const logger: import("./logger").Logger;
+declare const logger: import("vscode-languageserver").RemoteConsole;
 
 declare const scheduler: {
   wait(ms: number, token?: import("vscode-languageserver").CancellationToken): Promise<void>;
