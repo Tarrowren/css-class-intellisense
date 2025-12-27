@@ -37,8 +37,7 @@ export class DocumentStore implements Disposable {
   private readonly _onDidClose = new Emitter<TextDocumentCloseEvent>();
 
   private readonly _decoder = new TextDecoder();
-  // TODO ttl
-  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>(64);
+  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>(256);
   private readonly _subscriptions: Disposable[] = [];
 
   // TODO config
@@ -143,15 +142,34 @@ export class DocumentStore implements Disposable {
   private async _requestDocument(uri: string): Promise<TextDocument> {
     const languageId = this._languages.getLanguageIdByUri(uri);
 
-    let bytes: Uint8Array;
-    if (this._useNodeFS && fs.readFile) {
-      bytes = await fs.readFile(URI.parse(uri).fsPath);
-    } else {
-      const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
-      bytes = new Uint8Array(elements);
+    let content: string;
+    const _uri = URI.parse(uri);
+    switch (_uri.scheme) {
+      case "file": {
+        let bytes: Uint8Array;
+        if (this._useNodeFS && fs.readFile) {
+          bytes = await fs.readFile(URI.parse(uri).fsPath);
+        } else {
+          const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
+          bytes = new Uint8Array(elements);
+        }
+        content = this._decoder.decode(bytes);
+        break;
+      }
+      case "http":
+      case "https": {
+        content = await fs.readHttpFile(uri);
+        break;
+      }
+      default: {
+        const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
+        const bytes = new Uint8Array(elements);
+        content = this._decoder.decode(bytes);
+        break;
+      }
     }
 
-    return TextDocument.create(uri, languageId, 1, this._decoder.decode(bytes));
+    return TextDocument.create(uri, languageId, 1, content);
   }
 
   removeFile(uri: string) {

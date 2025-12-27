@@ -7,7 +7,7 @@ export class Href implements Disposable {
 
   resolve(base: DocumentUri, ref: string): DocumentUri {
     if (ref.startsWith(".")) {
-      return Utils.resolvePath(Utils.dirname(URI.parse(base)), ref).toString();
+      return Utils.resolvePath(Utils.dirname(URI.parse(base)), ref).toString(true);
     } else if (ref.startsWith("/")) {
       // TODO support baseUrl
     } else if (ref.startsWith("http:") || ref.startsWith("https:")) {

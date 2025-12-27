@@ -27,6 +27,7 @@ const sassParser = scssParser.configure({ dialect: "indented" });
 
 const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
 
+// TODO vue extension conflict
 export default class VueLanguage implements Language {
   constructor(private readonly _href: Href) {}
 

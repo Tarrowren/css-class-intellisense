@@ -12,8 +12,9 @@ import { parallel, Queue } from "./util";
 export class SymbolIndex implements Disposable {
   readonly index = new Map<DocumentUri, SourceFile>();
 
+  private readonly _external = new Set<DocumentUri>();
   private readonly _syncQueue = new Queue<DocumentUri>();
-  private readonly _asyncQueue = new Queue<DocumentUri>();
+  private readonly _asyncInitQueue = new Queue<DocumentUri>();
   private readonly _source = new CancellationTokenSource();
 
   constructor(
@@ -26,12 +27,12 @@ export class SymbolIndex implements Disposable {
 
   addFile(uri: string): void {
     this._syncQueue.enqueue(uri);
-    this._asyncQueue.dequeue(uri);
+    this._asyncInitQueue.dequeue(uri);
   }
 
   removeFile(uri: string): void {
     this._syncQueue.dequeue(uri);
-    this._asyncQueue.dequeue(uri);
+    this._asyncInitQueue.dequeue(uri);
     this.index.delete(uri);
   }
 
@@ -58,6 +59,16 @@ export class SymbolIndex implements Disposable {
     for (const stat of stats) {
       totalRetrieve += stat.durationRetrieve;
       totalIndex += stat.durationIndex;
+    }
+
+    if (this._external.size > 0) {
+      const tasks = [...this._external].map(this._createIndexTask, this);
+      this._external.clear();
+      const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+      for (const stat of stats) {
+        totalRetrieve += stat.durationRetrieve;
+        totalIndex += stat.durationIndex;
+      }
     }
 
     logger.info(
@@ -97,6 +108,12 @@ export class SymbolIndex implements Disposable {
     const uri = document.uri;
 
     const sourceFile = language.query(uri, document.getText(), tree);
+    for (const [href] of sourceFile.refs) {
+      if (!this.index.has(href)) {
+        this._external.add(href);
+      }
+    }
+
     this.index.set(uri, sourceFile);
     this._storage.insert(uri, sourceFile);
   }
@@ -112,7 +129,7 @@ export class SymbolIndex implements Disposable {
     for (const [uri, sourceFile] of persisted) {
       if (uris.delete(uri)) {
         this.index.set(uri, sourceFile);
-        this._asyncQueue.enqueue(uri);
+        this._asyncInitQueue.enqueue(uri);
       } else {
         obsolete.add(uri);
       }
@@ -135,7 +152,7 @@ export class SymbolIndex implements Disposable {
         break;
       }
 
-      const uris = this._asyncQueue.consume(this._configuration.parallel, (_uri) => true);
+      const uris = this._asyncInitQueue.consume(this._configuration.parallel, (_uri) => true);
       if (uris.length === 0) {
         break;
       }
@@ -149,6 +166,7 @@ export class SymbolIndex implements Disposable {
   dispose(): void {
     this._source.cancel();
     this._syncQueue.dispose();
-    this._asyncQueue.dispose();
+    this._asyncInitQueue.dispose();
+    this._external.clear();
   }
 }

@@ -38,6 +38,10 @@ _global.fs = {
   async readFile(path: string): Promise<Uint8Array> {
     return await readFile(path);
   },
+  async readHttpFile(url: string): Promise<string> {
+    const response = await fetch(url);
+    return await response.text();
+  },
 };
 
 Server.create(connection, {

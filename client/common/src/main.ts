@@ -28,13 +28,14 @@ export class Client {
       ...Object.keys(workspace.getConfiguration("search").get("exclude", {})),
       ...Object.keys(workspace.getConfiguration("files").get("exclude", {})),
     ].join(",")}}`;
+    // TODO support .gitignore
 
     this._logger.info("[Init Index] include:", include);
     this._logger.info("[Init Index] exclude:", exclude);
 
     const uris = await workspace.findFiles(include, exclude, undefined, this._source.token);
     const files = uris.map((uri) => {
-      const file = uri.toString();
+      const file = uri.toString(true);
       this._logger.debug("[Init Index] find file", file);
       return file;
     });
@@ -50,7 +51,7 @@ export class Client {
     try {
       return Array.from(await workspace.fs.readFile(uri));
     } catch (err) {
-      this._logger.warn("[File Read] fail", err);
+      this._logger.warn("[File Read] FAILED", err);
       return [];
     }
   }

@@ -77,7 +77,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     clearTimeout(this._timer);
     this._timer = setTimeout(() => {
       this._save();
-    }, 500);
+    }, 3000);
   }
 
   private async _save(): Promise<void> {

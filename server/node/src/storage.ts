@@ -73,7 +73,7 @@ export class FileSymbolStorage implements SymbolStorage {
     clearTimeout(this._timer);
     this._timer = setTimeout(() => {
       this._save();
-    }, 500);
+    }, 3000);
   }
 
   private _save(sync = false) {

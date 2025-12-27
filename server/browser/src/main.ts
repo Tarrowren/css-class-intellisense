@@ -37,7 +37,12 @@ _global.scheduler = {
 };
 
 _global.concurrency = navigator.hardwareConcurrency ?? 4;
-_global.fs = {};
+_global.fs = {
+  async readHttpFile(url: string): Promise<string> {
+    const response = await fetch(url);
+    return await response.text();
+  },
+};
 
 Server.create(connection, {
   async create(options) {

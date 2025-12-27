@@ -10,6 +10,7 @@ declare class TextDecoder {
 
 declare const fs: {
   readFile?(path: string): Promise<Uint8Array>;
+  readHttpFile(url: string): Promise<string>;
 };
 
 declare const logger: import("vscode-languageserver").RemoteConsole;
