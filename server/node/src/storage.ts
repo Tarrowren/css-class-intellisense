@@ -1,13 +1,9 @@
-import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { Empty } from "server-common/src/empty";
+import { resolve } from "node:path";
 import type { SymbolStorage } from "server-common/src/symbol-storage";
 import type { SourceFile } from "server-common/src/type";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
-
-declare const logger: import("vscode-languageserver").RemoteConsole;
+import { open_db, type Bitcask } from "./bitcask";
 
 enum ActionType {
   Save,
@@ -23,9 +19,8 @@ type Action =
 
 export class FileSymbolStorage implements SymbolStorage {
   private readonly _queue = new Map<string, Action>();
-  private readonly _data = new Map<string, Uint8Array>();
 
-  constructor(private readonly _db_path: string) {}
+  constructor(private readonly _db: Bitcask) {}
 
   insert(uri: DocumentUri, info: SourceFile): void {
     this._queue.set(uri, { type: ActionType.Save, value: typia.protobuf.encode<SourceFile>(info) });
@@ -40,32 +35,30 @@ export class FileSymbolStorage implements SymbolStorage {
   }
 
   async getAll(): Promise<Map<DocumentUri, SourceFile>> {
-    this._data.clear();
+    const data = new Map<DocumentUri, SourceFile>();
 
-    let wrap: _Wrap;
-    try {
-      const raw = await readFile(this._db_path);
-      wrap = typia.protobuf.assertDecode<_Wrap>(raw);
-    } catch (_err) {
-      return Empty.map();
-    }
-
-    const result = new Map<DocumentUri, SourceFile>();
-    for (const [uri, raw] of wrap.data) {
+    const entries = this._db.entries();
+    for await (const [k, v] of entries) {
       try {
-        const info = typia.protobuf.assertDecode<SourceFile>(raw);
-        this._data.set(uri, raw);
-        result.set(uri, info);
+        const value = typia.protobuf.assertDecode<SourceFile>(v);
+        data.set(k, value);
       } catch (_err) {
         // ignore
       }
     }
-    return result;
+
+    return data;
   }
 
-  dispose(): void {
+  async close(): Promise<void> {
     clearTimeout(this._timer);
-    this._save(true);
+    try {
+      await this._save();
+    } catch (_err) {
+      // ignore
+    }
+
+    await this._db.close();
   }
 
   private _timer: NodeJS.Timeout | undefined;
@@ -73,44 +66,38 @@ export class FileSymbolStorage implements SymbolStorage {
     clearTimeout(this._timer);
     this._timer = setTimeout(() => {
       this._save();
-    }, 3000);
+    }, 1000);
   }
 
-  private _save(sync = false) {
+  private async _save(): Promise<void> {
     if (this._queue.size === 0) {
       return;
     }
 
+    const tasks = new Array<Promise<void>>(this._queue.size);
+    let i = 0;
     for (const [uri, active] of this._queue) {
       switch (active.type) {
         case ActionType.Save:
-          this._data.set(uri, active.value);
+          tasks[i] = this._db.put(
+            uri,
+            Buffer.from(active.value.buffer, active.value.byteOffset, active.value.byteLength),
+          );
           break;
         case ActionType.Delete:
-          this._data.delete(uri);
+          tasks[i] = this._db.delete(uri);
           break;
       }
+
+      i++;
     }
     this._queue.clear();
 
-    const buf = typia.protobuf.encode<_Wrap>({ data: this._data });
-    logger.info(`[Index] file size: ${buf.byteLength}`);
-
-    if (sync) {
-      return writeFileSync(this._db_path, buf);
-    } else {
-      return writeFile(this._db_path, buf);
-    }
+    await Promise.all(tasks);
   }
 
   static async create(name: string, path: string): Promise<FileSymbolStorage> {
-    await mkdir(path, { recursive: true });
-    const dbPath = join(path, name + ".db");
-
-    return new FileSymbolStorage(dbPath);
+    const db = await open_db(resolve(path, name));
+    return new FileSymbolStorage(db);
   }
-}
-
-interface _Wrap {
-  data: Map<string, Uint8Array>;
 }

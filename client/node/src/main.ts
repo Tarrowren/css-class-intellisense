@@ -36,7 +36,7 @@ export async function activate(context: ExtensionContext) {
       return new LanguageClient(id, name, serverOptions, clientOptions);
     },
     context,
-    { databaseName: "css_class_intellisense", storagePath: context.storageUri?.fsPath },
+    { databaseName: "symbols", storagePath: context.storageUri?.fsPath },
   );
 
   await client.start();

@@ -15,6 +15,12 @@ export default defineConfig({
           include: ["lezer/less/test/*.ts"],
         },
       },
+      {
+        test: {
+          name: "server-node",
+          include: ["server/node/src/**/*.test.ts"],
+        },
+      },
     ],
   },
 });

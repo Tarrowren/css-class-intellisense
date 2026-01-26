@@ -1,11 +1,12 @@
-import type { Disposable, DocumentUri } from "vscode-languageserver";
+import type { DocumentUri } from "vscode-languageserver";
 import { Empty } from "./empty";
 import type { SourceFile } from "./type";
 
-export interface SymbolStorage extends Disposable {
+export interface SymbolStorage {
   insert(uri: DocumentUri, info: SourceFile): void;
   delete(uris: Set<DocumentUri>): void;
   getAll(): Promise<Map<DocumentUri, SourceFile>>;
+  close(): Promise<void>;
 }
 
 export class NoopSymbolStorage implements SymbolStorage {
@@ -17,5 +18,5 @@ export class NoopSymbolStorage implements SymbolStorage {
     return Empty.map();
   }
 
-  dispose(): void {}
+  async close(): Promise<void> {}
 }

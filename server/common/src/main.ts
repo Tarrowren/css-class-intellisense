@@ -105,15 +105,18 @@ export class Server {
         }
       });
 
-      connection.onExit(() => {
+      async function clear() {
         symbols.dispose();
         trees.dispose();
         documents.dispose();
         languages.dispose();
 
-        storage.dispose();
+        await storage.close();
         configuration.dispose();
-      });
+      }
+
+      connection.onShutdown(clear);
+      connection.onExit(clear);
 
       return {
         capabilities: {
