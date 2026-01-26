@@ -29,13 +29,7 @@ export async function open_manifest(db_path: string): Promise<BitcaskManifest> {
 async function _get_manifest_id(current_path: string): Promise<number | null> {
   const text = await readFile(current_path, { flag: constants.O_CREAT | constants.O_RDONLY, encoding: "ascii" });
 
-  let value: number;
-  try {
-    value = Number.parseInt(text);
-  } catch (_err) {
-    return null;
-  }
-
+  const value = Number.parseInt(text);
   if (!Number.isSafeInteger(value)) {
     return null;
   }

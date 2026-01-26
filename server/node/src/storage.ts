@@ -20,7 +20,9 @@ type Action =
 export class FileSymbolStorage implements SymbolStorage {
   private readonly _queue = new Map<string, Action>();
 
-  constructor(private readonly _db: Bitcask) {}
+  constructor(private readonly _db: Bitcask) {
+    this._merge();
+  }
 
   insert(uri: DocumentUri, info: SourceFile): void {
     this._queue.set(uri, { type: ActionType.Save, value: typia.protobuf.encode<SourceFile>(info) });
@@ -52,6 +54,7 @@ export class FileSymbolStorage implements SymbolStorage {
 
   async close(): Promise<void> {
     clearTimeout(this._timer);
+    clearTimeout(this._merge_timer);
     try {
       await this._save();
     } catch (_err) {
@@ -94,6 +97,14 @@ export class FileSymbolStorage implements SymbolStorage {
     this._queue.clear();
 
     await Promise.all(tasks);
+  }
+
+  private _merge_timer: NodeJS.Timeout | undefined = undefined;
+  _merge(): void {
+    this._merge_timer = setTimeout(async () => {
+      await this._db.merge();
+      this._merge();
+    }, 60_000);
   }
 
   static async create(name: string, path: string): Promise<FileSymbolStorage> {

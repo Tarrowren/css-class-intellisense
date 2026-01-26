@@ -36,11 +36,21 @@ _global.scheduler = {
 _global.concurrency = cpus().length;
 _global.fs = {
   async readFile(path: string): Promise<Uint8Array> {
-    return await readFile(path);
+    try {
+      return await readFile(path);
+    } catch (err) {
+      connection.console.warn(`[Fs Read] FAILED ${err}`);
+      return Buffer.allocUnsafe(0);
+    }
   },
   async readHttpFile(url: string): Promise<string> {
-    const response = await fetch(url);
-    return await response.text();
+    try {
+      const response = await fetch(url);
+      return await response.text();
+    } catch (err) {
+      connection.console.warn(`[Http Fetch] FAILED ${err}`);
+      return "";
+    }
   },
 };
 

@@ -46,34 +46,38 @@ export class SymbolIndex implements Disposable {
   }
 
   private async _doUpdate(uris: string[], async: boolean): Promise<void> {
-    if (uris.length === 0) {
-      return;
-    }
+    try {
+      if (uris.length === 0) {
+        return;
+      }
 
-    const sw = StopWatch.create();
-    const tasks = uris.map(this._createIndexTask, this);
-    const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
-
-    let totalRetrieve = 0;
-    let totalIndex = 0;
-    for (const stat of stats) {
-      totalRetrieve += stat.durationRetrieve;
-      totalIndex += stat.durationIndex;
-    }
-
-    if (this._external.size > 0) {
-      const tasks = [...this._external].map(this._createIndexTask, this);
-      this._external.clear();
+      const sw = StopWatch.create();
+      const tasks = uris.map(this._createIndexTask, this);
       const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+
+      let totalRetrieve = 0;
+      let totalIndex = 0;
       for (const stat of stats) {
         totalRetrieve += stat.durationRetrieve;
         totalIndex += stat.durationIndex;
       }
-    }
 
-    logger.info(
-      `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
-    );
+      if (this._external.size > 0) {
+        const tasks = [...this._external].map(this._createIndexTask, this);
+        this._external.clear();
+        const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+        for (const stat of stats) {
+          totalRetrieve += stat.durationRetrieve;
+          totalIndex += stat.durationIndex;
+        }
+      }
+
+      logger.info(
+        `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
+      );
+    } finally {
+      this._currentUpdate = null;
+    }
   }
 
   private _createIndexTask(

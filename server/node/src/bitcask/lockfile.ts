@@ -1,41 +1,47 @@
-import { constants, open, stat, unlink, utimes, type FileHandle } from "node:fs/promises";
+import { constants, readFile, unlink, writeFile } from "node:fs/promises";
 
 const flags = constants.O_TRUNC | constants.O_CREAT | constants.O_WRONLY | constants.O_EXCL;
-async function get(path: string): Promise<void> {
-  let fh: FileHandle;
-  try {
-    fh = await open(path, flags);
-  } catch (err) {
-    const expired = await expire(path);
-    if (expired) {
-      fh = await open(path, flags);
-    } else {
-      throw err;
-    }
-  }
+const flags_force = constants.O_TRUNC | constants.O_CREAT | constants.O_WRONLY;
 
+async function get(path: string, pid: string): Promise<void> {
   try {
-    await fh.close();
-  } catch (_err) {
-    // ignore
+    await writeFile(path, pid, { flag: flags, encoding: "ascii" });
+  } catch (err) {
+    const status = await stat(path, pid);
+
+    switch (status) {
+      case 0:
+        break;
+      case 1:
+        await writeFile(path, pid, { flag: flags_force, encoding: "ascii" });
+        break;
+      default:
+        throw err;
+    }
   }
 }
 
-// 1 minutes
-const MAX_AGE = 60_000;
-async function expire(path: string): Promise<boolean> {
-  try {
-    const stats = await stat(path);
-    const age = Date.now() - stats.mtime.getTime();
-    if (age > MAX_AGE) {
-      await unlink(path);
-      return true;
-    }
-
-    return false;
-  } catch (_err) {
-    return false;
+async function stat(path: string, current_pid: string): Promise<1 | 0 | -1> {
+  const text = await readFile(path, "ascii");
+  if (current_pid === text) {
+    return 0;
   }
+
+  const pid = Number.parseInt(text);
+  if (Number.isSafeInteger(pid) && pid > 0) {
+    try {
+      process.kill(pid, 0);
+      return -1;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ESRCH") {
+        // No such process
+        return 1;
+      }
+      return -1;
+    }
+  }
+
+  return 1;
 }
 
 enum LockStatus {
@@ -46,7 +52,7 @@ enum LockStatus {
 }
 export class LockFile {
   private _locked = LockStatus.UNLOCKED;
-  private _timer: NodeJS.Timeout | null = null;
+
   constructor(private readonly _path: string) {}
 
   async lock(): Promise<void> {
@@ -57,16 +63,11 @@ export class LockFile {
     this._locked = LockStatus.LOCKING;
 
     try {
-      await get(this._path);
+      await get(this._path, "" + process.pid);
     } catch (err) {
       this._locked = LockStatus.UNLOCKED;
       throw err;
     }
-
-    this._timer = setInterval(async () => {
-      const now = new Date();
-      await utimes(this._path, now, now);
-    }, 30_000);
 
     this._locked = LockStatus.LOCKED;
   }
@@ -77,11 +78,6 @@ export class LockFile {
     }
 
     this._locked = LockStatus.UNLOCKING;
-
-    if (this._timer) {
-      clearInterval(this._timer);
-      this._timer = null;
-    }
 
     try {
       await unlink(this._path);
