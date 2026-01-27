@@ -8,6 +8,7 @@ import type { Trees } from "../trees";
 import type { SymbolInfo } from "../type";
 import { lspRange, parallel, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
+import { URI } from "vscode-uri";
 
 export class ReferenceProvider {
   constructor(
@@ -19,7 +20,7 @@ export class ReferenceProvider {
   ) {}
 
   async provideReferences(params: ReferenceParams, token: CancellationToken): Promise<Location[] | undefined> {
-    const uri = params.textDocument.uri;
+    const uri = URI.parse(params.textDocument.uri).toString(true);
     const document = this._documents.get(uri);
     if (!document) {
       return;

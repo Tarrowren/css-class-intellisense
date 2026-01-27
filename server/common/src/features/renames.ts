@@ -9,6 +9,7 @@ import type {
   TextEdit,
   WorkspaceEdit,
 } from "vscode-languageserver";
+import { URI } from "vscode-uri";
 import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
@@ -28,7 +29,8 @@ export class RenameProvider {
   ) {}
 
   async prepareRename(params: PrepareRenameParams): Promise<Range | { defaultBehavior: boolean }> {
-    const range = await this._prepareRename(params.textDocument.uri, params.position);
+    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const range = await this._prepareRename(uri, params.position);
     return range ?? { defaultBehavior: true };
   }
 
@@ -58,7 +60,7 @@ export class RenameProvider {
   }
 
   async provideRenameEdits(params: RenameParams, token: CancellationToken): Promise<WorkspaceEdit | undefined> {
-    const uri = params.textDocument.uri;
+    const uri = URI.parse(params.textDocument.uri).toString(true);
     const document = this._documents.get(uri);
     if (!document) {
       return;

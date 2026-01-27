@@ -48,7 +48,8 @@ export class DocumentStore implements Disposable {
     private readonly _languages: Languages,
   ) {
     this._subscriptions.push(
-      _connection.onDidOpenTextDocument(({ textDocument: { uri, languageId, version, text } }) => {
+      _connection.onDidOpenTextDocument(({ textDocument: { uri: raw_uri, languageId, version, text } }) => {
+        const uri = URI.parse(raw_uri).toString(true);
         const document = TextDocument.create(uri, languageId, version, text);
 
         this._syncedDocuments.set(uri, document);
@@ -58,10 +59,12 @@ export class DocumentStore implements Disposable {
     );
 
     this._subscriptions.push(
-      _connection.onDidChangeTextDocument(({ textDocument: { uri, version }, contentChanges }) => {
+      _connection.onDidChangeTextDocument(({ textDocument: { uri: raw_uri, version }, contentChanges }) => {
         if (contentChanges.length === 0) {
           return;
         }
+
+        const uri = URI.parse(raw_uri).toString(true);
 
         const prev = this._syncedDocuments.get(uri);
         if (!prev) {
@@ -90,7 +93,9 @@ export class DocumentStore implements Disposable {
     );
 
     this._subscriptions.push(
-      _connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
+      _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
+        const uri = URI.parse(raw_uri).toString(true);
+
         if (!this._syncedDocuments.has(uri)) {
           return;
         }

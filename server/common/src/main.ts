@@ -7,6 +7,7 @@ import {
   type Connection,
   type InitializeResult,
 } from "vscode-languageserver";
+import { URI } from "vscode-uri";
 import { Configuration } from "./configuration";
 import { DocumentStore } from "./document-store";
 import { CompletionItemProvider } from "./features/completions";
@@ -87,7 +88,8 @@ export class Server {
         symbols.addFile(uri);
       });
       connection.onDidChangeWatchedFiles((e) => {
-        for (const { type, uri } of e.changes) {
+        for (const { type, uri: raw_uri } of e.changes) {
+          const uri = URI.parse(raw_uri).toString(true);
           switch (type) {
             case FileChangeType.Created:
               symbols.addFile(uri);
