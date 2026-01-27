@@ -17,8 +17,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: "server-node",
-          include: ["server/node/src/**/*.test.ts"],
+          name: "shared",
+          include: ["shared/test/**/*.ts"],
         },
       },
     ],

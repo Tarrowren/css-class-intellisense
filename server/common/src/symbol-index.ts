@@ -1,3 +1,4 @@
+import { LockType, ReadWriteLock } from "shared";
 import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Configuration } from "./configuration";
@@ -16,6 +17,7 @@ export class SymbolIndex implements Disposable {
   private readonly _syncQueue = new Queue<DocumentUri>();
   private readonly _asyncInitQueue = new Queue<DocumentUri>();
   private readonly _source = new CancellationTokenSource();
+  private readonly _rwlock = new ReadWriteLock();
 
   constructor(
     private readonly _configuration: Configuration,
@@ -36,48 +38,46 @@ export class SymbolIndex implements Disposable {
     this.index.delete(uri);
   }
 
-  private _currentUpdate: Promise<void> | null = null;
-
   async update(): Promise<void> {
-    await this._currentUpdate;
-    const uris = this._syncQueue.consume(undefined, (_uri) => true);
-    this._currentUpdate = this._doUpdate(uris, false);
-    return this._currentUpdate;
-  }
-
-  private async _doUpdate(uris: string[], async: boolean): Promise<void> {
+    const lk = this._rwlock.get(LockType.WRITE);
+    await lk.lock();
     try {
+      const uris = this._syncQueue.consume(undefined, (_uri) => true);
       if (uris.length === 0) {
         return;
       }
 
-      const sw = StopWatch.create();
-      const tasks = uris.map(this._createIndexTask, this);
-      const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+      await this._doUpdate(uris, false);
+    } finally {
+      lk.unlock();
+    }
+  }
 
-      let totalRetrieve = 0;
-      let totalIndex = 0;
+  private async _doUpdate(uris: string[], async: boolean): Promise<void> {
+    const sw = StopWatch.create();
+    const tasks = uris.map(this._createIndexTask, this);
+    const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+
+    let totalRetrieve = 0;
+    let totalIndex = 0;
+    for (const stat of stats) {
+      totalRetrieve += stat.durationRetrieve;
+      totalIndex += stat.durationIndex;
+    }
+
+    if (this._external.size > 0) {
+      const tasks = [...this._external].map(this._createIndexTask, this);
+      this._external.clear();
+      const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
       for (const stat of stats) {
         totalRetrieve += stat.durationRetrieve;
         totalIndex += stat.durationIndex;
       }
-
-      if (this._external.size > 0) {
-        const tasks = [...this._external].map(this._createIndexTask, this);
-        this._external.clear();
-        const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
-        for (const stat of stats) {
-          totalRetrieve += stat.durationRetrieve;
-          totalIndex += stat.durationIndex;
-        }
-      }
-
-      logger.info(
-        `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
-      );
-    } finally {
-      this._currentUpdate = null;
     }
+
+    logger.info(
+      `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
+    );
   }
 
   private _createIndexTask(
@@ -85,18 +85,28 @@ export class SymbolIndex implements Disposable {
   ): () => Promise<{ readonly durationRetrieve: number; readonly durationIndex: number }> {
     return async () => {
       // fetch document
+      let document: TextDocument | undefined;
       const _retrieve_time = StopWatch.create();
-      const document = await this._documents.retrieve(uri);
+      try {
+        document = await this._documents.retrieve(uri);
+      } catch (e) {
+        logger.warn(`[Symbol Index] FAILED to get ${uri} ${e}`);
+      }
       const durationRetrieve = _retrieve_time.elapsed();
 
       // update index
-      const _index_time = StopWatch.create();
-      try {
-        await this._doIndex(document);
-      } catch (e) {
-        logger.warn(`[Symbol Index] FAILED to index ${uri} ${e}`);
+      let durationIndex: number;
+      if (document) {
+        const _index_time = StopWatch.create();
+        try {
+          await this._doIndex(document);
+        } catch (e) {
+          logger.warn(`[Symbol Index] FAILED to index ${uri} ${e}`);
+        }
+        durationIndex = _index_time.elapsed();
+      } else {
+        durationIndex = 0;
       }
-      const durationIndex = _index_time.elapsed();
 
       return { durationRetrieve, durationIndex };
     };
@@ -151,11 +161,7 @@ export class SymbolIndex implements Disposable {
 
     await this.update();
 
-    for (;;) {
-      if (this._source.token.isCancellationRequested) {
-        break;
-      }
-
+    while (!this._source.token.isCancellationRequested) {
       const uris = this._asyncInitQueue.consume(this._configuration.parallel, (_uri) => true);
       if (uris.length === 0) {
         break;
@@ -168,6 +174,7 @@ export class SymbolIndex implements Disposable {
   }
 
   dispose(): void {
+    this._rwlock.dispose();
     this._source.cancel();
     this._syncQueue.dispose();
     this._asyncInitQueue.dispose();

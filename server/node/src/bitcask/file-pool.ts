@@ -3,9 +3,8 @@ import { constants, open, readdir, unlink, type FileHandle } from "node:fs/promi
 import { join } from "node:path";
 import type { Readable } from "node:stream";
 import { scheduler } from "node:timers/promises";
-import { withResolvers } from "shared";
+import { LockType, ReadWriteLock, withResolvers } from "shared";
 import { LinkedMap, Touch } from "vscode-jsonrpc";
-import { LockType, ReadWriteLock } from "../lock";
 import { ByteUnit, to_byte } from "./buffer";
 import { data_ext, hint_ext, manifest_ext, max_file_id } from "./def";
 import { open_manifest, type BitcaskManifest, type FileMeta } from "./manifest";
@@ -346,7 +345,7 @@ export class BitcaskFilePool {
           try {
             file_id = this.next_file_id();
 
-            const flags = constants.O_TRUNC | constants.O_CREAT | constants.O_RDWR | constants.O_EXCL;
+            const flags = constants.O_TRUNC | constants.O_CREAT | constants.O_RDWR;
             fh = await open(join(this._db_path, file_id + data_ext), flags);
             try {
               await this._manifest.write({ files: [...this._manifest.data.files, { file_id, hint: false }] });

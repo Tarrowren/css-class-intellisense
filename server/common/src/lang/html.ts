@@ -99,7 +99,10 @@ export default class HtmlLanguage implements Language {
       if (cursor.type.is("Element")) {
         const href = getHrefFromLink(input, cursor);
         if (href) {
-          refs.set(this._href.resolve(uri, href), true);
+          const absolute_path = this._href.resolve(uri, href);
+          if (absolute_path) {
+            refs.set(absolute_path, true);
+          }
         }
       } else if (cursor.type.is("UsedClassName")) {
         collectSymbolInfos(used_class_names, input, cursor);

@@ -18,7 +18,7 @@ export default defineConfig(
     ],
   },
   includeIgnoreFile(resolve(".gitignore")),
-  { ignores: ["*.config.mts", "lezer/**/*", "**/*.test.ts"] },
+  { ignores: ["*.config.mts", "lezer/**/*", "**/test/**/*.ts"] },
   js.configs.recommended,
   ts.configs.recommended,
   {

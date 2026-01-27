@@ -17,6 +17,7 @@ export default defineConfig(({ env }) => {
     minify: production,
     sourcemap: !production,
     clean: production,
+    inlineOnly: false,
   };
 
   const clientBuildOptions: UserConfig = {
@@ -26,7 +27,7 @@ export default defineConfig(({ env }) => {
 
   const serverBuildOptions: UserConfig = {
     ...baseBuildOptions,
-    plugins: [UnpluginTypia({})],
+    plugins: [UnpluginTypia({ cache: true })],
   };
 
   const nodeBuildOptions: UserConfig = {

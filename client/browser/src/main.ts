@@ -63,7 +63,7 @@ class HttpFileSystemProvider implements FileSystemProvider {
   }
 
   async stat(uri: Uri): Promise<FileStat> {
-    const response = await fetch(uri.toString(true));
+    const response = await fetch(uri.toString(true), { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(response.statusText);
     }
@@ -87,7 +87,7 @@ class HttpFileSystemProvider implements FileSystemProvider {
   }
 
   async readFile(uri: Uri): Promise<Uint8Array> {
-    const response = await fetch(uri.toString(true));
+    const response = await fetch(uri.toString(true), { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(response.statusText);
     }

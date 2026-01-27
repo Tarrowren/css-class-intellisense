@@ -39,13 +39,8 @@ _global.scheduler = {
 _global.concurrency = navigator.hardwareConcurrency ?? 4;
 _global.fs = {
   async readHttpFile(url: string): Promise<string> {
-    try {
-      const response = await fetch(url);
-      return await response.text();
-    } catch (err) {
-      connection.console.warn(`[Http Fetch] FAILED ${err}`);
-      return "";
-    }
+    const response = await fetch(url, { cache: "no-cache" });
+    return await response.text();
   },
 };
 

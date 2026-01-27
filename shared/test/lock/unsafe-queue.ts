@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UnsafeNode, UnsafeQueue } from "./unsafe-queue";
+import { UnsafeNode, UnsafeQueue } from "../../src/lock/unsafe-queue";
 
 describe("unsafe-queue", () => {
   it("push & remove", () => {

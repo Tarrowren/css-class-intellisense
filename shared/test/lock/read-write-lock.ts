@@ -1,54 +1,55 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LockType, ReadWriteLock } from "./read-write-lock";
+import { CancellationTokenSource, type CancellationToken } from "vscode-jsonrpc";
+import { LockType, ReadWriteLock } from "../../src/lock/read-write-lock";
 
 describe("read-write-lock", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
-  async function wlk(source: ReadWriteLock, fn: Function, ms: number, signal?: AbortSignal) {
-    const lock = source.get(LockType.WRITE);
-    await lock.lock(signal);
+  async function wlk(rwlock: ReadWriteLock, fn: Function, ms: number, token?: CancellationToken) {
+    const lk = rwlock.get(LockType.WRITE);
+    await lk.lock(token);
     try {
       fn();
       await sleep(ms);
     } finally {
-      lock.unlock();
+      lk.unlock();
     }
   }
 
-  async function rlk(source: ReadWriteLock, fn: Function, ms: number) {
-    const lock = source.get(LockType.READ);
-    await lock.lock();
+  async function rlk(rwlock: ReadWriteLock, fn: Function, ms: number) {
+    const lk = rwlock.get(LockType.READ);
+    await lk.lock();
     try {
       fn();
       await sleep(ms);
     } finally {
-      lock.unlock();
+      lk.unlock();
     }
   }
 
-  async function trywlk(source: ReadWriteLock, fn: Function, ms: number) {
-    const lock = source.get(LockType.WRITE);
-    if (lock.try_lock()) {
+  async function trywlk(rwlock: ReadWriteLock, fn: Function, ms: number) {
+    const lk = rwlock.get(LockType.WRITE);
+    if (lk.try_lock()) {
       try {
         fn();
         await sleep(ms);
       } finally {
-        lock.unlock();
+        lk.unlock();
       }
     }
   }
 
-  async function wtorlk(source: ReadWriteLock, fn: Function, ms: number) {
-    const lock = source.get(LockType.WRITE);
-    await lock.lock();
+  async function wtorlk(rwlock: ReadWriteLock, fn: Function, ms: number) {
+    const lk = rwlock.get(LockType.WRITE);
+    await lk.lock();
     try {
       fn();
-      lock.downgrading();
+      lk.downgrading();
       await sleep(ms);
     } finally {
-      lock.unlock();
+      lk.unlock();
     }
   }
 
@@ -57,20 +58,20 @@ describe("read-write-lock", () => {
   }
 
   it("rlock", async () => {
-    const source = new ReadWriteLock();
-    const data: any = source;
+    const rwlock = new ReadWriteLock();
+    const data: any = rwlock;
     const read = vi.fn(() => {});
 
-    rlk(source, read, 1000);
-    rlk(source, read, 1000);
-    rlk(source, read, 1000);
+    rlk(rwlock, read, 1000);
+    rlk(rwlock, read, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(data._ctx.rsize).eq(3);
     expect(data._ctx.wsize).eq(0);
     expect(read).toHaveBeenCalledTimes(3);
 
-    rlk(source, read, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(data._ctx.rsize).eq(4);
@@ -83,13 +84,13 @@ describe("read-write-lock", () => {
   });
 
   it("wlock", async () => {
-    const source = new ReadWriteLock();
-    const data: any = source;
+    const rwlock = new ReadWriteLock();
+    const data: any = rwlock;
     const write = vi.fn(() => {});
 
-    wlk(source, write, 1000);
-    wlk(source, write, 1000);
-    wlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
+    wlk(rwlock, write, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(data._ctx.rsize).eq(0);
@@ -101,7 +102,7 @@ describe("read-write-lock", () => {
     expect(data._ctx.wsize).eq(2);
     expect(write).toHaveBeenCalledTimes(2);
 
-    wlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(data._ctx.rsize).eq(0);
@@ -119,36 +120,36 @@ describe("read-write-lock", () => {
   });
 
   it("rwlock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const write = vi.fn(() => {});
     const read = vi.fn(() => {});
 
-    rlk(source, read, 1000);
-    wlk(source, write, 1000);
+    rlk(rwlock, read, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(read).toHaveBeenCalledTimes(1);
     expect(write).toHaveBeenCalledTimes(0);
 
-    wlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(read).toHaveBeenCalledTimes(1);
     expect(write).toHaveBeenCalledTimes(1);
 
-    rlk(source, read, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(read).toHaveBeenCalledTimes(1);
     expect(write).toHaveBeenCalledTimes(2);
 
-    rlk(source, read, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(read).toHaveBeenCalledTimes(3);
     expect(write).toHaveBeenCalledTimes(2);
 
-    wlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(read).toHaveBeenCalledTimes(3);
@@ -156,11 +157,11 @@ describe("read-write-lock", () => {
   });
 
   it("trylock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const write = vi.fn(() => {});
 
-    wlk(source, write, 1000);
-    trywlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
+    trywlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(write).toHaveBeenCalledTimes(1);
@@ -168,19 +169,19 @@ describe("read-write-lock", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(write).toHaveBeenCalledTimes(1);
 
-    trywlk(source, write, 1000);
+    trywlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(write).toHaveBeenCalledTimes(2);
   });
 
   it("wtorlock - rlock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const dosth = vi.fn(() => {});
     const read = vi.fn(() => {});
 
-    wtorlk(source, dosth, 1000);
-    rlk(source, read, 1000);
+    wtorlk(rwlock, dosth, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(dosth).toHaveBeenCalledTimes(1);
@@ -188,14 +189,14 @@ describe("read-write-lock", () => {
   });
 
   it("wlock - wtorlock - rlock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const write = vi.fn(() => {});
     const dosth = vi.fn(() => {});
     const read = vi.fn(() => {});
 
-    wlk(source, write, 1000);
-    wtorlk(source, dosth, 1000);
-    rlk(source, read, 1000);
+    wlk(rwlock, write, 1000);
+    wtorlk(rwlock, dosth, 1000);
+    rlk(rwlock, read, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(write).toHaveBeenCalledTimes(1);
@@ -209,12 +210,12 @@ describe("read-write-lock", () => {
   });
 
   it("wtorlock - wlock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const dosth = vi.fn(() => {});
     const write = vi.fn(() => {});
 
-    wtorlk(source, dosth, 1000);
-    wlk(source, write, 1000);
+    wtorlk(rwlock, dosth, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(dosth).toHaveBeenCalledTimes(1);
@@ -226,13 +227,13 @@ describe("read-write-lock", () => {
   });
 
   it("wlock - wtorlock - wlock", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const dosth = vi.fn(() => {});
     const write = vi.fn(() => {});
 
-    wlk(source, write, 1000);
-    wtorlk(source, dosth, 1000);
-    wlk(source, write, 1000);
+    wlk(rwlock, write, 1000);
+    wtorlk(rwlock, dosth, 1000);
+    wlk(rwlock, write, 1000);
 
     await vi.advanceTimersByTimeAsync(50);
     expect(dosth).toHaveBeenCalledTimes(0);
@@ -248,19 +249,19 @@ describe("read-write-lock", () => {
   });
 
   it("abort", async () => {
-    const source = new ReadWriteLock();
+    const rwlock = new ReadWriteLock();
     const write = vi.fn(() => {});
-    const controller = new AbortController();
+    const source = new CancellationTokenSource();
 
-    wlk(source, write, 1000);
-    const result = wlk(source, write, 1000, controller.signal);
+    wlk(rwlock, write, 1000);
+    const result = wlk(rwlock, write, 1000, source.token);
 
     expect(result).toBeInstanceOf(Promise);
 
     await vi.advanceTimersByTimeAsync(50);
-    controller.abort();
+    source.cancel();
 
-    await expect(result).rejects.toThrowError(/aborted/);
+    await expect(result).rejects.toThrowError(/canceled/);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(write).toHaveBeenCalledTimes(1);

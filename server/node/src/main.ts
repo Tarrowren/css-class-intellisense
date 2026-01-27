@@ -36,21 +36,11 @@ _global.scheduler = {
 _global.concurrency = cpus().length;
 _global.fs = {
   async readFile(path: string): Promise<Uint8Array> {
-    try {
-      return await readFile(path);
-    } catch (err) {
-      connection.console.warn(`[Fs Read] FAILED ${err}`);
-      return Buffer.allocUnsafe(0);
-    }
+    return await readFile(path);
   },
   async readHttpFile(url: string): Promise<string> {
-    try {
-      const response = await fetch(url);
-      return await response.text();
-    } catch (err) {
-      connection.console.warn(`[Http Fetch] FAILED ${err}`);
-      return "";
-    }
+    const response = await fetch(url);
+    return await response.text();
   },
 };
 
@@ -59,11 +49,11 @@ Server.create(connection, {
     try {
       if (options.storagePath) {
         return await FileSymbolStorage.create(options.databaseName, options.storagePath);
-      } else {
-        return new NoopSymbolStorage();
       }
     } catch (_err) {
-      return new NoopSymbolStorage();
+      // ignore
     }
+
+    return new NoopSymbolStorage();
   },
 });

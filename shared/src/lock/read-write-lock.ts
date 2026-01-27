@@ -1,5 +1,5 @@
 import { withResolvers } from "shared";
-import type { Disposable } from "vscode-jsonrpc";
+import type { Disposable, CancellationToken } from "vscode-jsonrpc";
 import { UnsafeNode, UnsafeQueue } from "./unsafe-queue";
 
 export enum LockType {
@@ -9,11 +9,11 @@ export enum LockType {
 
 export class ReadWriteLock implements Disposable {
   private readonly _ctx = new ReadWriteLockContext();
-  private _disposed = false;
+  private _destroyed = false;
 
   get(type: LockType): Lock {
-    if (this._disposed) {
-      AbortSignal.abort().throwIfAborted();
+    if (this._destroyed) {
+      throw new Error("The lock has been destroyed");
     }
     return new Lock(type, this._ctx);
   }
@@ -23,10 +23,10 @@ export class ReadWriteLock implements Disposable {
   }
 
   dispose(): void {
-    this._disposed = true;
+    this._destroyed = true;
     let node = this._ctx.wait_queue.head();
     if (node) {
-      const reason = AbortSignal.abort().reason;
+      const reason = new Error("The lock has been destroyed");
       do {
         const ticket = node.value;
 
@@ -84,12 +84,14 @@ export class Lock {
     return this._node.value.type;
   }
 
-  lock(signal?: AbortSignal): Promise<void> | void {
+  lock(token?: CancellationToken): Promise<void> | void {
     if (this._status !== LockStatus.UNLOCKED) {
       throw new Error("Lock already taken");
     }
 
-    signal?.throwIfAborted();
+    if (token?.isCancellationRequested) {
+      throw new Error("canceled");
+    }
 
     let _wait: Promise<void> | undefined;
     if (this._ctx.busy(this.type)) {
@@ -97,31 +99,20 @@ export class Lock {
       this._node.value.resolve = resolve;
       this._node.value.reject = reject;
 
-      if (signal) {
-        const onabort = () => reject(signal.reason);
-        _wait = (async () => {
-          try {
-            await promise;
-            this._status = LockStatus.LOCKED;
-          } catch (err) {
-            this._status = LockStatus.UNLOCKED;
-            throw err;
-          } finally {
-            signal.removeEventListener("abort", onabort);
-          }
-        })();
-        signal.addEventListener("abort", onabort);
-      } else {
-        _wait = (async () => {
-          try {
-            await promise;
-            this._status = LockStatus.LOCKED;
-          } catch (err) {
-            this._status = LockStatus.UNLOCKED;
-            throw err;
-          }
-        })();
-      }
+      const subscription = token?.onCancellationRequested(() => {
+        reject(new Error("canceled"));
+      });
+      _wait = (async () => {
+        try {
+          await promise;
+          this._status = LockStatus.LOCKED;
+        } catch (err) {
+          this._status = LockStatus.UNLOCKED;
+          throw err;
+        } finally {
+          subscription?.dispose();
+        }
+      })();
       this._status = LockStatus.LOCKING;
       this._ctx.wait_queue.push(this._node);
     } else {

@@ -141,7 +141,13 @@ export class DocumentStore implements Disposable {
       promise = this._requestDocument(uri);
       this._fileDocuments.set(uri, promise);
     }
-    return await promise;
+
+    try {
+      return await promise;
+    } catch (err) {
+      this._fileDocuments.delete(uri);
+      throw err;
+    }
   }
 
   private async _requestDocument(uri: string): Promise<TextDocument> {
