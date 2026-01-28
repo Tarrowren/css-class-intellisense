@@ -1,7 +1,9 @@
+import * as l10n from "@vscode/l10n";
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
 import { Server } from "server-common";
 import { NoopSymbolStorage } from "server-common/src/symbol-storage";
+import { withResolvers } from "shared";
 import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
 
@@ -15,18 +17,22 @@ const _global = global as unknown as Record<string, unknown>;
 
 _global.logger = connection.console;
 _global.scheduler = {
-  wait(ms: number, token?: CancellationToken): Promise<void> {
+  async wait(ms: number, token?: CancellationToken): Promise<void> {
     if (token?.isCancellationRequested) {
-      return Promise.reject(new Error("cancelled"));
+      throw new Error("cancelled");
     }
 
-    return new Promise<void>((c, e) => {
-      const timer = setTimeout(c, ms);
-      token?.onCancellationRequested(() => {
-        clearTimeout(timer);
-        e(new Error("cancelled"));
-      });
+    const { promise, resolve, reject } = withResolvers<void>();
+    const timer = setTimeout(resolve, ms);
+    const disposable = token?.onCancellationRequested(() => {
+      clearTimeout(timer);
+      reject(new Error("canceled"));
     });
+    try {
+      await promise;
+    } finally {
+      disposable?.dispose();
+    }
   },
   yield(): Promise<void> {
     return new Promise<void>((c) => setImmediate(c));
@@ -39,8 +45,18 @@ _global.fs = {
     return await readFile(path);
   },
   async readHttpFile(url: string): Promise<string> {
-    const response = await fetch(url);
-    return await response.text();
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error((await response.text()).substring(0, 200));
+      }
+      return await response.text();
+    } catch (err) {
+      connection.window.showErrorMessage(
+        l10n.t("Failed to download {0}!\n{1}", url, (err as NodeJS.ErrnoException).message),
+      );
+      throw err;
+    }
   },
 };
 

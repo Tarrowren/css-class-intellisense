@@ -1,5 +1,4 @@
 import type { Tree } from "@lezer/common";
-import { parser } from "@lezer/css";
 import type { LRParser } from "@lezer/lr";
 import type { DocumentUri } from "vscode-languageserver";
 import type { Configuration } from "../configuration";
@@ -8,11 +7,12 @@ import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } fro
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
 import { collectSymbolInfos, getCssEditRange, isCanDoCompleteCssNode } from "./common";
+import { getCssParser } from "./parsers";
 
 export default class CssLanguage implements Language {
   constructor(private readonly _configuration: Configuration) {}
 
-  readonly parser: LRParser = parser;
+  readonly parser: LRParser = getCssParser();
 
   getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);

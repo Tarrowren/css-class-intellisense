@@ -15,6 +15,7 @@ const enum Ch {
   period = 46,
   hash = 35,
   percent = 37,
+  and = 38,
 }
 
 function isAlpha(ch: number) {
@@ -42,7 +43,8 @@ export const descendant = new ExternalTokenizer((input) => {
       next == Ch.period ||
       next == Ch.bracketL ||
       next == Ch.colon ||
-      next == Ch.dash
+      next == Ch.dash ||
+      next == Ch.and
     )
       input.acceptToken(descendantOp);
   }

@@ -1,7 +1,5 @@
-import { parseMixed, type Tree } from "@lezer/common";
-import { parser } from "@lezer/javascript";
+import { type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { parser as classNamesParser } from "lezer-used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
@@ -10,39 +8,14 @@ import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
 import { textRange } from "../util";
 import { collectSymbolInfos, getHrefFromImport } from "./common";
-
-const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
+import { getJsxParser, getTsxParser } from "./parsers";
 
 export default class JsxLanguage implements Language {
   constructor(
     private readonly _href: Href,
     ts = false,
   ) {
-    this.parser = parser.configure({
-      dialect: ts ? "ts jsx" : "jsx",
-      wrap: parseMixed((node, input) => {
-        if (node.type.is("JSXAttributeValue")) {
-          const attr = node.node.parent;
-          if (attr && attr.type.is("JSXAttribute")) {
-            const attrName = attr.getChild("JSXIdentifier");
-            if (attrName) {
-              const name = input.read(attrName.from, attrName.to);
-              switch (name) {
-                case "class":
-                case "className":
-                  return { parser: classNamesParser };
-                case "id":
-                  return { parser: idNameParser };
-                default:
-                  return null;
-              }
-            }
-          }
-        }
-
-        return null;
-      }),
-    });
+    this.parser = ts ? getTsxParser() : getJsxParser();
   }
 
   readonly parser: LRParser;

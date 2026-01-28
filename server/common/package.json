@@ -11,6 +11,7 @@
     "@lezer/lr": "^1.4.5",
     "@lezer/php": "^1.0.5",
     "@lezer/sass": "^1.1.0",
+    "@vscode/l10n": "^0.0.18",
     "lezer-less": "*",
     "lezer-used-name": "*",
     "shared": "*",

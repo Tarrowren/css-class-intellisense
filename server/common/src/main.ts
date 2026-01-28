@@ -1,3 +1,4 @@
+import * as l10n from "@vscode/l10n";
 import { CustomMessages, type InitOptions } from "shared";
 import typia from "typia";
 import {
@@ -24,6 +25,10 @@ export class Server {
   static create(connection: Connection, factory: StorageFactory) {
     connection.onInitialize(async (params) => {
       const initializationOptions = typia.assert<InitOptions>(params.initializationOptions);
+
+      if (initializationOptions.l10nLocation) {
+        await l10n.config({ uri: initializationOptions.l10nLocation });
+      }
 
       const configuration = new Configuration(connection);
       const storage = await factory.create(initializationOptions);

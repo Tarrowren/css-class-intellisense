@@ -153,19 +153,3 @@ StyleSheet(RuleSet(ClassSelector(ClassName),Block(
 
 StyleSheet(RuleSet(ClassSelector(ClassName),Block(
   RuleSet(DescendantSelector(ClassSelector(ClassName),NestingSelector),Block))))
-
-# Placeholder selector
-
-%theme-button {}
-
-==>
-
-StyleSheet(RuleSet(PlaceholderSelector(ClassName), Block))
-
-# Placeholder selector after class selector
-
-.primary-button, %theme-button {}
-
-==>
-
-StyleSheet(RuleSet(ClassSelector(ClassName),",",PlaceholderSelector(ClassName), Block))

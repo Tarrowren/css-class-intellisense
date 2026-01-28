@@ -1,10 +1,5 @@
-import { parseMixed, type Input, type NestedParse, type SyntaxNode, type Tree } from "@lezer/common";
-import { parser as cssParser } from "@lezer/css";
-import { parser as htmlParser } from "@lezer/html";
-import { parser as jsParser } from "@lezer/javascript";
+import { type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { parser as scssParser } from "@lezer/sass";
-import { parser as classNamesParser } from "lezer-used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
 import type { Href } from "../href";
@@ -18,51 +13,13 @@ import {
   getHrefFromImport,
   isCanDoCompleteCssNode,
 } from "./common";
-
-const jsxParser = jsParser.configure({ dialect: "jsx" });
-const tsParser = jsParser.configure({ dialect: "ts" });
-const tsxParser = jsParser.configure({ dialect: "ts jsx" });
-
-const sassParser = scssParser.configure({ dialect: "indented" });
-
-const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
+import { getVueParser } from "./parsers";
 
 // TODO vue extension conflict
 export default class VueLanguage implements Language {
   constructor(private readonly _href: Href) {}
 
-  readonly parser: LRParser = htmlParser.configure({
-    dialect: "selfClosing",
-    wrap: parseMixed((node, input) => {
-      if (node.type.is("StyleText")) {
-        return _style(node.node, input);
-      }
-
-      if (node.type.is("ScriptText")) {
-        return _script(node.node, input);
-      }
-
-      if (node.type.is("AttributeValue") || node.type.is("UnquotedAttributeValue")) {
-        const attr = node.node.parent;
-        if (attr && attr.type.is("Attribute")) {
-          const attrName = attr.getChild("AttributeName");
-          if (attrName) {
-            const name = input.read(attrName.from, attrName.to);
-            switch (name) {
-              case "class":
-                return { parser: classNamesParser };
-              case "id":
-                return { parser: idNameParser };
-              default:
-                return null;
-            }
-          }
-        }
-      }
-
-      return null;
-    }),
-  });
+  readonly parser: LRParser = getVueParser();
 
   getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
@@ -145,64 +102,5 @@ export default class VueLanguage implements Language {
       used_id_names,
       suffixes,
     };
-  }
-}
-
-function _style(node: SyntaxNode, input: Input): NestedParse {
-  const lang = _lang(node, input);
-  switch (lang) {
-    case "scss":
-      return { parser: scssParser };
-    case "sass":
-      return { parser: sassParser };
-    default:
-      return { parser: cssParser };
-  }
-}
-
-function _script(node: SyntaxNode, input: Input): NestedParse {
-  const lang = _lang(node, input);
-  switch (lang) {
-    case "jsx":
-      return { parser: jsxParser };
-    case "ts":
-      return { parser: tsParser };
-    case "tsx":
-      return { parser: tsxParser };
-    default:
-      return { parser: jsParser };
-  }
-}
-
-function _lang(node: SyntaxNode, input: Input): string | undefined {
-  const elNode = node.parent;
-  if (!elNode) {
-    return;
-  }
-
-  const openTagNode = elNode.firstChild;
-  if (!openTagNode) {
-    return;
-  }
-
-  for (const att of openTagNode.getChildren("Attribute")) {
-    const attNameNode = att.getChild("AttributeName");
-    if (!attNameNode) {
-      continue;
-    }
-
-    const attName = input.read(attNameNode.from, attNameNode.to);
-    if (attName !== "lang") {
-      continue;
-    }
-
-    let attValueNode: SyntaxNode | null;
-    if ((attValueNode = att.getChild("AttributeValue"))) {
-      return input.read(attValueNode.from, attValueNode.to).slice(1, -1);
-    } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-      return input.read(attValueNode.from, attValueNode.to);
-    }
-
-    return;
   }
 }

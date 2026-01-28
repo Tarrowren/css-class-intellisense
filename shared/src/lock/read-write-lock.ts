@@ -99,7 +99,7 @@ export class Lock {
       this._node.value.resolve = resolve;
       this._node.value.reject = reject;
 
-      const subscription = token?.onCancellationRequested(() => {
+      const disposable = token?.onCancellationRequested(() => {
         reject(new Error("canceled"));
       });
       _wait = (async () => {
@@ -110,7 +110,7 @@ export class Lock {
           this._status = LockStatus.UNLOCKED;
           throw err;
         } finally {
-          subscription?.dispose();
+          disposable?.dispose();
         }
       })();
       this._status = LockStatus.LOCKING;

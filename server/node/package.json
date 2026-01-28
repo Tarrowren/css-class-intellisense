@@ -6,6 +6,7 @@
     "@types/node": "^20.19.27"
   },
   "dependencies": {
+    "@vscode/l10n": "^0.0.18",
     "server-common": "*",
     "typia": "^10.1.0",
     "vscode-languageserver": "^10.0.0-next.16"

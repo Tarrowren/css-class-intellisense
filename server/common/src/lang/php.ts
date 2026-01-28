@@ -1,9 +1,5 @@
-import { parseMixed, type Tree } from "@lezer/common";
-import { parser as cssParser } from "@lezer/css";
-import { parser as _htmlParser } from "@lezer/html";
+import { type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { parser as phpParser } from "@lezer/php";
-import { parser as classNamesParser } from "lezer-used-name";
 import type { DocumentUri } from "vscode-languageserver";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
@@ -12,48 +8,12 @@ import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
 import { textRange } from "../util";
 import { collectSymbolInfos, getCssEditRange, getHrefFromLink, isCanDoCompleteCssNode } from "./common";
-
-const idNameParser = classNamesParser.configure({ top: "IdAttributeValue" });
-const htmlParser = _htmlParser.configure({
-  wrap: parseMixed((node, input) => {
-    if (node.type.is("StyleText")) {
-      return { parser: cssParser };
-    }
-
-    if (node.type.is("AttributeValue") || node.type.is("UnquotedAttributeValue")) {
-      const attr = node.node.parent;
-      if (attr && attr.type.is("Attribute")) {
-        const attrName = attr.getChild("AttributeName");
-        if (attrName) {
-          const name = input.read(attrName.from, attrName.to);
-          switch (name) {
-            case "class":
-              return { parser: classNamesParser };
-            case "id":
-              return { parser: idNameParser };
-            default:
-              return null;
-          }
-        }
-      }
-    }
-
-    return null;
-  }),
-});
+import { getPhpParser } from "./parsers";
 
 export default class PhpLanguage implements Language {
   constructor(private readonly _href: Href) {}
 
-  readonly parser: LRParser = phpParser.configure({
-    wrap: parseMixed((node) => {
-      if (node.type.is("Text")) {
-        return { parser: htmlParser };
-      }
-
-      return null;
-    }),
-  });
+  readonly parser: LRParser = getPhpParser();
 
   getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);

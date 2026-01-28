@@ -8,4 +8,5 @@ export class CustomMessages {
 export interface InitOptions {
   databaseName: string;
   storagePath?: string;
+  l10nLocation?: string;
 }

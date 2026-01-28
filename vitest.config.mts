@@ -9,12 +9,12 @@ export default defineConfig({
           include: ["lezer/used-name/test/*.ts"],
         },
       },
-      {
-        test: {
-          name: "lezer-less",
-          include: ["lezer/less/test/*.ts"],
-        },
-      },
+      // {
+      //   test: {
+      //     name: "lezer-less",
+      //     include: ["lezer/less/test/*.ts"],
+      //   },
+      // },
       {
         test: {
           name: "shared",

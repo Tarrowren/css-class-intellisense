@@ -1,6 +1,5 @@
 import type { Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { parser } from "@lezer/sass";
 import type { DocumentUri } from "vscode-languageserver";
 import type { Configuration } from "../configuration";
 import { Empty } from "../empty";
@@ -8,13 +7,14 @@ import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } fro
 import type { Language } from "../languages";
 import type { SourceFile, SuffixInfo, SymbolInfo } from "../type";
 import { collectSuffixInfos, collectSymbolInfos, getCssEditRange, isCanDoCompleteCssNode } from "./common";
+import { getSassParser, getScssParser } from "./parsers";
 
 export default class SassLanguage implements Language {
   constructor(
     private readonly _configuration: Configuration,
     indented = false,
   ) {
-    this.parser = indented ? parser.configure({ dialect: "indented" }) : parser;
+    this.parser = indented ? getSassParser() : getScssParser();
   }
 
   readonly parser: LRParser;

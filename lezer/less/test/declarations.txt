@@ -8,7 +8,7 @@ a {
 
 StyleSheet(
   RuleSet(TagSelector(TagName),Block(
-    Declaration(PropertyName,CallExpression(Callee,ArgList(NumberLiteral,NumberLiteral,NumberLiteral,NumberLiteral))))))
+    "{",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",NumberLiteral,",",NumberLiteral,",",NumberLiteral,",",NumberLiteral,")"))),";","}")))
 
 # Calls where each argument has multiple values
 
@@ -20,12 +20,12 @@ div {
 ==>
 
 StyleSheet(RuleSet(TagSelector(TagName),Block(
-  Declaration(PropertyName,CallExpression(Callee,ArgList(ValueName,ValueName,NumberLiteral(Unit)))),
-  Declaration(PropertyName,CallExpression(Callee,ArgList(
-    NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),
-    NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),
-    NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),
-    NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit)))))))
+  "{",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",ValueName,",",ValueName,NumberLiteral(Unit),")"))),
+  ";",Declaration(PropertyName,":",CallExpression(ValueName,ArgList(
+    "(",NumberLiteral(Unit),NumberLiteral(Unit),",",NumberLiteral(Unit),NumberLiteral(Unit),",",
+    NumberLiteral(Unit),NumberLiteral(Unit),",",NumberLiteral(Unit),NumberLiteral(Unit),",",
+    NumberLiteral(Unit),NumberLiteral(Unit),",",NumberLiteral(Unit),NumberLiteral(Unit),",",
+    NumberLiteral(Unit),NumberLiteral(Unit),",",NumberLiteral(Unit),NumberLiteral(Unit),")"))),"}")))
 
 # Color literals
 
@@ -70,13 +70,13 @@ a {
 ==>
 
 StyleSheet(RuleSet(TagSelector(TagName),Block(
-  Declaration(PropertyName,CallExpression(Callee,ArgList(BinaryExpression(NumberLiteral(Unit),BinOp,NumberLiteral(Unit))))),
-  Declaration(PropertyName,BinaryExpression(NumberLiteral,BinOp,NumberLiteral)),
-  Declaration(PropertyName,CallExpression(Callee,ArgList(
-    BinaryExpression(BinaryExpression(NumberLiteral(Unit),BinOp,ParenthesizedValue(
-      BinaryExpression(NumberLiteral,BinOp,NumberLiteral))),BinOp,ParenthesizedValue(
-      BinaryExpression(ParenthesizedValue(BinaryExpression(NumberLiteral(Unit),BinOp,NumberLiteral(Unit))),BinOp,
-      ParenthesizedValue(BinaryExpression(NumberLiteral,BinOp,NumberLiteral)))))))))))
+  "{",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",BinaryExpression(NumberLiteral(Unit),BinOp,NumberLiteral(Unit)),")"))),
+  ";",Declaration(PropertyName,":",BinaryExpression(NumberLiteral,BinOp,NumberLiteral)),
+  ";",Declaration(PropertyName,":",CallExpression(ValueName,ArgList(
+    "(",BinaryExpression(BinaryExpression(NumberLiteral(Unit),BinOp,ParenthesizedValue(
+      "(",BinaryExpression(NumberLiteral,BinOp,NumberLiteral),")")),BinOp,ParenthesizedValue(
+        "(",BinaryExpression(ParenthesizedValue("(",BinaryExpression(NumberLiteral(Unit),BinOp,NumberLiteral(Unit)),")"),BinOp,
+        ParenthesizedValue("(",BinaryExpression(NumberLiteral,BinOp,NumberLiteral),")")),")")),")"))),";","}")))
 
 # Strings
 
@@ -119,8 +119,8 @@ a {
 ==>
 
 StyleSheet(RuleSet(TagSelector(TagName),Block(
-  Declaration(PropertyName,CallExpression(Callee,ArgList(NumberLiteral(Unit),Comment,ValueName,NumberLiteral(Unit),NumberLiteral(Unit)))),
-  Declaration(PropertyName,CallExpression(Callee,ArgList(NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit),NumberLiteral(Unit)))))))
+  "{",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",NumberLiteral(Unit),Comment,ValueName,NumberLiteral(Unit),NumberLiteral(Unit),")"))),
+  ";",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",NumberLiteral(Unit),",",NumberLiteral(Unit),",",NumberLiteral(Unit),",",NumberLiteral(Unit),")"))),";","}")))
 
 # Unfinished rule
 
@@ -140,5 +140,5 @@ foo {
 ==>
 
 StyleSheet(RuleSet(TagSelector(TagName),Block(
-  Declaration(VariableName,ValueName),
-  Declaration(PropertyName,CallExpression(Callee,ArgList(VariableName))))))
+  "{",Declaration(VariableName,":",ValueName),
+  ";",Declaration(PropertyName,":",CallExpression(ValueName,ArgList("(",VariableName,")"))),";","}")))

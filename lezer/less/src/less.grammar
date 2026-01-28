@@ -80,6 +80,7 @@ selector {
   UniversalSelector |
   TagSelector { ~item TagName { identifier ~item } } |
   NestingSelector |
+  SuffixedSelector { NestingSelector Suffix { ("_" | "-")* identifier } } |
   ClassSelector { selector? !attribute "." ClassName } |
   PseudoClassSelector {
     selector? !attribute (":" | "::") (
@@ -190,7 +191,7 @@ LogicOp { @specialize<identifier, "and" | "or"> }
 @tokens {
   UniversalSelector { "*" }
 
-  NestingSelector { "&" (@asciiLetter | @digit | "-")* }
+  NestingSelector { "&" }
 
   word { @asciiLetter (@asciiLetter | @digit | "-")* }
 

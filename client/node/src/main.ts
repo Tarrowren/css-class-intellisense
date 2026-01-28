@@ -4,6 +4,7 @@ import {
   EventEmitter,
   FilePermission,
   FileType,
+  l10n,
   Uri,
   workspace,
   type Event,
@@ -36,7 +37,7 @@ export async function activate(context: ExtensionContext) {
       return new LanguageClient(id, name, serverOptions, clientOptions);
     },
     context,
-    { databaseName: "symbols", storagePath: context.storageUri?.fsPath },
+    { databaseName: "symbols", storagePath: context.storageUri?.fsPath, l10nLocation: l10n.uri?.toString(true) },
   );
 
   await client.start();
@@ -65,7 +66,7 @@ class HttpFileSystemProvider implements FileSystemProvider {
   async stat(uri: Uri): Promise<FileStat> {
     const response = await fetch(uri.toString(true));
     if (!response.ok) {
-      throw new Error(response.statusText);
+      throw new Error((await response.text()).substring(0, 200));
     }
 
     const contentLength = response.headers.get("content-length");
@@ -89,7 +90,7 @@ class HttpFileSystemProvider implements FileSystemProvider {
   async readFile(uri: Uri): Promise<Uint8Array> {
     const response = await fetch(uri.toString(true));
     if (!response.ok) {
-      throw new Error(response.statusText);
+      throw new Error((await response.text()).substring(0, 200));
     }
 
     const buf = await response.arrayBuffer();
