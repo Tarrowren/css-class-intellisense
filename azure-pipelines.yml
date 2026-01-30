@@ -12,14 +12,12 @@ variables:
 steps:
   - task: NodeTool@0
     inputs:
-      versionSpec: 18.x
+      versionSpec: 16.x
     displayName: Install Node.js
 
   - task: Cache@2
     inputs:
-      key: 'npm | "$(Agent.OS)" | package-lock.json'
-      restoreKeys: |
-        npm | "$(Agent.OS)"
+      key: npm
       path: $(npm_config_cache)
     displayName: Cache npm
 
@@ -37,7 +35,8 @@ steps:
     displayName: Build
 
   - bash: |
-      npx @vscode/vsce@2 publish -p $VSCE_PAT
+      sudo npm i -g @vscode/vsce
+      vsce publish -p $VSCE_PAT
     displayName: Publish
     env:
       VSCE_PAT: $(VSCE_PAT)
