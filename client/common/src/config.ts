@@ -54,15 +54,12 @@ function _absolute(base: Uri, globalCSSFiles: string[]) {
   }
 
   return globalCSSFiles.map((path) => {
-    if (path.startsWith(".")) {
+    const uri = Uri.parse(path);
+
+    if (uri.scheme === "file") {
       return Uri.joinPath(base, path).toString(true);
     }
 
-    const uri = Uri.parse(path);
-    if (uri.scheme === "http" || uri.scheme === "https") {
-      return uri.toString(true);
-    }
-
-    return Uri.file(path).toString(true);
+    return uri.toString(true);
   });
 }
