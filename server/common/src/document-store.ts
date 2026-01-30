@@ -11,6 +11,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import { Cache } from "./cache";
+import type { Configuration } from "./configuration";
 import { Empty } from "./empty";
 import type { Languages } from "./languages";
 
@@ -38,72 +39,63 @@ export class DocumentStore implements Disposable {
 
   private readonly _decoder = new TextDecoder();
   private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>(256);
-  private readonly _subscriptions: Disposable[] = [];
-
-  // TODO config
-  private readonly _useNodeFS: boolean = true;
 
   constructor(
+    private readonly _configuration: Configuration,
     private readonly _connection: Connection,
     private readonly _languages: Languages,
   ) {
-    this._subscriptions.push(
-      _connection.onDidOpenTextDocument(({ textDocument: { uri: raw_uri, languageId, version, text } }) => {
-        const uri = URI.parse(raw_uri).toString(true);
-        const document = TextDocument.create(uri, languageId, version, text);
+    _connection.onDidOpenTextDocument(({ textDocument: { uri: raw_uri, languageId, version, text } }) => {
+      const uri = URI.parse(raw_uri).toString(true);
+      const document = TextDocument.create(uri, languageId, version, text);
 
-        this._syncedDocuments.set(uri, document);
-        this._onDidOpen.fire({ uri, version });
-        this._onDidChangeContent.fire({ uri, version, changes: Empty.array() });
-      }),
-    );
+      this._syncedDocuments.set(uri, document);
+      this._onDidOpen.fire({ uri, version });
+      this._onDidChangeContent.fire({ uri, version, changes: Empty.array() });
+    });
 
-    this._subscriptions.push(
-      _connection.onDidChangeTextDocument(({ textDocument: { uri: raw_uri, version }, contentChanges }) => {
-        if (contentChanges.length === 0) {
-          return;
-        }
+    _connection.onDidChangeTextDocument(({ textDocument: { uri: raw_uri, version }, contentChanges }) => {
+      if (contentChanges.length === 0) {
+        return;
+      }
 
-        const uri = URI.parse(raw_uri).toString(true);
+      const uri = URI.parse(raw_uri).toString(true);
 
-        const prev = this._syncedDocuments.get(uri);
-        if (!prev) {
-          return;
-        }
+      const prev = this._syncedDocuments.get(uri);
+      if (!prev) {
+        return;
+      }
 
-        const document = TextDocument.update(prev, contentChanges, version);
+      const document = TextDocument.update(prev, contentChanges, version);
 
-        this._syncedDocuments.set(uri, document);
-        this._onDidChangeContent.fire({
-          uri,
-          version,
-          changes: contentChanges
-            .filter(TextDocumentContentChangeEvent.isIncremental)
-            .map<ChangedRange>(({ range, rangeLength, text }) => {
-              const from = prev.offsetAt(range.start);
-              return {
-                fromA: from,
-                toA: rangeLength ? from + rangeLength : prev.offsetAt(range.end),
-                fromB: from,
-                toB: from + text.length,
-              };
-            }),
-        });
-      }),
-    );
+      this._syncedDocuments.set(uri, document);
+      this._onDidChangeContent.fire({
+        uri,
+        version,
+        changes: contentChanges
+          .filter(TextDocumentContentChangeEvent.isIncremental)
+          .map<ChangedRange>(({ range, rangeLength, text }) => {
+            const from = prev.offsetAt(range.start);
+            return {
+              fromA: from,
+              toA: rangeLength ? from + rangeLength : prev.offsetAt(range.end),
+              fromB: from,
+              toB: from + text.length,
+            };
+          }),
+      });
+    });
 
-    this._subscriptions.push(
-      _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
-        const uri = URI.parse(raw_uri).toString(true);
+    _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
+      const uri = URI.parse(raw_uri).toString(true);
 
-        if (!this._syncedDocuments.has(uri)) {
-          return;
-        }
+      if (!this._syncedDocuments.has(uri)) {
+        return;
+      }
 
-        this._syncedDocuments.delete(uri);
-        this._onDidClose.fire({ uri });
-      }),
-    );
+      this._syncedDocuments.delete(uri);
+      this._onDidClose.fire({ uri });
+    });
   }
 
   get onDidOpen(): Event<TextDocumentOpenEvent> {
@@ -158,7 +150,7 @@ export class DocumentStore implements Disposable {
     switch (_uri.scheme) {
       case "file": {
         let bytes: Uint8Array;
-        if (this._useNodeFS && fs.readFile) {
+        if (this._configuration.useNodeFS && fs.readFile) {
           bytes = await fs.readFile(URI.parse(uri).fsPath);
         } else {
           const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
@@ -188,9 +180,6 @@ export class DocumentStore implements Disposable {
   }
 
   dispose(): void {
-    for (const disposable of this._subscriptions) {
-      disposable.dispose();
-    }
     this._onDidOpen.dispose();
     this._onDidChangeContent.dispose();
     this._onDidClose.dispose();

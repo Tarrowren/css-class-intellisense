@@ -1,17 +1,17 @@
 import { type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
 import type { DocumentUri } from "vscode-languageserver";
+import type { Configuration } from "../configuration";
 import { Empty } from "../empty";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
-import type { Href } from "../href";
 import type { Language } from "../languages";
 import type { SourceFile, SymbolInfo } from "../type";
-import { textRange } from "../util";
+import { resolve, textRange } from "../util";
 import { collectSymbolInfos, getCssEditRange, getHrefFromLink, isCanDoCompleteCssNode } from "./common";
 import { getPhpParser } from "./parsers";
 
 export default class PhpLanguage implements Language {
-  constructor(private readonly _href: Href) {}
+  constructor(private readonly _configuration: Configuration) {}
 
   readonly parser: LRParser = getPhpParser();
 
@@ -65,11 +65,16 @@ export default class PhpLanguage implements Language {
     const used_class_names = new Map<string, SymbolInfo>();
     const used_id_names = new Map<string, SymbolInfo>();
 
+    const globalCSSFiles = this._configuration.global(uri);
+    for (const uri of globalCSSFiles) {
+      refs.set(uri, true);
+    }
+
     do {
       if (cursor.type.is("Element")) {
         const href = getHrefFromLink(input, cursor);
         if (href) {
-          const absolute_path = this._href.resolve(uri, href);
+          const absolute_path = resolve(uri, href);
           if (absolute_path) {
             refs.set(absolute_path, true);
           }

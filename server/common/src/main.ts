@@ -34,7 +34,7 @@ export class Server {
       const storage = await factory.create(initializationOptions);
 
       const languages = new Languages(configuration);
-      const documents = new DocumentStore(connection, languages);
+      const documents = new DocumentStore(configuration, connection, languages);
       const trees = new Trees(documents);
       const symbols = new SymbolIndex(configuration, documents, languages, trees, storage);
 

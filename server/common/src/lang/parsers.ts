@@ -127,8 +127,16 @@ export const getVueParser = _lazy(() =>
   }),
 );
 
-function _vue_style(node: SyntaxNode, input: Input): NestedParse {
-  const lang = _vue_lang(node, input);
+function _vue_style(node: SyntaxNode, input: Input): NestedParse | null {
+  const attrs = _vue_attrs(node, input);
+
+  const lang = attrs.lang;
+  const module = attrs.module;
+
+  if (module) {
+    return null;
+  }
+
   switch (lang) {
     case "scss":
       return { parser: getScssParser() };
@@ -142,7 +150,7 @@ function _vue_style(node: SyntaxNode, input: Input): NestedParse {
 }
 
 function _vue_script(node: SyntaxNode, input: Input): NestedParse {
-  const lang = _vue_lang(node, input);
+  const lang = _vue_attrs(node, input).lang;
   switch (lang) {
     case "jsx":
       return { parser: getJsxParser() };
@@ -155,17 +163,18 @@ function _vue_script(node: SyntaxNode, input: Input): NestedParse {
   }
 }
 
-function _vue_lang(node: SyntaxNode, input: Input): string | undefined {
+function _vue_attrs(node: SyntaxNode, input: Input): Record<string, string> {
   const elNode = node.parent;
   if (!elNode) {
-    return;
+    return {};
   }
 
   const openTagNode = elNode.firstChild;
   if (!openTagNode) {
-    return;
+    return {};
   }
 
+  const result: Record<string, string> = {};
   for (const att of openTagNode.getChildren("Attribute")) {
     const attNameNode = att.getChild("AttributeName");
     if (!attNameNode) {
@@ -173,19 +182,17 @@ function _vue_lang(node: SyntaxNode, input: Input): string | undefined {
     }
 
     const attName = input.read(attNameNode.from, attNameNode.to);
-    if (attName !== "lang") {
-      continue;
-    }
 
     let attValueNode: SyntaxNode | null;
     if ((attValueNode = att.getChild("AttributeValue"))) {
-      return input.read(attValueNode.from, attValueNode.to).slice(1, -1);
+      result[attName] = input.read(attValueNode.from, attValueNode.to).slice(1, -1);
     } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-      return input.read(attValueNode.from, attValueNode.to);
+      result[attName] = input.read(attValueNode.from, attValueNode.to);
+    } else {
+      result[attName] = "true";
     }
-
-    return;
   }
+  return result;
 }
 
 export function getCssParser() {

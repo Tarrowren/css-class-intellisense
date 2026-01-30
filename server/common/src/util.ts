@@ -1,6 +1,7 @@
 import type { SyntaxNodeRef } from "@lezer/common";
-import { Range, type CancellationToken, type Disposable } from "vscode-languageserver";
+import { DocumentUri, Range, type CancellationToken, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
+import { URI, Utils } from "vscode-uri";
 import type { SymbolRange } from "./type";
 
 export async function parallel<T>(
@@ -83,4 +84,18 @@ export function lspRange(document: TextDocument, range: SymbolRange): Range {
  */
 export function lspRange2(document: TextDocument, range: SymbolRange): Range {
   return Range.create(document.positionAt(range.from - 1), document.positionAt(range.to));
+}
+
+export function resolve(base: DocumentUri, ref: string): DocumentUri | null {
+  if (ref.startsWith(".")) {
+    return Utils.resolvePath(Utils.dirname(URI.parse(base)), ref).toString(true);
+  }
+
+  const uri = URI.parse(ref);
+  if (uri.scheme === "http" || uri.scheme === "https") {
+    return uri.toString(true);
+  }
+
+  logger.warn("can't resolve uri  " + ref);
+  return null;
 }

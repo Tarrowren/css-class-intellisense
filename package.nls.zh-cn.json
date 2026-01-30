@@ -1,5 +1,9 @@
 {
   "cssci.description": "CSS Class 智能提示",
-  "cssci.clearCache": "清除文件缓存",
-  "cssci.lightweight.description": "初始化时不检查文件之间的引用，禁用 CSS 文件的自动完成和跳转到引用。"
+
+  "cssci.useNodeFS.description": "尽可能使用 fs 模块读取文件",
+  "cssci.languages.vue.description": "对VUE文件启用语言功能（VUE官方插件已实现了CSS提示，若发生冲突，请禁用该功能）",
+  "cssci.globalCSSFiles.description": "指定用于全局导入的 css/scss/less 文件列表",
+  "cssci.include.description": "指定用于匹配要包含在全局引用中的文件的通配符模式列表",
+  "cssci.exclude.description": "指定用于匹配要从全局引用中排除的文件的通配符模式列表"
 }

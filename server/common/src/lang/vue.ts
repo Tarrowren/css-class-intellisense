@@ -1,11 +1,11 @@
 import { type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
 import type { DocumentUri } from "vscode-languageserver";
+import type { Configuration } from "../configuration";
 import { CompletionTriggeredSymbolKind, type CompletionTriggeredSymbolInfo } from "../features/common";
-import type { Href } from "../href";
 import type { Language } from "../languages";
 import type { SourceFile, SuffixInfo, SymbolInfo } from "../type";
-import { textRange } from "../util";
+import { resolve, textRange } from "../util";
 import {
   collectSuffixInfos,
   collectSymbolInfos,
@@ -15,9 +15,8 @@ import {
 } from "./common";
 import { getVueParser } from "./parsers";
 
-// TODO vue extension conflict
 export default class VueLanguage implements Language {
-  constructor(private readonly _href: Href) {}
+  constructor(private readonly _configuration: Configuration) {}
 
   readonly parser: LRParser = getVueParser();
 
@@ -72,11 +71,16 @@ export default class VueLanguage implements Language {
     const used_id_names = new Map<string, SymbolInfo>();
     const suffixes = new Map<number, SuffixInfo>();
 
+    const globalCSSFiles = this._configuration.global(uri);
+    for (const uri of globalCSSFiles) {
+      refs.set(uri, true);
+    }
+
     do {
       if (cursor.type.is("ImportDeclaration")) {
         const href = getHrefFromImport(input, cursor);
         if (href) {
-          const absolute_path = this._href.resolve(uri, href);
+          const absolute_path = resolve(uri, href);
           if (absolute_path) {
             refs.set(absolute_path, true);
           }

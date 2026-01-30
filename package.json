@@ -26,27 +26,46 @@
   "contributes": {
     "configuration": [
       {
-        "title": "CSS Class Intellisense",
+        "title": "%cssci.description%",
         "properties": {
-          "cssci.lightweight": {
+          "cssci.useNodeFS": {
             "type": "boolean",
-            "default": false,
-            "description": "%cssci.lightweight.description%"
+            "default": true,
+            "description": "%cssci.useNodeFS.description%"
+          },
+          "cssci.languages.vue": {
+            "type": "boolean",
+            "default": true,
+            "description": "%cssci.languages.vue.description%"
+          },
+          "cssci.globalCSSFiles": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "%cssci.globalCSSFiles.description%"
+          },
+          "cssci.include": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "%cssci.include.description%"
+          },
+          "cssci.exclude": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "%cssci.exclude.description%"
           }
         }
-      }
-    ],
-    "commands": [
-      {
-        "command": "cssci.clearCache",
-        "title": "%cssci.clearCache%",
-        "category": "CSSCI"
-      }
-    ],
-    "jsonValidation": [
-      {
-        "fileMatch": "cssconfig.json",
-        "url": "./schemas/cssconfig.schema.json"
       }
     ]
   },

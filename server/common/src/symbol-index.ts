@@ -133,6 +133,7 @@ export class SymbolIndex implements Disposable {
   }
 
   async initFiles(_uris: ReadonlyArray<DocumentUri>): Promise<void> {
+    this.index.clear();
     const uris = new Set(_uris);
     const sw = StopWatch.create();
 

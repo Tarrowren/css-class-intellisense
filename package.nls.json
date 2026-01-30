@@ -1,5 +1,9 @@
 {
   "cssci.description": "CSS Class Intellisense",
-  "cssci.clearCache": "Clear file cache",
-  "cssci.lightweight.description": "Initialize without checking references between files, disable \"Autocomplete\" and \"Jump to reference\" features for css files."
+
+  "cssci.useNodeFS.description": "Use the fs module to read files whenever possible.",
+  "cssci.languages.vue.description": "Enable the language function for VUE. (the official VUE plugin has implemented CSS intellisense, disable the function if there is a conflict)",
+  "cssci.globalCSSFiles.description": "Specify a list of css/scss/less files to be used for global import.",
+  "cssci.include.description": "Specify a list of glob patterns that match files to be included in the global reference.",
+  "cssci.exclude.description": "Specify a list of glob patterns that match files to be excluded in the global reference."
 }
