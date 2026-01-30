@@ -122,6 +122,7 @@
     "@ryoppippi/unplugin-typia": "^2.6.5",
     "@types/node": "^22.19.3",
     "@vscode/test-web": "^0.0.78",
+    "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
     "jiti": "^2.6.1",
     "tsdown": "^0.20.1",

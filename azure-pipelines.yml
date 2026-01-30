@@ -12,7 +12,7 @@ variables:
 steps:
   - task: NodeTool@0
     inputs:
-      versionSpec: 16.x
+      versionSpec: 22.x
     displayName: Install Node.js
 
   - task: Cache@2
@@ -35,8 +35,7 @@ steps:
     displayName: Build
 
   - bash: |
-      sudo npm i -g @vscode/vsce
-      vsce publish -p $VSCE_PAT
+      npx @vscode/vsce publish -p $VSCE_PAT
     displayName: Publish
     env:
       VSCE_PAT: $(VSCE_PAT)

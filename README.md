@@ -15,21 +15,11 @@ Html/Vue/Jsx/PHP id/class attribute completion
 
 ### Global
 
-Create the `cssconfig.json` file to specify global CSS:
+Specify global CSS in settings.json:
 
 ```json
 {
-  "globalCssFiles": ["https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css", "../main.css"]
-}
-```
-
-Using the `include` and `exclude` properties:
-
-```json
-{
-  "globalCssFiles": ["https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css", "../main.css"],
-  "include": ["**/*.{vue,tsx}"],
-  "exclude": ["**/*.html"]
+  "cssci.globalCSSFiles": ["https://getbootstrap.com/docs/5.2/dist/css/bootstrap.css", "../main.scss"]
 }
 ```
 
