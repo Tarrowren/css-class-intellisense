@@ -10,6 +10,8 @@
     { "path": "./server/browser" },
     { "path": "./server/node" },
     //
+    { "path": "./shared/tsconfig.test.json" },
+    //
     { "path": "./tsconfig.config.json" }
   ]
 }

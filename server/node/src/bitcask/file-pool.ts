@@ -232,7 +232,7 @@ export class BitcaskFilePool {
           fh = await this._open_file(file_id);
         }
 
-        lock.downgrading();
+        lock.downgrade();
         return await consum(fh);
       } finally {
         lock.unlock();
@@ -249,7 +249,7 @@ export class BitcaskFilePool {
         fh = await this._open_file(file_id);
       }
 
-      lock.downgrading();
+      lock.downgrade();
       return await consum(fh);
     } finally {
       lock.unlock();

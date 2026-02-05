@@ -46,7 +46,7 @@ describe("read-write-lock", () => {
     await lk.lock();
     try {
       fn();
-      lk.downgrading();
+      lk.downgrade();
       await sleep(ms);
     } finally {
       lk.unlock();
@@ -255,6 +255,7 @@ describe("read-write-lock", () => {
 
     wlk(rwlock, write, 1000);
     const result = wlk(rwlock, write, 1000, source.token);
+    wlk(rwlock, write, 1000);
 
     expect(result).toBeInstanceOf(Promise);
 
@@ -263,10 +264,9 @@ describe("read-write-lock", () => {
 
     await expect(result).rejects.toThrowError(/canceled/);
 
-    await vi.advanceTimersByTimeAsync(1000);
     expect(write).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,5 +1,5 @@
 import { withResolvers } from "shared";
-import type { Disposable, CancellationToken } from "vscode-jsonrpc";
+import type { CancellationToken, Disposable } from "vscode-jsonrpc";
 import { UnsafeNode, UnsafeQueue } from "./unsafe-queue";
 
 export enum LockType {
@@ -107,7 +107,7 @@ export class Lock {
           await promise;
           this._status = LockStatus.LOCKED;
         } catch (err) {
-          this._status = LockStatus.UNLOCKED;
+          this._release();
           throw err;
         } finally {
           disposable?.dispose();
@@ -148,7 +148,7 @@ export class Lock {
     return true;
   }
 
-  downgrading(): void {
+  downgrade(): void {
     if (this._status !== LockStatus.LOCKED) {
       throw new Error("Lock already released");
     }
@@ -185,11 +185,7 @@ export class Lock {
     }
   }
 
-  unlock(): void {
-    if (this._status !== LockStatus.LOCKED) {
-      throw new Error("Lock already released");
-    }
-
+  private _release(): void {
     this._status = LockStatus.UNLOCKED;
 
     this._ctx.wait_queue.remove(this._node);
@@ -201,6 +197,14 @@ export class Lock {
     } else {
       this._ctx.wsize--;
     }
+  }
+
+  unlock(): void {
+    if (this._status !== LockStatus.LOCKED) {
+      throw new Error("Lock already released");
+    }
+
+    this._release();
 
     const head = this._ctx.wait_queue.head();
     if (!head) {
