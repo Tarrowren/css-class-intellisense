@@ -4,10 +4,10 @@
   "type": "commonjs",
   "main": "src/main.ts",
   "devDependencies": {
-    "@types/vscode": "^1.91.0"
+    "@types/vscode": "1.91.0"
   },
   "dependencies": {
     "shared": "*",
-    "vscode-languageclient": "^10.0.0-next.19"
+    "vscode-languageclient": "^10.0.0-next.21"
   }
 }

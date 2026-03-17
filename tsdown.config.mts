@@ -1,5 +1,5 @@
 import UnpluginTypia from "@ryoppippi/unplugin-typia/rolldown";
-import { defineConfig, type TsdownInputOption, type UserConfig } from "tsdown";
+import { defineConfig, mergeConfig, type TsdownInputOption, type UserConfig } from "tsdown";
 
 function entry(type: "client" | "server", platform: "node" | "browser"): TsdownInputOption {
   return {
@@ -17,18 +17,16 @@ export default defineConfig(({ env }) => {
     minify: production,
     sourcemap: !production,
     clean: production,
-    inlineOnly: false,
+    deps: { onlyBundle: false },
   };
 
-  const clientBuildOptions: UserConfig = {
-    ...baseBuildOptions,
-    external: ["vscode"],
-  };
+  const clientBuildOptions = mergeConfig(baseBuildOptions, {
+    deps: { neverBundle: ["vscode"] },
+  });
 
-  const serverBuildOptions: UserConfig = {
-    ...baseBuildOptions,
+  const serverBuildOptions = mergeConfig(baseBuildOptions, {
     plugins: [UnpluginTypia({ cache: true })],
-  };
+  });
 
   const nodeBuildOptions: UserConfig = {
     platform: "node",
