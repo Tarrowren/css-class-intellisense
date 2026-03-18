@@ -119,17 +119,16 @@
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
-    "@playwright/browser-chromium": "1.57.0",
     "@ryoppippi/unplugin-typia": "^2.6.5",
     "@types/node": "^22.19.15",
-    "@vscode/test-web": "0.0.78",
+    "@vscode/test-web": "^0.0.80",
     "@vscode/vsce": "^3.7.1",
     "eslint": "^10.0.3",
     "jiti": "^2.6.1",
-    "playwright": "1.57.0",
     "tsdown": "^0.21.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.57.1",
+    "typia": "^10.1.0",
     "vitest": "^4.1.0"
   }
 }
