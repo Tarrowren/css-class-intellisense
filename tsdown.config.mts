@@ -1,4 +1,4 @@
-import UnpluginTypia from "@ryoppippi/unplugin-typia/rolldown";
+import UnpluginTypia from "@typia/unplugin/rolldown";
 import { defineConfig, mergeConfig, type TsdownInputOption, type UserConfig } from "tsdown";
 
 function entry(type: "client" | "server", platform: "node" | "browser"): TsdownInputOption {
