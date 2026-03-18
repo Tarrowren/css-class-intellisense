@@ -1,9 +1,9 @@
+import { Server } from "@cci/server-common";
+import { NoopSymbolStorage } from "@cci/server-common/src/symbol-storage";
+import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
-import { Server } from "server-common";
-import { NoopSymbolStorage } from "server-common/src/symbol-storage";
-import { withResolvers } from "shared";
 import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
 

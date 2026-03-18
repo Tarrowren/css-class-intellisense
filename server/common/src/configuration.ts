@@ -1,4 +1,4 @@
-import { CustomMessages, type ProjectConfig } from "shared";
+import { CustomMessages, type ProjectConfig } from "@cci/shared";
 import { Disposable, DocumentUri, type Connection } from "vscode-languageserver";
 
 export class Configuration implements Disposable {

@@ -1,5 +1,5 @@
+import { CustomMessages } from "@cci/shared";
 import type { ChangedRange } from "@lezer/common";
-import { CustomMessages } from "shared";
 import {
   Emitter,
   TextDocumentContentChangeEvent,

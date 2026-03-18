@@ -1,3 +1,5 @@
+import { parser as lessParser } from "@cci/lezer-less";
+import { parser as classNamesParser } from "@cci/lezer-used-name";
 import { parseMixed, type Input, type NestedParse, type SyntaxNode } from "@lezer/common";
 import { parser as cssParser } from "@lezer/css";
 import { parser as htmlParser } from "@lezer/html";
@@ -5,8 +7,6 @@ import { parser as jsParser } from "@lezer/javascript";
 import type { LRParser } from "@lezer/lr";
 import { parser as phpParser } from "@lezer/php";
 import { parser as scssParser } from "@lezer/sass";
-import { parser as lessParser } from "lezer-less";
-import { parser as classNamesParser } from "lezer-used-name";
 
 function _getClassNamesParser() {
   return classNamesParser;

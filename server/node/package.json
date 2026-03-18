@@ -1,13 +1,14 @@
 {
-  "name": "server-node",
+  "name": "@cci/server-node",
   "version": "1.0.0",
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^20.19.37"
   },
   "dependencies": {
+    "@cci/server-common": "*",
+    "@cci/shared": "*",
     "@vscode/l10n": "^0.0.18",
-    "server-common": "*",
     "typia": "^12.0.1",
     "vscode-languageserver": "^10.0.0-next.17"
   }

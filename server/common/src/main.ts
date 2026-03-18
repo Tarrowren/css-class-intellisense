@@ -1,5 +1,5 @@
+import { CustomMessages, type InitOptions } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
-import { CustomMessages, type InitOptions } from "shared";
 import typia from "typia";
 import {
   FileChangeType,

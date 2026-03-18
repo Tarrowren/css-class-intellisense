@@ -1,4 +1,4 @@
-import { CustomMessages, languageConfigs, LockType, ReadWriteLock, type InitOptions } from "shared";
+import { CustomMessages, languageConfigs, LockType, ReadWriteLock, type InitOptions } from "@cci/shared";
 import {
   CancellationTokenSource,
   RelativePattern,

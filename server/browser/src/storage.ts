@@ -1,5 +1,5 @@
-import type { SymbolStorage } from "server-common/src/symbol-storage";
-import type { SourceFile } from "server-common/src/type";
+import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
+import type { SourceFile } from "@cci/server-common/src/type";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
 

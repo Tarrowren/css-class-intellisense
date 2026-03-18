@@ -1,4 +1,4 @@
-import type { CommonConfig, ProjectConfig } from "shared";
+import type { CommonConfig, ProjectConfig } from "@cci/shared";
 import { Uri, workspace, type ConfigurationChangeEvent, type WorkspaceFolder } from "vscode";
 
 const _vueLanguage = "cssci.languages.vue";

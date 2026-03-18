@@ -1,4 +1,4 @@
-import { Client } from "client-common";
+import { Client } from "@cci/client-common";
 import { l10n, Uri, type ExtensionContext } from "vscode";
 import { LanguageClient } from "vscode-languageclient/browser";
 

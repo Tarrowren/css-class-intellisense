@@ -1,9 +1,9 @@
+import { LockType, ReadWriteLock, withResolvers } from "@cci/shared";
 import { createReadStream } from "node:fs";
 import { constants, open, readdir, unlink, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import type { Readable } from "node:stream";
 import { scheduler } from "node:timers/promises";
-import { LockType, ReadWriteLock, withResolvers } from "shared";
 import { LinkedMap, Touch } from "vscode-jsonrpc";
 import { ByteUnit, to_byte } from "./buffer";
 import { data_ext, hint_ext, manifest_ext, max_file_id } from "./def";

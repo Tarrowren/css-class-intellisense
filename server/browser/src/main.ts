@@ -1,7 +1,7 @@
+import { Server } from "@cci/server-common";
+import { NoopSymbolStorage } from "@cci/server-common/src/symbol-storage";
+import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
-import { Server } from "server-common";
-import { NoopSymbolStorage } from "server-common/src/symbol-storage";
-import { withResolvers } from "shared";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,

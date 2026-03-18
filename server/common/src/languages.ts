@@ -1,6 +1,6 @@
+import { languageConfigs } from "@cci/shared";
 import type { Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { languageConfigs } from "shared";
 import type { Disposable, DocumentUri } from "vscode-languageserver";
 import { URI, Utils } from "vscode-uri";
 import type { Configuration } from "./configuration";

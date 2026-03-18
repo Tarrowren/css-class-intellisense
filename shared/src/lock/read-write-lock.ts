@@ -1,5 +1,5 @@
-import { withResolvers } from "shared";
 import type { CancellationToken, Disposable } from "vscode-jsonrpc";
+import { withResolvers } from "../with-resolvers";
 import { UnsafeNode, UnsafeQueue } from "./unsafe-queue";
 
 export enum LockType {

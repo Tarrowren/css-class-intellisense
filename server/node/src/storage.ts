@@ -1,6 +1,6 @@
+import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
+import type { SourceFile } from "@cci/server-common/src/type";
 import { resolve } from "node:path";
-import type { SymbolStorage } from "server-common/src/symbol-storage";
-import type { SourceFile } from "server-common/src/type";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
 import { open_db, type Bitcask } from "./bitcask";

@@ -1,4 +1,4 @@
-import { LockType, ReadWriteLock } from "shared";
+import { LockType, ReadWriteLock } from "@cci/shared";
 import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Configuration } from "./configuration";

@@ -40,6 +40,7 @@ export default defineConfig(
       curly: "error",
       eqeqeq: "error",
       "no-throw-literal": "error",
+      "no-useless-assignment": "off",
     },
   },
 );

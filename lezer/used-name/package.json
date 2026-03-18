@@ -1,5 +1,5 @@
 {
-  "name": "lezer-used-name",
+  "name": "@cci/lezer-used-name",
   "version": "1.0.0",
   "type": "module",
   "main": "src/parser.js",

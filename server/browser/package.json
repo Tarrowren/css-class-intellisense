@@ -1,10 +1,11 @@
 {
-  "name": "server-browser",
+  "name": "@cci/server-browser",
   "version": "1.0.0",
   "type": "commonjs",
   "dependencies": {
+    "@cci/server-common": "*",
+    "@cci/shared": "*",
     "@vscode/l10n": "^0.0.18",
-    "server-common": "*",
     "typia": "^12.0.1",
     "vscode-languageserver": "^10.0.0-next.17"
   }
