@@ -1,9 +1,9 @@
 import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
 import type { SourceFile } from "@cci/server-common/src/type";
+import { Bitcask } from "bitcask";
 import { resolve } from "node:path";
 import typia from "typia";
 import type { DocumentUri } from "vscode-languageserver";
-import { open_db, type Bitcask } from "./bitcask";
 
 enum ActionType {
   Save,
@@ -61,7 +61,7 @@ export class FileSymbolStorage implements SymbolStorage {
       // ignore
     }
 
-    await this._db.close();
+    this._db.dispose();
   }
 
   private _timer: NodeJS.Timeout | undefined;
@@ -107,8 +107,11 @@ export class FileSymbolStorage implements SymbolStorage {
     }, 60_000);
   }
 
-  static async create(name: string, path: string): Promise<FileSymbolStorage> {
-    const db = await open_db(resolve(path, name));
-    return new FileSymbolStorage(db);
+  static create(name: string, path: string): FileSymbolStorage {
+    return new FileSymbolStorage(
+      new Bitcask(resolve(path, name)).on("error", (err) => {
+        console.error(err);
+      }),
+    );
   }
 }
