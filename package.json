@@ -119,16 +119,21 @@
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22.19.19",
+    "@types/node": "^24.13.3",
     "@typia/unplugin": "^12.1.1",
-    "@vscode/test-web": "^0.0.80",
-    "@vscode/vsce": "^3.9.1",
-    "eslint": "^10.4.0",
+    "@vscode/test-web": "^0.0.81",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^10.8.0",
     "jiti": "^2.7.0",
-    "tsdown": "^0.22.0",
+    "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
+    "typescript-eslint": "^8.65.0",
     "typia": "^12.1.1",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "@playwright/browser-chromium": false,
+    "@vscode/vsce-sign": false,
+    "keytar": false
   }
 }

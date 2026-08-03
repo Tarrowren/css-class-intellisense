@@ -25,7 +25,7 @@ export default defineConfig(({ env }) => {
   });
 
   const serverBuildOptions = mergeConfig(baseBuildOptions, {
-    plugins: [UnpluginTypia({ cache: true })],
+    plugins: [UnpluginTypia({ cache: !production })],
   });
 
   const nodeBuildOptions: UserConfig = {

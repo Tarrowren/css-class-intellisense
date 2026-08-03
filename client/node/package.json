@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "type": "commonjs",
   "devDependencies": {
-    "@types/node": "^20.19.41",
+    "@types/node": "^20.19.43",
     "@types/vscode": "1.91.0"
   },
   "dependencies": {
     "@cci/client-common": "*",
-    "vscode-languageclient": "^10.0.0-next.22"
+    "vscode-languageclient": "^10.1.0"
   }
 }

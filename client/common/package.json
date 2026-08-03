@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@cci/shared": "*",
-    "vscode-languageclient": "^10.0.0-next.22"
+    "vscode-languageclient": "^10.1.0"
   }
 }
