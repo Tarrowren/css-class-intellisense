@@ -32,6 +32,10 @@ export class Languages implements Disposable {
   }
 
   getLanguage(languageId: string): Language | null | undefined {
+    if (!this._configuration.vueLanguage && languageId === "vue") {
+      return null;
+    }
+
     if (this._instances.has(languageId)) {
       return this._instances.get(languageId);
     }
@@ -50,7 +54,7 @@ export class Languages implements Disposable {
       case "typescriptreact":
         return new JsxLanguage(this._configuration, true);
       case "vue":
-        return this._configuration.vueLanguage ? new VueLanguage(this._configuration) : null;
+        return new VueLanguage(this._configuration);
       case "php":
         return new PhpLanguage(this._configuration);
       case "css":
