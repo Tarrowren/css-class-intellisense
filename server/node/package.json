@@ -9,7 +9,7 @@
     "@cci/server-common": "*",
     "@cci/shared": "*",
     "@vscode/l10n": "^0.0.18",
-    "bitcask": "^0.0.2",
+    "bitcask": "^0.0.3",
     "typia": "^12.1.1",
     "vscode-languageserver": "^10.1.0"
   }

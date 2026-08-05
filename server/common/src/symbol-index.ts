@@ -138,10 +138,11 @@ export class SymbolIndex implements Disposable {
     const sw = StopWatch.create();
 
     logger.info(`[Symbol Index] initializing index for ${uris.size} files.`);
-    const persisted = await this._storage.getAll();
     const obsolete = new Set<string>();
 
-    for (const [uri, sourceFile] of persisted) {
+    let size = 0;
+    for await (const [uri, sourceFile] of this._storage.entries(this._source.token)) {
+      size++;
       if (uris.delete(uri)) {
         this.index.set(uri, sourceFile);
         this._asyncInitQueue.enqueue(uri);
@@ -157,7 +158,7 @@ export class SymbolIndex implements Disposable {
     this._storage.delete(obsolete);
 
     logger.info(
-      `[Symbol Index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
+      `[Symbol Index] added FROM CACHE ${size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
     );
 
     await this.update();

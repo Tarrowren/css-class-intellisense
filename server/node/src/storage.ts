@@ -3,115 +3,61 @@ import type { SourceFile } from "@cci/server-common/src/type";
 import { Bitcask } from "bitcask";
 import { resolve } from "node:path";
 import typia from "typia";
-import type { DocumentUri } from "vscode-languageserver";
-
-enum ActionType {
-  Save,
-  Delete,
-}
-
-type Action =
-  | {
-      type: ActionType.Save;
-      value: Uint8Array;
-    }
-  | { type: ActionType.Delete };
+import type { CancellationToken, DocumentUri } from "vscode-languageserver";
 
 export class FileSymbolStorage implements SymbolStorage {
-  private readonly _queue = new Map<string, Action>();
+  private _timer: NodeJS.Timeout | undefined = undefined;
 
   constructor(private readonly _db: Bitcask) {
-    this._merge();
+    this._merge(300_000);
   }
 
   insert(uri: DocumentUri, info: SourceFile): void {
-    this._queue.set(uri, { type: ActionType.Save, value: typia.protobuf.encode<SourceFile>(info) });
-    this._save_soon();
+    const u8array = typia.protobuf.encode<SourceFile>(info);
+    this._db.put(uri, Buffer.from(u8array.buffer, u8array.byteOffset, u8array.byteLength));
   }
 
   delete(uris: Set<DocumentUri>): void {
     for (const uri of uris) {
-      this._queue.set(uri, { type: ActionType.Delete });
+      this._db.delete(uri);
     }
-    this._save_soon();
   }
 
-  async getAll(): Promise<Map<DocumentUri, SourceFile>> {
-    const data = new Map<DocumentUri, SourceFile>();
+  async *entries(token: CancellationToken): AsyncGenerator<[DocumentUri, SourceFile]> {
+    for await (const [k, v] of this._db.entries()) {
+      if (token.isCancellationRequested) {
+        throw new Error("canceled");
+      }
 
-    const entries = this._db.entries();
-    for await (const [k, v] of entries) {
-      try {
-        const value = typia.protobuf.assertDecode<SourceFile>(v);
-        data.set(k, value);
-      } catch (_err) {
-        // ignore
+      const value = typia.protobuf.isDecode<SourceFile>(v);
+      if (value) {
+        yield [k, value];
       }
     }
-
-    return data;
   }
 
   async close(): Promise<void> {
     clearTimeout(this._timer);
-    clearTimeout(this._merge_timer);
-    try {
-      await this._save();
-    } catch (_err) {
-      // ignore
-    }
-
-    this._db.dispose();
-  }
-
-  private _timer: NodeJS.Timeout | undefined;
-  private _save_soon() {
-    clearTimeout(this._timer);
-    this._timer = setTimeout(() => {
-      this._save();
-    }, 1000);
-  }
-
-  private async _save(): Promise<void> {
-    if (this._queue.size === 0) {
-      return;
-    }
-
-    const tasks = new Array<Promise<void>>(this._queue.size);
-    let i = 0;
-    for (const [uri, active] of this._queue) {
-      switch (active.type) {
-        case ActionType.Save:
-          tasks[i] = this._db.put(
-            uri,
-            Buffer.from(active.value.buffer, active.value.byteOffset, active.value.byteLength),
-          );
-          break;
-        case ActionType.Delete:
-          tasks[i] = this._db.delete(uri);
-          break;
-      }
-
-      i++;
-    }
-    this._queue.clear();
-
-    await Promise.all(tasks);
-  }
-
-  private _merge_timer: NodeJS.Timeout | undefined = undefined;
-  _merge(): void {
-    this._merge_timer = setTimeout(async () => {
-      await this._db.merge();
-      this._merge();
-    }, 60_000);
+    await this._db.dispose();
   }
 
   static create(name: string, path: string): FileSymbolStorage {
     return new FileSymbolStorage(
       new Bitcask(resolve(path, name)).on("error", (err) => {
-        console.error(err);
+        console.error("[Bitcask]", err);
       }),
     );
+  }
+
+  private _merge(ms: number): void {
+    this._timer = setTimeout(async () => {
+      try {
+        await this._db.merge();
+      } catch (_) {
+        // ignore
+      } finally {
+        this._merge(1_800_000);
+      }
+    }, ms);
   }
 }
