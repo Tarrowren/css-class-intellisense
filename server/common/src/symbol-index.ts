@@ -3,6 +3,7 @@ import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-la
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Configuration } from "./configuration";
 import type { DocumentStore } from "./document-store";
+import { scheduler } from "./env";
 import type { Languages } from "./languages";
 import { StopWatch } from "./stop-watch";
 import type { SymbolStorage } from "./symbol-storage";
@@ -189,7 +190,7 @@ export class SymbolIndex implements Disposable {
 
       const sw = StopWatch.create();
       await this._doUpdate(uris, true);
-      await scheduler.wait(sw.elapsed() * 4, this._source.token);
+      await scheduler().wait(sw.elapsed() * 4, this._source.token);
     }
   }
 

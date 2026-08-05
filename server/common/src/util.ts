@@ -2,6 +2,7 @@ import type { SyntaxNodeRef } from "@lezer/common";
 import { DocumentUri, Range, type CancellationToken, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
+import { scheduler } from "./env";
 import type { SymbolRange } from "./type";
 
 export async function parallel<T>(
@@ -28,7 +29,7 @@ export async function parallel<T>(
 
     start = end;
 
-    await scheduler.yield();
+    await scheduler().yield();
   }
   return result;
 }

@@ -4,6 +4,7 @@ import { CancellationToken, CancellationTokenSource, type Disposable } from "vsc
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Cache } from "./cache";
 import type { DocumentStore } from "./document-store";
+import { scheduler } from "./env";
 import type { Language } from "./languages";
 import { Spin } from "./spin";
 import { StopWatch } from "./stop-watch";
@@ -144,7 +145,7 @@ async function parse(
       spin.increase();
     }
 
-    await scheduler.yield();
+    await scheduler().yield();
     if (token?.isCancellationRequested) {
       throw new Error("cancelled");
     }

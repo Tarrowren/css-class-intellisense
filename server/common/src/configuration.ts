@@ -1,8 +1,9 @@
 import { CustomMessages, type ProjectConfig } from "@cci/shared";
 import { Disposable, DocumentUri, type Connection } from "vscode-languageserver";
+import { os } from "./env";
 
 export class Configuration implements Disposable {
-  parallel: number = concurrency;
+  parallel: number = Math.max(os().concurrency, 4);
   useNodeFS: boolean = true;
   vueLanguage: boolean = true;
   projects: ProjectConfig[] = [];

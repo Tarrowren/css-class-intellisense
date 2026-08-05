@@ -13,6 +13,7 @@ import { URI } from "vscode-uri";
 import { Cache } from "./cache";
 import type { Configuration } from "./configuration";
 import { Empty } from "./empty";
+import { fs } from "./env";
 import type { Languages } from "./languages";
 
 export interface TextDocumentOpenEvent {
@@ -150,8 +151,9 @@ export class DocumentStore implements Disposable {
     switch (_uri.scheme) {
       case "file": {
         let bytes: Uint8Array;
-        if (this._configuration.useNodeFS && fs.readFile) {
-          bytes = await fs.readFile(URI.parse(uri).fsPath);
+        const _fs = fs();
+        if (this._configuration.useNodeFS && _fs.readFile) {
+          bytes = await _fs.readFile(_uri.fsPath);
         } else {
           const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
           bytes = new Uint8Array(elements);
@@ -161,7 +163,7 @@ export class DocumentStore implements Disposable {
       }
       case "http":
       case "https": {
-        content = await fs.readHttpFile(uri);
+        content = await fs().fetchFile(uri);
         break;
       }
       default: {

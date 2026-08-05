@@ -11,6 +11,7 @@ import {
 import { URI } from "vscode-uri";
 import { Configuration } from "./configuration";
 import { DocumentStore } from "./document-store";
+import { scheduler } from "./env";
 import { CompletionItemProvider } from "./features/completions";
 import { DefinitionProvider } from "./features/definitions";
 import { ReferenceProvider } from "./features/references";
@@ -146,7 +147,7 @@ export interface StorageFactory {
 
 async function run<T>(func: () => Promise<T>, defaultValue: T, token: CancellationToken): Promise<T> {
   try {
-    await scheduler.wait(0, token);
+    await scheduler().wait(0, token);
   } catch (_e) {
     return defaultValue;
   }

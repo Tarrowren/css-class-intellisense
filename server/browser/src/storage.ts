@@ -1,5 +1,6 @@
 import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
 import type { SourceFile } from "@cci/server-common/src/type";
+import { withResolvers } from "@cci/shared";
 import typia from "typia";
 import type { CancellationToken, DocumentUri } from "vscode-languageserver";
 
@@ -147,12 +148,7 @@ interface DelActive {
 }
 
 async function _get(cursor: IDBRequest<IDBCursorWithValue | null>): Promise<IDBCursorWithValue | null> {
-  let resolve: (value: IDBCursorWithValue | null) => void;
-  let reject: (reason?: unknown) => void;
-  const promise = new Promise<IDBCursorWithValue | null>((c, e) => {
-    resolve = c;
-    reject = e;
-  });
+  const { promise, resolve, reject } = withResolvers<IDBCursorWithValue | null>();
 
   const _success = () => resolve(cursor.result);
   const _error = () => reject(cursor.error);
