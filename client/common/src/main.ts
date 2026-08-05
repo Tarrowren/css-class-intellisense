@@ -109,7 +109,7 @@ export class Client {
         this._logger.debug("[Init Index] find file", uri);
       }
 
-      await this._client.sendRequest(CustomMessages.QueueInit, [...uris], this._source.token);
+      await this._client.sendRequest(CustomMessages.IndexUpdate, [...uris], this._source.token);
     } finally {
       lk.unlock();
     }
