@@ -8,7 +8,6 @@ import {
   type Connection,
   type InitializeResult,
 } from "vscode-languageserver";
-import { URI } from "vscode-uri";
 import { Configuration } from "./configuration";
 import { DocumentStore } from "./document-store";
 import { scheduler } from "./env";
@@ -21,6 +20,7 @@ import { StopWatch } from "./stop-watch";
 import { SymbolIndex } from "./symbol-index";
 import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
+import { normalize } from "./util";
 
 export class Server {
   static create(connection: Connection, factory: StorageFactory): void {
@@ -95,7 +95,7 @@ export class Server {
       });
       connection.onDidChangeWatchedFiles((e) => {
         for (const { type, uri: raw_uri } of e.changes) {
-          const uri = URI.parse(raw_uri).toString(true);
+          const uri = normalize(raw_uri);
           switch (type) {
             case FileChangeType.Created:
               symbols.addFile(uri);
@@ -148,7 +148,7 @@ export interface StorageFactory {
 async function run<T>(func: () => Promise<T>, defaultValue: T, token: CancellationToken): Promise<T> {
   try {
     await scheduler().wait(0, token);
-  } catch (_e) {
+  } catch (_) {
     return defaultValue;
   }
 

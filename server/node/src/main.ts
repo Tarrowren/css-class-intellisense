@@ -75,7 +75,7 @@ Server.create(connection, {
       if (options.storagePath) {
         return FileSymbolStorage.create(options.databaseName, options.storagePath);
       }
-    } catch (_err) {
+    } catch (_) {
       // ignore
     }
 

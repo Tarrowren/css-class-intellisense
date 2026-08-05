@@ -12,9 +12,8 @@ import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
 import type { SourceFile } from "../type";
-import { lspRange } from "../util";
+import { lspRange, normalize } from "../util";
 import { CompletionTriggeredSymbolKind } from "./common";
-import { URI } from "vscode-uri";
 
 export class CompletionItemProvider {
   constructor(
@@ -28,7 +27,7 @@ export class CompletionItemProvider {
     params: CompletionParams,
     token: CancellationToken,
   ): Promise<CompletionList | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;

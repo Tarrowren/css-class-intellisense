@@ -6,9 +6,8 @@ import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
 import type { SourceFile, SymbolInfo } from "../type";
-import { lspRange, lspRange2, parallel, textRange } from "../util";
+import { lspRange, lspRange2, normalize, parallel, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
-import { URI } from "vscode-uri";
 
 export class DefinitionProvider {
   constructor(
@@ -20,7 +19,7 @@ export class DefinitionProvider {
   ) {}
 
   async provideDefinition(params: DefinitionParams, token: CancellationToken): Promise<Location[] | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;

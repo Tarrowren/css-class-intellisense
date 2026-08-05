@@ -15,6 +15,7 @@ import type { Configuration } from "./configuration";
 import { Empty } from "./empty";
 import { fs } from "./env";
 import type { Languages } from "./languages";
+import { normalize } from "./util";
 
 export interface TextDocumentOpenEvent {
   readonly uri: DocumentUri;
@@ -47,7 +48,7 @@ export class DocumentStore implements Disposable {
     private readonly _languages: Languages,
   ) {
     _connection.onDidOpenTextDocument(({ textDocument: { uri: raw_uri, languageId, version, text } }) => {
-      const uri = URI.parse(raw_uri).toString(true);
+      const uri = normalize(raw_uri);
       const document = TextDocument.create(uri, languageId, version, text);
 
       this._syncedDocuments.set(uri, document);
@@ -60,7 +61,7 @@ export class DocumentStore implements Disposable {
         return;
       }
 
-      const uri = URI.parse(raw_uri).toString(true);
+      const uri = normalize(raw_uri);
 
       const prev = this._syncedDocuments.get(uri);
       if (!prev) {
@@ -88,7 +89,7 @@ export class DocumentStore implements Disposable {
     });
 
     _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
-      const uri = URI.parse(raw_uri).toString(true);
+      const uri = normalize(raw_uri);
 
       if (!this._syncedDocuments.has(uri)) {
         return;

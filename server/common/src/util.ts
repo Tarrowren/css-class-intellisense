@@ -100,3 +100,7 @@ export function resolve(base: DocumentUri, ref: string): DocumentUri | null {
   console.warn("can't resolve uri  " + ref);
   return null;
 }
+
+export function normalize(uri: string): string {
+  return URI.parse(uri).toString(true);
+}

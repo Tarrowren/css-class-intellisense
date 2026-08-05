@@ -4,9 +4,10 @@ import { withResolvers } from "@cci/shared";
 import typia from "typia";
 import type { CancellationToken, DocumentUri } from "vscode-languageserver";
 
+const _version = 1;
+const _store = "fileSymbols";
+
 export class IndexedDBSymbolStorage implements SymbolStorage {
-  private static readonly _version = 1;
-  private static readonly _store = "fileSymbols";
   private readonly _queue = new Map<string, Action>();
   private _timer: number | undefined;
 
@@ -25,8 +26,8 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
   }
 
   async *entries(token: CancellationToken): AsyncGenerator<[DocumentUri, SourceFile]> {
-    const trans = this._db.transaction(IndexedDBSymbolStorage._store, "readonly");
-    const store = trans.objectStore(IndexedDBSymbolStorage._store);
+    const trans = this._db.transaction(_store, "readonly");
+    const store = trans.objectStore(_store);
 
     const request = store.openCursor();
 
@@ -54,7 +55,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     clearTimeout(this._timer);
     try {
       await this._save();
-    } catch (_err) {
+    } catch (_) {
       // ignore
     }
 
@@ -67,20 +68,20 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
   }
 
   static async openDatabase(name: string): Promise<IDBDatabase> {
-    const req = indexedDB.open(name, this._version);
+    const req = indexedDB.open(name, _version);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (db.objectStoreNames.contains(this._store)) {
-        db.deleteObjectStore(this._store);
+      if (db.objectStoreNames.contains(_store)) {
+        db.deleteObjectStore(_store);
       }
-      db.createObjectStore(this._store);
+      db.createObjectStore(_store);
     };
     const db = await new Promise<IDBDatabase>((c, e) => {
       req.onerror = () => e(req.error);
       req.onsuccess = () => c(req.result);
     });
 
-    if (db.objectStoreNames.contains(this._store)) {
+    if (db.objectStoreNames.contains(_store)) {
       return db;
     }
 
@@ -110,8 +111,8 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
       return;
     }
 
-    const trans = this._db.transaction(IndexedDBSymbolStorage._store, "readwrite");
-    const store = trans.objectStore(IndexedDBSymbolStorage._store);
+    const trans = this._db.transaction(_store, "readwrite");
+    const store = trans.objectStore(_store);
 
     for (const [uri, active] of this._queue) {
       switch (active.type) {

@@ -61,7 +61,7 @@ Server.create(connection, {
   async create(options) {
     try {
       return await IndexedDBSymbolStorage.create(options.databaseName);
-    } catch (_err) {
+    } catch (_) {
       return new NoopSymbolStorage();
     }
   },

@@ -9,14 +9,13 @@ import type {
   TextEdit,
   WorkspaceEdit,
 } from "vscode-languageserver";
-import { URI } from "vscode-uri";
 import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
 import type { SourceFile, SymbolRange } from "../type";
-import { lspRange, parallel, textRange } from "../util";
+import { lspRange, normalize, parallel, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class RenameProvider {
@@ -29,7 +28,7 @@ export class RenameProvider {
   ) {}
 
   async prepareRename(params: PrepareRenameParams): Promise<Range | { defaultBehavior: boolean }> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const range = await this._prepareRename(uri, params.position);
     return range ?? { defaultBehavior: true };
   }
@@ -60,7 +59,7 @@ export class RenameProvider {
   }
 
   async provideRenameEdits(params: RenameParams, token: CancellationToken): Promise<WorkspaceEdit | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;
