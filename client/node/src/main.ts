@@ -4,7 +4,7 @@ import { LanguageClient, TransportKind, type ServerOptions } from "vscode-langua
 
 let client: Client | null | undefined;
 
-export async function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext): Promise<void> {
   const server = Uri.joinPath(context.extensionUri, "dist/node/server.cjs").fsPath;
 
   client = Client.create(
@@ -19,7 +19,7 @@ export async function activate(context: ExtensionContext) {
   await client.start();
 }
 
-export async function deactivate() {
+export async function deactivate(): Promise<void> {
   if (!client) {
     return;
   }

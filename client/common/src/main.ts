@@ -23,7 +23,7 @@ export class Client {
     private readonly _logger: LogOutputChannel,
   ) {}
 
-  async start() {
+  async start(): Promise<void> {
     await this._client.start();
 
     // readfile
@@ -115,7 +115,7 @@ export class Client {
     }
   }
 
-  async stop() {
+  async stop(): Promise<void> {
     this._index_lock.dispose();
     this._source.cancel();
     await this._client.stop();
@@ -130,7 +130,7 @@ export class Client {
     }
   }
 
-  static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions) {
+  static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions): Client {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
 

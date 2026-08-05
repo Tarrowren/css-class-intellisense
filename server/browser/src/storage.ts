@@ -106,7 +106,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     });
   }
 
-  static async create(name: string) {
+  static async create(name: string): Promise<IndexedDBSymbolStorage> {
     const db = await this.openDatabase(name);
     return new IndexedDBSymbolStorage(db);
   }

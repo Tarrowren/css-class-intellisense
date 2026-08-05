@@ -11,7 +11,7 @@ import type { SourceFile } from "./type";
 import { parallel, Queue } from "./util";
 
 export class SymbolIndex implements Disposable {
-  readonly index = new Map<DocumentUri, SourceFile>();
+  readonly index: Map<string, SourceFile> = new Map();
 
   private readonly _external = new Set<DocumentUri>();
   private readonly _syncQueue = new Queue<DocumentUri>();

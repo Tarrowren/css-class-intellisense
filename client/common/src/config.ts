@@ -40,7 +40,7 @@ export function getProjectConfig(folder: WorkspaceFolder): ProjectConfig {
   };
 }
 
-export function isNeedUpdateIndex(event: ConfigurationChangeEvent, folder: WorkspaceFolder) {
+export function isNeedUpdateIndex(event: ConfigurationChangeEvent, folder: WorkspaceFolder): boolean {
   return (
     event.affectsConfiguration(_globalCSSFiles, folder) ||
     event.affectsConfiguration(_include, folder) ||

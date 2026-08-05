@@ -22,7 +22,7 @@ import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
 
 export class Server {
-  static create(connection: Connection, factory: StorageFactory) {
+  static create(connection: Connection, factory: StorageFactory): void {
     connection.onInitialize(async (params) => {
       const initializationOptions = typia.assert<InitOptions>(params.initializationOptions);
 

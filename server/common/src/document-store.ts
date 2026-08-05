@@ -175,7 +175,7 @@ export class DocumentStore implements Disposable {
     return TextDocument.create(uri, languageId, 1, content);
   }
 
-  removeFile(uri: string) {
+  removeFile(uri: string): boolean {
     return this._fileDocuments.delete(uri);
   }
 

@@ -64,7 +64,7 @@ Server.create(connection, {
   async create(options) {
     try {
       if (options.storagePath) {
-        return await FileSymbolStorage.create(options.databaseName, options.storagePath);
+        return FileSymbolStorage.create(options.databaseName, options.storagePath);
       }
     } catch (_err) {
       // ignore

@@ -18,7 +18,7 @@ function _getJsParser() {
 }
 const _getTsParser = _lazy(() => jsParser.configure({ dialect: "ts" }));
 
-export const getHtmlParser = _lazy(() =>
+export const getHtmlParser: () => LRParser = _lazy(() =>
   htmlParser.configure({
     wrap: parseMixed((node, input) => {
       if (node.type.is("StyleText")) {
@@ -48,7 +48,7 @@ export const getHtmlParser = _lazy(() =>
   }),
 );
 
-export const getPhpParser = _lazy(() =>
+export const getPhpParser: () => LRParser = _lazy(() =>
   phpParser.configure({
     wrap: parseMixed((node) => {
       if (node.type.is("Text")) {
@@ -60,9 +60,9 @@ export const getPhpParser = _lazy(() =>
   }),
 );
 
-export const getJsxParser = _lazy(() => _jsx(false));
+export const getJsxParser: () => LRParser = _lazy(() => _jsx(false));
 
-export const getTsxParser = _lazy(() => _jsx(true));
+export const getTsxParser: () => LRParser = _lazy(() => _jsx(true));
 
 function _jsx(ts: boolean) {
   return jsParser.configure({
@@ -92,7 +92,7 @@ function _jsx(ts: boolean) {
   });
 }
 
-export const getVueParser = _lazy(() =>
+export const getVueParser: () => LRParser = _lazy(() =>
   htmlParser.configure({
     dialect: "selfClosing",
     wrap: parseMixed((node, input) => {
@@ -195,23 +195,23 @@ function _vue_attrs(node: SyntaxNode, input: Input): Record<string, string> {
   return result;
 }
 
-export function getCssParser() {
+export function getCssParser(): LRParser {
   return cssParser;
 }
 
-export function getLessParser() {
+export function getLessParser(): LRParser {
   return lessParser;
 }
 
-export const getSassParser = _lazy(() => scssParser.configure({ dialect: "indented" }));
+export const getSassParser: () => LRParser = _lazy(() => scssParser.configure({ dialect: "indented" }));
 
-export function getScssParser() {
+export function getScssParser(): LRParser {
   return scssParser;
 }
 
 function _lazy(create: () => LRParser) {
   let _parser: LRParser | undefined;
-  return () => {
+  return (): LRParser => {
     if (!_parser) {
       _parser = create();
     }
