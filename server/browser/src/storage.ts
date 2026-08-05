@@ -33,7 +33,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     let cursor: IDBCursorWithValue | null;
     while ((cursor = await _get(request))) {
       if (token.isCancellationRequested) {
-        throw new Error("canceled");
+        throw new Error("cancelled");
       }
       if (trans.error) {
         throw trans.error;

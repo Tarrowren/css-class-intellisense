@@ -262,7 +262,7 @@ describe("read-write-lock", () => {
     await vi.advanceTimersByTimeAsync(50);
     source.cancel();
 
-    await expect(result).rejects.toThrowError(/canceled/);
+    await expect(result).rejects.toThrowError(/cancelled/);
 
     expect(write).toHaveBeenCalledTimes(1);
 

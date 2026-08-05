@@ -90,7 +90,7 @@ export class Lock {
     }
 
     if (token?.isCancellationRequested) {
-      throw new Error("canceled");
+      throw new Error("cancelled");
     }
 
     let _wait: Promise<void> | undefined;
@@ -100,7 +100,7 @@ export class Lock {
       this._node.value.reject = reject;
 
       const disposable = token?.onCancellationRequested(() => {
-        reject(new Error("canceled"));
+        reject(new Error("cancelled"));
       });
       _wait = (async () => {
         try {

@@ -26,7 +26,7 @@ export class FileSymbolStorage implements SymbolStorage {
   async *entries(token: CancellationToken): AsyncGenerator<[DocumentUri, SourceFile]> {
     for await (const [k, v] of this._db.entries()) {
       if (token.isCancellationRequested) {
-        throw new Error("canceled");
+        throw new Error("cancelled");
       }
 
       const value = typia.protobuf.isDecode<SourceFile>(v);

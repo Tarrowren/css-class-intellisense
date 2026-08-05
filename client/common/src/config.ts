@@ -1,16 +1,18 @@
 import type { CommonConfig, ProjectConfig } from "@cci/shared";
 import { Uri, workspace, type ConfigurationChangeEvent, type WorkspaceFolder } from "vscode";
 
-const _vueLanguage = "cssci.languages.vue";
-const _useNodeFS = "cssci.useNodeFS";
+const _prefix = "cssci.";
 
-const _globalCSSFiles = "cssci.globalCSSFiles";
-const _include = "cssci.include";
-const _exclude = "cssci.exclude";
+const _vue_language = _prefix + "languages.vue";
+const _use_node_fs = _prefix + "useNodeFS";
+
+const _global_css_files = _prefix + "globalCSSFiles";
+const _include = _prefix + "include";
+const _exclude = _prefix + "exclude";
 
 export function getConfig(): CommonConfig {
-  const vueLanguage = workspace.getConfiguration().get<boolean>(_vueLanguage, true);
-  const useNodeFS = workspace.getConfiguration().get<boolean>(_useNodeFS, true);
+  const vueLanguage = workspace.getConfiguration().get<boolean>(_vue_language, true);
+  const useNodeFS = workspace.getConfiguration().get<boolean>(_use_node_fs, true);
 
   const folders = workspace.workspaceFolders;
   let projects: ProjectConfig[];
@@ -24,16 +26,16 @@ export function getConfig(): CommonConfig {
 }
 
 export function getProjectConfig(folder: WorkspaceFolder): ProjectConfig {
-  const globalCSSFiles = workspace.getConfiguration(undefined, folder).get<string[]>(_globalCSSFiles, []);
+  const globalCSSFiles = workspace.getConfiguration(undefined, folder).get<string[]>(_global_css_files, []);
   const include = workspace.getConfiguration(undefined, folder).get<string[]>(_include, []);
   const exclude = workspace.getConfiguration(undefined, folder).get<string[]>(_exclude, []);
 
-  let _folder = folder.uri.toString(true);
-  if (!_folder.endsWith("/")) {
-    _folder += "/";
+  let folderUri = folder.uri.toString(true);
+  if (!folderUri.endsWith("/")) {
+    folderUri += "/";
   }
   return {
-    folder: _folder,
+    folder: folderUri,
     globalCSSFiles: _absolute(folder.uri, globalCSSFiles),
     include,
     exclude,
@@ -42,7 +44,7 @@ export function getProjectConfig(folder: WorkspaceFolder): ProjectConfig {
 
 export function isNeedUpdateIndex(event: ConfigurationChangeEvent, folder: WorkspaceFolder): boolean {
   return (
-    event.affectsConfiguration(_globalCSSFiles, folder) ||
+    event.affectsConfiguration(_global_css_files, folder) ||
     event.affectsConfiguration(_include, folder) ||
     event.affectsConfiguration(_exclude, folder)
   );

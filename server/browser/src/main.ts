@@ -43,7 +43,7 @@ install({
       const timer = setTimeout(resolve, ms);
       const disposable = token?.onCancellationRequested(() => {
         clearTimeout(timer);
-        reject(new Error("canceled"));
+        reject(new Error("cancelled"));
       });
       try {
         await promise;

@@ -100,8 +100,8 @@ export class SymbolIndex implements Disposable {
       const _retrieve_time = StopWatch.create();
       try {
         document = await this._documents.retrieve(uri);
-      } catch (e) {
-        console.warn("[Symbol Index] FAILED to get", uri, e);
+      } catch (err) {
+        console.warn("[Symbol Index] FAILED to get", uri, err);
       }
       const durationRetrieve = _retrieve_time.elapsed();
 
@@ -111,8 +111,8 @@ export class SymbolIndex implements Disposable {
         const _index_time = StopWatch.create();
         try {
           await this._doIndex(document);
-        } catch (e) {
-          console.warn("[Symbol Index] FAILED to index", uri, e);
+        } catch (err) {
+          console.warn("[Symbol Index] FAILED to index", uri, err);
         }
         durationIndex = _index_time.elapsed();
       } else {

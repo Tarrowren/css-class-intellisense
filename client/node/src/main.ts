@@ -13,7 +13,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
       return new LanguageClient(id, name, serverOptions, clientOptions);
     },
     context,
-    { databaseName: "db_symbols", storagePath: context.storageUri?.fsPath, l10nLocation: l10n.uri?.toString(true) },
+    { databaseName: "fileSymbols", storagePath: context.storageUri?.fsPath, l10nLocation: l10n.uri?.toString(true) },
   );
 
   await client.start();
