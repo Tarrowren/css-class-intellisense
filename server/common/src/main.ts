@@ -44,7 +44,7 @@ export class Server {
         try {
           return await run(() => completions.provideCompletionItems(params, token), null, token);
         } finally {
-          logger.info(`[Completion] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Completion]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
@@ -54,7 +54,7 @@ export class Server {
         try {
           return await run(() => definitions.provideDefinition(params, token), null, token);
         } finally {
-          logger.info(`[Definition] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Definition]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
@@ -64,7 +64,7 @@ export class Server {
         try {
           return await run(() => references.provideReferences(params, token), null, token);
         } finally {
-          logger.info(`[References] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[References]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
@@ -74,7 +74,7 @@ export class Server {
         try {
           return await run(() => renames.prepareRename(params), { defaultBehavior: true }, token);
         } finally {
-          logger.info(`[PrepareRename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[PrepareRename]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
       connection.onRenameRequest(async (params, token) => {
@@ -82,7 +82,7 @@ export class Server {
         try {
           return await run(() => renames.provideRenameEdits(params, token), null, token);
         } finally {
-          logger.info(`[Rename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Rename]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 

@@ -75,8 +75,18 @@ export class SymbolIndex implements Disposable {
       }
     }
 
-    logger.info(
-      `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
+    console.info(
+      "[Symbol Index]",
+      async ? "(Async)" : "(Sync)",
+      "added",
+      uris.length,
+      "files",
+      sw.elapsed(2),
+      "( retrieval:",
+      totalRetrieve.toFixed(2),
+      ", indexing:",
+      totalIndex.toFixed(2),
+      ")",
     );
   }
 
@@ -90,7 +100,7 @@ export class SymbolIndex implements Disposable {
       try {
         document = await this._documents.retrieve(uri);
       } catch (e) {
-        logger.warn(`[Symbol Index] FAILED to get ${uri} ${e}`);
+        console.warn("[Symbol Index] FAILED to get", uri, e);
       }
       const durationRetrieve = _retrieve_time.elapsed();
 
@@ -101,7 +111,7 @@ export class SymbolIndex implements Disposable {
         try {
           await this._doIndex(document);
         } catch (e) {
-          logger.warn(`[Symbol Index] FAILED to index ${uri} ${e}`);
+          console.warn("[Symbol Index] FAILED to index", uri, e);
         }
         durationIndex = _index_time.elapsed();
       } else {
@@ -137,7 +147,7 @@ export class SymbolIndex implements Disposable {
     const uris = new Set(_uris);
     const sw = StopWatch.create();
 
-    logger.info(`[Symbol Index] initializing index for ${uris.size} files.`);
+    console.info("[Symbol Index] initializing index for", uris.size, "files.");
     const obsolete = new Set<string>();
 
     let size = 0;
@@ -157,8 +167,16 @@ export class SymbolIndex implements Disposable {
 
     this._storage.delete(obsolete);
 
-    logger.info(
-      `[Symbol Index] added FROM CACHE ${size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
+    console.info(
+      "[Symbol Index] added FROM CACHE",
+      size,
+      "files",
+      sw.elapsed(2),
+      ", all need revalidation,",
+      uris.size,
+      "files are NEW,",
+      obsolete.size,
+      "where OBSOLETE",
     );
 
     await this.update();

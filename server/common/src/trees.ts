@@ -86,7 +86,7 @@ export class Trees implements Disposable {
         entry.tree = tree;
         entry.fragments = fragments;
 
-        logger.info(`[Incparse] ${document.uri} ${sw.elapsed(2)}ms`);
+        console.info("[Incparse]", document.uri, sw.elapsed(2));
         return tree;
       } else {
         entry.edits.length = 0;
@@ -104,7 +104,7 @@ export class Trees implements Disposable {
       this._cache.set(uri, { edits: [], version, tree, fragments });
     }
 
-    logger.info(`[Parse] ${document.uri} ${sw.elapsed(2)}ms`);
+    console.info("[Parse]", document.uri, sw.elapsed(2));
     return tree;
   }
 }
@@ -130,7 +130,7 @@ async function parse(
     }
 
     const time = sw.elapsed();
-    logger.debug(`[Async Parse] spin: ${spin}, time: ${time.toFixed(2)}`);
+    console.debug("[Async Parse] spin:", spin.toString(), ", time:", time.toFixed(2));
 
     if (time > 16) {
       spin.decrease();

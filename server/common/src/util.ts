@@ -96,6 +96,6 @@ export function resolve(base: DocumentUri, ref: string): DocumentUri | null {
     return uri.toString(true);
   }
 
-  logger.warn("can't resolve uri  " + ref);
+  console.warn("can't resolve uri  " + ref);
   return null;
 }

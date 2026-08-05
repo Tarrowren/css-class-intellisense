@@ -13,7 +13,13 @@ declare const fs: {
   readHttpFile(url: string): Promise<string>;
 };
 
-declare const logger: import("vscode-languageserver").RemoteConsole;
+declare const console: {
+  error(...data: unknown[]): void;
+  warn(...data: unknown[]): void;
+  info(...data: unknown[]): void;
+  log(...data: unknown[]): void;
+  debug(...data: unknown[]): void;
+};
 
 declare const scheduler: {
   wait(ms: number, token?: import("vscode-languageserver").CancellationToken): Promise<void>;
