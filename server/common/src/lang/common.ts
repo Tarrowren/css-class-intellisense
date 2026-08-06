@@ -46,14 +46,14 @@ function nonNested(node: SyntaxNode): boolean {
 
 export function getCssEditRange(pos: number, tree: Tree, node: SyntaxNodeRef): SymbolRange | undefined {
   return (
-    _getCssEditRange(node) ??
-    _getCssEditRange(tree.resolve(pos, -1)) ??
-    _getCssEditRange(tree.resolve(pos, 1)) ??
-    _getCssEditRange(tree.resolve(pos + 1, 1))
+    _get_css_edit_range(node) ??
+    _get_css_edit_range(tree.resolve(pos, -1)) ??
+    _get_css_edit_range(tree.resolve(pos, 1)) ??
+    _get_css_edit_range(tree.resolve(pos + 1, 1))
   );
 }
 
-function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
+function _get_css_edit_range(node: SyntaxNodeRef): SymbolRange | undefined {
   if (node.type.is("ClassName") || node.type.is("IdName")) {
     return { from: node.from - 1, to: node.to };
   }
@@ -192,9 +192,9 @@ export function getHrefFromLink(input: string, node: SyntaxNodeRef): string | un
 
     let attValueNode: SyntaxNode | null;
     if ((attValueNode = att.getChild("AttributeValue"))) {
-      return _checkHref(getNodeText(input, attValueNode).slice(1, -1));
+      return _check_href(getNodeText(input, attValueNode).slice(1, -1));
     } else if ((attValueNode = att.getChild("UnquotedAttributeValue"))) {
-      return _checkHref(getNodeText(input, attValueNode));
+      return _check_href(getNodeText(input, attValueNode));
     }
 
     return;
@@ -207,10 +207,10 @@ export function getHrefFromImport(input: string, node: SyntaxNodeRef): string | 
     return;
   }
 
-  return _checkHref(getNodeText(input, str).slice(1, -1));
+  return _check_href(getNodeText(input, str).slice(1, -1));
 }
 
-function _checkHref(href: string | undefined) {
+function _check_href(href: string | undefined) {
   if (href && /(?<!\.module)\.(?:c|sc|sa|le)ss/.test(href)) {
     return href;
   }

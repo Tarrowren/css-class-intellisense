@@ -1,7 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { Location, type CancellationToken, type DocumentUri, type ReferenceParams } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
+import { os } from "../env";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
@@ -11,7 +11,6 @@ import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class ReferenceProvider {
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
     private readonly _trees: Trees,
@@ -84,7 +83,7 @@ export class ReferenceProvider {
         }
       }
 
-      const result = await parallel(tasks, this._configuration.parallel);
+      const result = await parallel(tasks, os().concurrency);
       return result.flat();
     } else {
       return await this._provideReferences(
@@ -107,7 +106,7 @@ export class ReferenceProvider {
       }
     }
 
-    const result = await parallel(tasks, this._configuration.parallel);
+    const result = await parallel(tasks, os().concurrency);
     return result.flat();
   }
 

@@ -93,12 +93,12 @@ export class CompletionItemProvider {
     }
 
     for (const _uri of sourceFile.refs.keys()) {
-      const _sourceFile = this._symbols.index.get(_uri);
-      if (!_sourceFile) {
+      const _source_file = this._symbols.index.get(_uri);
+      if (!_source_file) {
         continue;
       }
 
-      for (const name of _sourceFile[prop].keys()) {
+      for (const name of _source_file[prop].keys()) {
         result.set(name, { label: name, kind: CompletionItemKind.Variable });
       }
     }

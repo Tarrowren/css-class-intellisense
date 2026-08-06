@@ -8,15 +8,15 @@ import type { LRParser } from "@lezer/lr";
 import { parser as phpParser } from "@lezer/php";
 import { parser as scssParser } from "@lezer/sass";
 
-function _getClassNamesParser() {
+function _get_class_names_parser() {
   return classNamesParser;
 }
-const _getIdNameParser = _lazy(() => classNamesParser.configure({ top: "IdAttributeValue" }));
+const _get_id_name_parser = _lazy(() => classNamesParser.configure({ top: "IdAttributeValue" }));
 
-function _getJsParser() {
+function _get_js_parser() {
   return jsParser;
 }
-const _getTsParser = _lazy(() => jsParser.configure({ dialect: "ts" }));
+const _get_ts_parser = _lazy(() => jsParser.configure({ dialect: "ts" }));
 
 export const getHtmlParser: () => LRParser = _lazy(() =>
   htmlParser.configure({
@@ -33,9 +33,9 @@ export const getHtmlParser: () => LRParser = _lazy(() =>
             const name = input.read(attrName.from, attrName.to);
             switch (name) {
               case "class":
-                return { parser: _getClassNamesParser() };
+                return { parser: _get_class_names_parser() };
               case "id":
-                return { parser: _getIdNameParser() };
+                return { parser: _get_id_name_parser() };
               default:
                 return null;
             }
@@ -77,9 +77,9 @@ function _jsx(ts: boolean) {
             switch (name) {
               case "class":
               case "className":
-                return { parser: _getClassNamesParser() };
+                return { parser: _get_class_names_parser() };
               case "id":
-                return { parser: _getIdNameParser() };
+                return { parser: _get_id_name_parser() };
               default:
                 return null;
             }
@@ -112,9 +112,9 @@ export const getVueParser: () => LRParser = _lazy(() =>
             const name = input.read(attrName.from, attrName.to);
             switch (name) {
               case "class":
-                return { parser: _getClassNamesParser() };
+                return { parser: _get_class_names_parser() };
               case "id":
-                return { parser: _getIdNameParser() };
+                return { parser: _get_id_name_parser() };
               default:
                 return null;
             }
@@ -155,11 +155,11 @@ function _vue_script(node: SyntaxNode, input: Input): NestedParse {
     case "jsx":
       return { parser: getJsxParser() };
     case "ts":
-      return { parser: _getTsParser() };
+      return { parser: _get_ts_parser() };
     case "tsx":
       return { parser: getTsxParser() };
     default:
-      return { parser: _getJsParser() };
+      return { parser: _get_js_parser() };
   }
 }
 

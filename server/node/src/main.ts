@@ -35,9 +35,7 @@ install({
     },
   },
   os: {
-    get concurrency() {
-      return cpus().length;
-    },
+    concurrency: Math.max(cpus().length, 4),
   },
   scheduler: {
     async wait(ms, token) {

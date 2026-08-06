@@ -33,9 +33,7 @@ install({
     },
   },
   os: {
-    get concurrency() {
-      return navigator.hardwareConcurrency ?? 4;
-    },
+    concurrency: Math.max(navigator.hardwareConcurrency, 4),
   },
   scheduler: {
     async wait(ms, token) {

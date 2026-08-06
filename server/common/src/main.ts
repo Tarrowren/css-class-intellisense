@@ -37,7 +37,7 @@ export class Server {
       const languages = new Languages(configuration);
       const documents = new DocumentStore(configuration, connection, languages);
       const trees = new Trees(documents);
-      const symbols = new SymbolIndex(configuration, documents, languages, trees, storage);
+      const symbols = new SymbolIndex(documents, languages, trees, storage);
 
       const completions = new CompletionItemProvider(languages, documents, trees, symbols);
       connection.onCompletion(async (params, token) => {
@@ -49,7 +49,7 @@ export class Server {
         }
       });
 
-      const definitions = new DefinitionProvider(configuration, languages, documents, trees, symbols);
+      const definitions = new DefinitionProvider(languages, documents, trees, symbols);
       connection.onDefinition(async (params, token) => {
         const sw = StopWatch.create();
         try {
@@ -59,7 +59,7 @@ export class Server {
         }
       });
 
-      const references = new ReferenceProvider(configuration, languages, documents, trees, symbols);
+      const references = new ReferenceProvider(languages, documents, trees, symbols);
       connection.onReferences(async (params, token) => {
         const sw = StopWatch.create();
         try {
@@ -69,7 +69,7 @@ export class Server {
         }
       });
 
-      const renames = new RenameProvider(configuration, languages, documents, trees, symbols);
+      const renames = new RenameProvider(languages, documents, trees, symbols);
       connection.onPrepareRename(async (params, token) => {
         const sw = StopWatch.create();
         try {

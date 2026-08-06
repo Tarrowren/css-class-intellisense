@@ -9,8 +9,8 @@ import type {
   TextEdit,
   WorkspaceEdit,
 } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
+import { os } from "../env";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
@@ -20,7 +20,6 @@ import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class RenameProvider {
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
     private readonly _trees: Trees,
@@ -102,16 +101,16 @@ export class RenameProvider {
       const newText = params.newName;
 
       const tasks: ((token?: CancellationToken) => Promise<[DocumentUri, TextEdit[]]>)[] = [];
-      for (const [_uri, _sourceFile] of this._symbols.index) {
-        if (_sourceFile.refs.has(uri) || sourceFile.refs.has(_uri) || uri === _uri) {
+      for (const [_uri, _source_file] of this._symbols.index) {
+        if (_source_file.refs.has(uri) || sourceFile.refs.has(_uri) || uri === _uri) {
           const ranges: [SymbolRange, string?][] = [];
           const duplicates = new Set<number>();
 
           for (const [name, kinds] of suffix.full_names) {
             if (kinds & TriggeredSymbolKind.ClassName) {
               const [defProp, refProp] = this._getProp(TriggeredSymbolKind.ClassName);
-              const defRanges = _sourceFile[defProp].get(name);
-              const refRanges = _sourceFile[refProp].get(name);
+              const defRanges = _source_file[defProp].get(name);
+              const refRanges = _source_file[refProp].get(name);
 
               if (defRanges) {
                 for (const from of defRanges.suffix_ranges) {
@@ -120,9 +119,9 @@ export class RenameProvider {
                   }
                   duplicates.add(from);
 
-                  const _suffixInfo = _sourceFile.suffixes.get(from);
-                  if (_suffixInfo) {
-                    ranges.push([{ from, to: _suffixInfo.to }]);
+                  const _suffix_info = _source_file.suffixes.get(from);
+                  if (_suffix_info) {
+                    ranges.push([{ from, to: _suffix_info.to }]);
                   }
                 }
               }
@@ -137,8 +136,8 @@ export class RenameProvider {
 
             if (kinds & TriggeredSymbolKind.IdName) {
               const [defProp, refProp] = this._getProp(TriggeredSymbolKind.IdName);
-              const defRanges = _sourceFile[defProp].get(name);
-              const refRanges = _sourceFile[refProp].get(name);
+              const defRanges = _source_file[defProp].get(name);
+              const refRanges = _source_file[refProp].get(name);
 
               if (defRanges) {
                 for (const from of defRanges.suffix_ranges) {
@@ -147,9 +146,9 @@ export class RenameProvider {
                   }
                   duplicates.add(from);
 
-                  const _suffixInfo = _sourceFile.suffixes.get(from);
-                  if (_suffixInfo) {
-                    ranges.push([{ from, to: _suffixInfo.to }]);
+                  const _suffix_info = _source_file.suffixes.get(from);
+                  if (_suffix_info) {
+                    ranges.push([{ from, to: _suffix_info.to }]);
                   }
                 }
               }
@@ -176,7 +175,7 @@ export class RenameProvider {
         }
       }
 
-      const result = await parallel(tasks, this._configuration.parallel);
+      const result = await parallel(tasks, os().concurrency);
       const changes = Object.fromEntries(result);
       return { changes };
     } else {
@@ -220,7 +219,7 @@ export class RenameProvider {
       }
     }
 
-    const result = await parallel(tasks, this._configuration.parallel);
+    const result = await parallel(tasks, os().concurrency);
     return Object.fromEntries(result);
   }
 

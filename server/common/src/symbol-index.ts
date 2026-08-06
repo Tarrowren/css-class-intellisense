@@ -1,9 +1,8 @@
 import { LockType, ReadWriteLock } from "@cci/shared";
 import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { Configuration } from "./configuration";
 import type { DocumentStore } from "./document-store";
-import { scheduler } from "./env";
+import { os, scheduler } from "./env";
 import type { Languages } from "./languages";
 import { StopWatch } from "./stop-watch";
 import type { SymbolStorage } from "./symbol-storage";
@@ -21,7 +20,6 @@ export class SymbolIndex implements Disposable {
   private readonly _rwlock = new ReadWriteLock();
 
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _documents: DocumentStore,
     private readonly _languages: Languages,
     private readonly _trees: Trees,
@@ -57,7 +55,7 @@ export class SymbolIndex implements Disposable {
   private async _doUpdate(uris: string[], async: boolean): Promise<void> {
     const sw = StopWatch.create();
     const tasks = uris.map(this._createIndexTask, this);
-    const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+    const stats = await parallel(tasks, os().concurrency, this._source.token);
 
     let totalRetrieve = 0;
     let totalIndex = 0;
@@ -69,7 +67,7 @@ export class SymbolIndex implements Disposable {
     if (this._external.size > 0) {
       const tasks = [...this._external].map(this._createIndexTask, this);
       this._external.clear();
-      const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+      const stats = await parallel(tasks, os().concurrency, this._source.token);
       for (const stat of stats) {
         totalRetrieve += stat.durationRetrieve;
         totalIndex += stat.durationIndex;
@@ -183,7 +181,7 @@ export class SymbolIndex implements Disposable {
     await this.update();
 
     while (!this._source.token.isCancellationRequested) {
-      const uris = this._asyncInitQueue.consume(this._configuration.parallel, (_uri) => true);
+      const uris = this._asyncInitQueue.consume(os().concurrency, (_uri) => true);
       if (uris.length === 0) {
         break;
       }

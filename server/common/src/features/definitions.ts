@@ -1,7 +1,7 @@
 import type { SyntaxNodeRef } from "@lezer/common";
 import { Location, type CancellationToken, type DefinitionParams, type DocumentUri } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
+import { os } from "../env";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
@@ -11,7 +11,6 @@ import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class DefinitionProvider {
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
     private readonly _trees: Trees,
@@ -68,18 +67,18 @@ export class DefinitionProvider {
     }
 
     for (const _uri of sourceFile.refs.keys()) {
-      const _sourceFile = this._symbols.index.get(_uri);
-      if (!_sourceFile) {
+      const _source_file = this._symbols.index.get(_uri);
+      if (!_source_file) {
         continue;
       }
 
-      const _info = _sourceFile[prop].get(name);
+      const _info = _source_file[prop].get(name);
       if (_info) {
-        tasks.push(this._createTask(_uri, _sourceFile, _info));
+        tasks.push(this._createTask(_uri, _source_file, _info));
       }
     }
 
-    const result = await parallel(tasks, this._configuration.parallel);
+    const result = await parallel(tasks, os().concurrency);
     return result.flat();
   }
 
