@@ -81,11 +81,10 @@ export class SymbolIndex implements Disposable {
       uris.length,
       "files",
       sw.elapsed(2),
-      "( retrieval:",
-      totalRetrieve.toFixed(2),
-      ", indexing:",
-      totalIndex.toFixed(2),
-      ")",
+      "(retrieval:",
+      totalRetrieve.toFixed(2) + "ms,",
+      "indexing:",
+      totalIndex.toFixed(2) + "ms)",
     );
   }
 

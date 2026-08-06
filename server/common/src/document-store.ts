@@ -1,7 +1,10 @@
 import { CustomMessages } from "@cci/shared";
 import type { ChangedRange } from "@lezer/common";
 import {
+  CancellationToken,
+  CancellationTokenSource,
   Emitter,
+  LRUCache,
   TextDocumentContentChangeEvent,
   type Connection,
   type Disposable,
@@ -10,11 +13,12 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
-import { Cache } from "./cache";
+import { CancellationError } from "./cancellation";
 import type { Configuration } from "./configuration";
 import { Empty } from "./empty";
-import { fs } from "./env";
+import { fs, os } from "./env";
 import type { Languages } from "./languages";
+import { Semaphore } from "./semaphore";
 import { normalize } from "./util";
 
 export interface TextDocumentOpenEvent {
@@ -33,14 +37,17 @@ export interface TextDocumentCloseEvent {
 }
 
 export class DocumentStore implements Disposable {
-  private readonly _syncedDocuments = new Map<DocumentUri, TextDocument>();
-
-  private readonly _onDidOpen = new Emitter<TextDocumentOpenEvent>();
-  private readonly _onDidChangeContent = new Emitter<TextDocumentChangeEvent>();
-  private readonly _onDidClose = new Emitter<TextDocumentCloseEvent>();
+  private readonly _synced = new Map<DocumentUri, TextDocument>();
+  private readonly _requests = new Map<DocumentUri, DocumentRequest>();
+  private readonly _files = new LRUCache<DocumentUri, TextDocument>(256);
 
   private readonly _decoder = new TextDecoder();
-  private readonly _fileDocuments = Cache.create<DocumentUri, Promise<TextDocument>>(256);
+
+  private readonly _semaphore = new Semaphore(os().concurrency);
+
+  private readonly _on_did_open = new Emitter<TextDocumentOpenEvent>();
+  private readonly _on_did_change_content = new Emitter<TextDocumentChangeEvent>();
+  private readonly _on_did_close = new Emitter<TextDocumentCloseEvent>();
 
   constructor(
     private readonly _configuration: Configuration,
@@ -51,9 +58,9 @@ export class DocumentStore implements Disposable {
       const uri = normalize(raw_uri);
       const document = TextDocument.create(uri, languageId, version, text);
 
-      this._syncedDocuments.set(uri, document);
-      this._onDidOpen.fire({ uri, version });
-      this._onDidChangeContent.fire({ uri, version, changes: Empty.array() });
+      this._synced.set(uri, document);
+      this._on_did_open.fire({ uri, version });
+      this._on_did_change_content.fire({ uri, version, changes: Empty.array() });
     });
 
     _connection.onDidChangeTextDocument(({ textDocument: { uri: raw_uri, version }, contentChanges }) => {
@@ -63,15 +70,15 @@ export class DocumentStore implements Disposable {
 
       const uri = normalize(raw_uri);
 
-      const prev = this._syncedDocuments.get(uri);
+      const prev = this._synced.get(uri);
       if (!prev) {
         return;
       }
 
       const document = TextDocument.update(prev, contentChanges, version);
 
-      this._syncedDocuments.set(uri, document);
-      this._onDidChangeContent.fire({
+      this._synced.set(uri, document);
+      this._on_did_change_content.fire({
         uri,
         version,
         changes: contentChanges
@@ -91,102 +98,148 @@ export class DocumentStore implements Disposable {
     _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
       const uri = normalize(raw_uri);
 
-      if (!this._syncedDocuments.has(uri)) {
+      if (!this._synced.has(uri)) {
         return;
       }
 
-      this._syncedDocuments.delete(uri);
-      this._onDidClose.fire({ uri });
+      this._synced.delete(uri);
+      this._on_did_close.fire({ uri });
     });
   }
 
   get onDidOpen(): Event<TextDocumentOpenEvent> {
-    return this._onDidOpen.event;
+    return this._on_did_open.event;
   }
 
   get onDidChangeContent(): Event<TextDocumentChangeEvent> {
-    return this._onDidChangeContent.event;
+    return this._on_did_change_content.event;
   }
 
   get onDidClose(): Event<TextDocumentCloseEvent> {
-    return this._onDidClose.event;
+    return this._on_did_close.event;
   }
 
-  get(uri: string): TextDocument | undefined {
-    return this._syncedDocuments.get(uri);
+  get(documentUri: DocumentUri): TextDocument | undefined {
+    return this._synced.get(documentUri);
   }
 
-  all(): TextDocument[] {
-    return [...this._syncedDocuments.values()];
-  }
+  async retrieve(documentUri: DocumentUri, token: CancellationToken = CancellationToken.None): Promise<TextDocument> {
+    if (token.isCancellationRequested) {
+      throw new CancellationError();
+    }
 
-  keys(): DocumentUri[] {
-    return [...this._syncedDocuments.keys()];
-  }
-
-  async retrieve(uri: string): Promise<TextDocument> {
-    const document = this.get(uri);
+    const document = this._synced.get(documentUri) ?? this._files.get(documentUri);
     if (document) {
       return document;
     }
 
-    let promise = this._fileDocuments.get(uri);
-    if (!promise) {
-      promise = this._requestDocument(uri);
-      this._fileDocuments.set(uri, promise);
+    let request = this._requests.get(documentUri);
+    if (!request) {
+      request = this._create_request(documentUri, token);
+      this._requests.set(documentUri, request);
+    } else if (!request.tokens.has(token)) {
+      request.subscriptions.push(this._cancel(documentUri, token));
+      request.tokens.add(token);
     }
-
-    try {
-      return await promise;
-    } catch (err) {
-      this._fileDocuments.delete(uri);
-      throw err;
-    }
+    return await request.value;
   }
 
-  private async _requestDocument(uri: string): Promise<TextDocument> {
-    const languageId = this._languages.getLanguageIdByUri(uri);
+  private _create_request(documentUri: DocumentUri, token: CancellationToken): DocumentRequest {
+    const source = new CancellationTokenSource();
+    const subscriptions: Disposable[] = [this._cancel(documentUri, token)];
+    const tokens = new Set<CancellationToken>([token]);
+    const value = this._request_document(documentUri, source.token)
+      .then((value) => {
+        this._files.set(documentUri, value);
+        return value;
+      })
+      .finally(() => {
+        this._requests.delete(documentUri);
+
+        source.dispose();
+        for (const disposable of subscriptions) {
+          disposable.dispose();
+        }
+        tokens.clear();
+      });
+
+    return {
+      source,
+      subscriptions,
+      tokens,
+      value,
+    };
+  }
+
+  private _cancel(documentUri: DocumentUri, token: CancellationToken): Disposable {
+    return token.onCancellationRequested(() => {
+      const request = this._requests.get(documentUri);
+      if (request && request.tokens.delete(token)) {
+        for (const t of request.tokens) {
+          if (!t.isCancellationRequested) {
+            return;
+          }
+        }
+
+        request.source.cancel();
+      }
+    });
+  }
+
+  private async _request_document(documentUri: DocumentUri, token: CancellationToken): Promise<TextDocument> {
+    const languageId = this._languages.getLanguageIdByUri(documentUri);
+
+    const f = fs();
+    const uri = URI.parse(documentUri);
 
     let content: string;
-    const _uri = URI.parse(uri);
-    switch (_uri.scheme) {
-      case "file": {
-        let bytes: Uint8Array;
-        const _fs = fs();
-        if (this._configuration.useNodeFS && _fs.readFile) {
-          bytes = await _fs.readFile(_uri.fsPath);
-        } else {
-          const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
-          bytes = new Uint8Array(elements);
-        }
-        content = this._decoder.decode(bytes);
-        break;
-      }
-      case "http":
-      case "https": {
-        content = await fs().fetchFile(uri);
-        break;
-      }
-      default: {
-        const elements = await this._connection.sendRequest(CustomMessages.FileRead, uri);
-        const bytes = new Uint8Array(elements);
-        content = this._decoder.decode(bytes);
-        break;
-      }
+    if (uri.scheme === "http" || uri.scheme === "https") {
+      content = await f.fetchFile(documentUri, token);
+    } else if (uri.scheme === "file" && this._configuration.useNodeFS && f.readFile) {
+      const bytes = await f.readFile(uri.fsPath, token);
+      content = this._decoder.decode(bytes);
+    } else {
+      const elements = await this._semaphore.lock(
+        () => this._connection.sendRequest(CustomMessages.FileRead, documentUri, token),
+        token,
+      );
+      const bytes = new Uint8Array(elements);
+      content = this._decoder.decode(bytes);
     }
 
-    return TextDocument.create(uri, languageId, 1, content);
+    return TextDocument.create(documentUri, languageId, 1, content);
   }
 
-  removeFile(uri: string): boolean {
-    return this._fileDocuments.delete(uri);
+  removeFile(documentUri: DocumentUri): boolean {
+    const request = this._requests.get(documentUri);
+    if (request) {
+      request.source.cancel();
+      this._files.delete(documentUri);
+      return true;
+    }
+
+    return this._files.delete(documentUri);
   }
 
   dispose(): void {
-    this._onDidOpen.dispose();
-    this._onDidChangeContent.dispose();
-    this._onDidClose.dispose();
-    this._syncedDocuments.clear();
-    this._fileDocuments.dispose();
+    this._on_did_open.dispose();
+    this._on_did_change_content.dispose();
+    this._on_did_close.dispose();
+
+    this._semaphore.dispose();
+
+    this._synced.clear();
+    for (const request of this._requests.values()) {
+      request.source.cancel();
+    }
+    this._requests.clear();
+    this._files.clear();
   }
+}
+
+interface DocumentRequest {
+  readonly source: CancellationTokenSource;
+  readonly subscriptions: Disposable[];
+  readonly tokens: Set<CancellationToken>;
+  readonly value: Promise<TextDocument>;
 }
