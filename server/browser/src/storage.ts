@@ -1,3 +1,4 @@
+import { CancellationError } from "@cci/server-common/src/cancellation";
 import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
 import type { SourceFile } from "@cci/server-common/src/type";
 import { withResolvers } from "@cci/shared";
@@ -32,10 +33,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     const request = store.openCursor();
 
     let cursor: IDBCursorWithValue | null;
-    while ((cursor = await _get(request))) {
-      if (token.isCancellationRequested) {
-        throw new Error("cancelled");
-      }
+    while ((cursor = await _get(request, token))) {
       if (trans.error) {
         throw trans.error;
       }
@@ -76,10 +74,12 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
       }
       db.createObjectStore(_store);
     };
-    const db = await new Promise<IDBDatabase>((c, e) => {
-      req.onerror = () => e(req.error);
-      req.onsuccess = () => c(req.result);
-    });
+
+    const { promise, resolve, reject } = withResolvers<IDBDatabase>();
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+
+    const db = await promise;
 
     if (db.objectStoreNames.contains(_store)) {
       return db;
@@ -93,10 +93,12 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
 
   static async deleteDatabase(name: string): Promise<void> {
     const req = indexedDB.deleteDatabase(name);
-    await new Promise<void>((c, e) => {
-      req.onerror = () => e(req.error);
-      req.onsuccess = () => c();
-    });
+
+    const { promise, resolve, reject } = withResolvers<void>();
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve();
+
+    await promise;
   }
 
   private _save_soon(): void {
@@ -112,6 +114,11 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     }
 
     const trans = this._db.transaction(_store, "readwrite");
+
+    const { promise, resolve, reject } = withResolvers<void>();
+    trans.onerror = () => reject(trans.error);
+    trans.oncomplete = () => resolve();
+
     const store = trans.objectStore(_store);
 
     for (const [uri, active] of this._queue) {
@@ -126,10 +133,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     }
     this._queue.clear();
 
-    return await new Promise<void>((c, e) => {
-      trans.onerror = () => e(trans.error);
-      trans.oncomplete = () => c();
-    });
+    await promise;
   }
 }
 
@@ -148,8 +152,17 @@ interface DelActive {
   value: null;
 }
 
-async function _get(cursor: IDBRequest<IDBCursorWithValue | null>): Promise<IDBCursorWithValue | null> {
+async function _get(
+  cursor: IDBRequest<IDBCursorWithValue | null>,
+  token: CancellationToken,
+): Promise<IDBCursorWithValue | null> {
+  if (token.isCancellationRequested) {
+    throw new CancellationError();
+  }
+
   const { promise, resolve, reject } = withResolvers<IDBCursorWithValue | null>();
+
+  const disposable = token.onCancellationRequested(() => reject(new CancellationError()));
 
   const _success = () => resolve(cursor.result);
   const _error = () => reject(cursor.error);
@@ -159,6 +172,8 @@ async function _get(cursor: IDBRequest<IDBCursorWithValue | null>): Promise<IDBC
   try {
     return await promise;
   } finally {
+    disposable.dispose();
+
     cursor.removeEventListener("success", _success);
     cursor.removeEventListener("error", _error);
   }

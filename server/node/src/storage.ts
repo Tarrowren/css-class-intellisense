@@ -1,3 +1,4 @@
+import { CancellationError } from "@cci/server-common/src/cancellation";
 import type { SymbolStorage } from "@cci/server-common/src/symbol-storage";
 import type { SourceFile } from "@cci/server-common/src/type";
 import { Bitcask } from "bitcask";
@@ -26,7 +27,7 @@ export class FileSymbolStorage implements SymbolStorage {
   async *entries(token: CancellationToken): AsyncGenerator<[DocumentUri, SourceFile]> {
     for await (const [k, v] of this._db.entries()) {
       if (token.isCancellationRequested) {
-        throw new Error("cancelled");
+        throw new CancellationError();
       }
 
       const value = typia.protobuf.isDecode<SourceFile>(v);

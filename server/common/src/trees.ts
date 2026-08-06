@@ -3,6 +3,7 @@ import type { LRParser } from "@lezer/lr";
 import { CancellationToken, CancellationTokenSource, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Cache } from "./cache";
+import { CancellationError } from "./cancellation";
 import type { DocumentStore } from "./document-store";
 import { scheduler } from "./env";
 import type { Language } from "./languages";
@@ -147,7 +148,7 @@ async function parse(
 
     await scheduler().yield();
     if (token?.isCancellationRequested) {
-      throw new Error("cancelled");
+      throw new CancellationError();
     }
   }
 }

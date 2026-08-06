@@ -1,11 +1,12 @@
 import { Server } from "@cci/server-common";
+import { CancellationError } from "@cci/server-common/src/cancellation";
 import { install } from "@cci/server-common/src/env";
 import { NoopSymbolStorage } from "@cci/server-common/src/symbol-storage";
 import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
-import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
+import { type CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -16,10 +17,9 @@ process.on("unhandledRejection", (e) => {
 
 install({
   fs: {
-    async fetchFile(url, _token) {
-      // TODO token
+    async fetchFile(url, token) {
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: _to_abort_signal(token) });
         if (!response.ok) {
           throw new Error((await response.text()).substring(0, 200));
         }
@@ -29,9 +29,8 @@ install({
         throw err;
       }
     },
-    async readFile(path, _token) {
-      // TODO token
-      return await readFile(path);
+    async readFile(path, token) {
+      return await readFile(path, { signal: _to_abort_signal(token) });
     },
   },
   os: {
@@ -43,7 +42,7 @@ install({
       const timer = setTimeout(resolve, ms);
       const disposable = token?.onCancellationRequested(() => {
         clearTimeout(timer);
-        reject(new Error("cancelled"));
+        reject(new CancellationError());
       });
       try {
         await promise;
@@ -56,7 +55,7 @@ install({
       const timer = setImmediate(resolve);
       const disposable = token?.onCancellationRequested(() => {
         clearImmediate(timer);
-        reject(new Error("cancelled"));
+        reject(new CancellationError());
       });
       try {
         await promise;
@@ -66,6 +65,31 @@ install({
     },
   },
 });
+
+const _cache = new WeakMap<CancellationToken, AbortSignal>();
+function _to_abort_signal(token?: CancellationToken): AbortSignal | undefined {
+  if (!token) {
+    return;
+  }
+
+  let signal = _cache.get(token);
+  if (!signal) {
+    if (token.isCancellationRequested) {
+      signal = AbortSignal.abort(new CancellationError());
+    } else {
+      const controller = new AbortController();
+      token.onCancellationRequested(() => {
+        controller.abort(new CancellationError());
+      });
+
+      signal = controller.signal;
+    }
+
+    _cache.set(token, signal);
+  }
+
+  return signal;
+}
 
 Server.create(connection, {
   async create(options) {

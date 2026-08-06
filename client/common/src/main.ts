@@ -1,5 +1,6 @@
 import { CustomMessages, languageConfigs, type InitOptions } from "@cci/shared";
 import {
+  CancellationError,
   CancellationTokenSource,
   RelativePattern,
   Uri,
@@ -37,7 +38,7 @@ export class Client {
           this._logger.warn("[FileRead] FAILED", err);
         }
         if (token.isCancellationRequested) {
-          throw new Error("cancelled");
+          throw new CancellationError();
         }
         return bytes ? Array.from(bytes) : [];
       }),

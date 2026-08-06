@@ -2,6 +2,7 @@ import type { SyntaxNodeRef } from "@lezer/common";
 import { DocumentUri, Range, type CancellationToken, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { URI, Utils } from "vscode-uri";
+import { CancellationError } from "./cancellation";
 import { scheduler } from "./env";
 import type { SymbolRange } from "./type";
 
@@ -15,7 +16,7 @@ export async function parallel<T>(
   const len = tasks.length;
   for (;;) {
     if (token?.isCancellationRequested) {
-      throw new Error("cancelled");
+      throw new CancellationError();
     }
 
     if (start >= len) {
