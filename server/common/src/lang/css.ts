@@ -14,7 +14,7 @@ export default class CssLanguage implements Language {
 
   readonly parser: LRParser = getCssParser();
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (isCanDoCompleteCssNode(node, false)) {

@@ -78,6 +78,6 @@ export class Languages implements Disposable {
 export interface Language {
   readonly parser: LRParser;
 
-  getCompletionTriggeredSymbolInfo?(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
+  completion?(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
   query(uri: DocumentUri, input: string, tree: Tree): SourceFile;
 }

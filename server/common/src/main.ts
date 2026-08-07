@@ -73,7 +73,7 @@ export class Server {
       connection.onPrepareRename(async (params, token) => {
         const sw = StopWatch.create();
         try {
-          return await run(() => renames.prepareRename(params), { defaultBehavior: true }, token);
+          return await run(() => renames.prepareRename(params, token), { defaultBehavior: true }, token);
         } finally {
           console.info("[PrepareRename]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
@@ -151,7 +151,7 @@ export interface StorageFactory {
 
 async function run<T>(func: () => Promise<T>, defaultValue: T, token: CancellationToken): Promise<T> {
   try {
-    await scheduler().yield(token);
+    await scheduler().wait(0, token);
   } catch (_) {
     return defaultValue;
   }

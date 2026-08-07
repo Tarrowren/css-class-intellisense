@@ -18,8 +18,8 @@ export function scheduler(): Scheduler {
 }
 
 interface FS {
-  fetchFile(url: string, token?: CancellationToken): Promise<string>;
-  readFile?(path: string, token?: CancellationToken): Promise<Uint8Array>;
+  fetchFile(url: string, token: CancellationToken): Promise<string>;
+  readFile?(path: string, token: CancellationToken): Promise<Uint8Array>;
 }
 
 interface OS {
@@ -27,8 +27,8 @@ interface OS {
 }
 
 interface Scheduler {
-  wait(ms: number, token?: CancellationToken): Promise<void>;
-  yield(token?: CancellationToken): Promise<void>;
+  wait(ms: number, token: CancellationToken): Promise<void>;
+  yield(token: CancellationToken): Promise<void>;
 }
 
 interface Env {

@@ -7,7 +7,7 @@ import * as l10n from "@vscode/l10n";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-  CancellationToken,
+  type CancellationToken,
   createConnection,
   ProposedFeatures,
 } from "vscode-languageserver/browser";
@@ -43,7 +43,7 @@ install({
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token: CancellationToken = CancellationToken.None): AbortSignal | undefined {
+function _to_abort_signal(token: CancellationToken): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {
@@ -63,7 +63,7 @@ function _to_abort_signal(token: CancellationToken = CancellationToken.None): Ab
   return signal;
 }
 
-async function _wait(ms: number, token: CancellationToken = CancellationToken.None) {
+async function _wait(ms: number, token: CancellationToken) {
   if (token.isCancellationRequested) {
     throw new CancellationError();
   }
@@ -81,7 +81,7 @@ async function _wait(ms: number, token: CancellationToken = CancellationToken.No
   }
 }
 
-async function _yield(token: CancellationToken = CancellationToken.None) {
+async function _yield(token: CancellationToken) {
   if (token.isCancellationRequested) {
     throw new CancellationError();
   }
@@ -98,7 +98,7 @@ async function _yield(token: CancellationToken = CancellationToken.None) {
   }
 }
 
-async function _polyfill_yield(token: CancellationToken = CancellationToken.None) {
+async function _polyfill_yield(token: CancellationToken) {
   await _wait(0, token);
 }
 

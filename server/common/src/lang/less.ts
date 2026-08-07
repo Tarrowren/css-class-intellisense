@@ -14,7 +14,7 @@ export default class LessLanguage implements Language {
 
   readonly parser: LRParser = getLessParser();
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (isCanDoCompleteCssNode(node, true)) {

@@ -34,27 +34,18 @@ export class CompletionItemProvider {
     }
 
     const language = this._languages.getLanguage(maybeExpired.languageId);
-    if (!language || !language.getCompletionTriggeredSymbolInfo) {
+    if (!language || !language.completion) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language);
-    if (token.isCancellationRequested) {
-      return;
-    }
-    const info = language.getCompletionTriggeredSymbolInfo(
-      document.getText(),
-      document.offsetAt(params.position),
-      tree,
-    );
+    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const info = language.completion(document.getText(), document.offsetAt(params.position), tree);
     if (!info) {
       return;
     }
 
-    await this._symbols.update();
-    if (token.isCancellationRequested) {
-      return;
-    }
+    await this._symbols.update(token);
+
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;
@@ -63,13 +54,13 @@ export class CompletionItemProvider {
     let items: Map<string, CompletionItem>;
     switch (info.kind) {
       case CompletionTriggeredSymbolKind.ClassName:
-        items = this._collectDefinition(sourceFile, "class_names");
+        items = this._collect_definition(sourceFile, "class_names");
         break;
       case CompletionTriggeredSymbolKind.IdName:
-        items = this._collectDefinition(sourceFile, "id_names");
+        items = this._collect_definition(sourceFile, "id_names");
         break;
       case CompletionTriggeredSymbolKind.Css:
-        items = this._collectReference(uri);
+        items = this._collect_reference(uri);
         break;
     }
 
@@ -85,20 +76,20 @@ export class CompletionItemProvider {
     return { isIncomplete: false, itemDefaults: { editRange }, items: [...items.values()] };
   }
 
-  private _collectDefinition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
+  private _collect_definition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
     for (const name of sourceFile[prop].keys()) {
       result.set(name, { label: name, kind: CompletionItemKind.Variable });
     }
 
-    for (const _uri of sourceFile.refs.keys()) {
-      const _source_file = this._symbols.index.get(_uri);
-      if (!_source_file) {
+    for (const uri of sourceFile.refs.keys()) {
+      const defSourceFile = this._symbols.index.get(uri);
+      if (!defSourceFile) {
         continue;
       }
 
-      for (const name of _source_file[prop].keys()) {
+      for (const name of defSourceFile[prop].keys()) {
         result.set(name, { label: name, kind: CompletionItemKind.Variable });
       }
     }
@@ -106,15 +97,15 @@ export class CompletionItemProvider {
     return result;
   }
 
-  private _collectReference(uri: DocumentUri): Map<string, CompletionItem> {
+  private _collect_reference(documentUri: DocumentUri): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
-    for (const [_uri, _sourceFile] of this._symbols.index) {
-      if (_sourceFile.refs.has(uri) || uri === _uri) {
-        for (const name of _sourceFile.used_class_names.keys()) {
+    for (const [uri, refSourceFile] of this._symbols.index) {
+      if (refSourceFile.refs.has(documentUri) || documentUri === uri) {
+        for (const name of refSourceFile.used_class_names.keys()) {
           result.set(name, { label: "." + name, kind: CompletionItemKind.Variable });
         }
-        for (const name of _sourceFile.used_id_names.keys()) {
+        for (const name of refSourceFile.used_id_names.keys()) {
           result.set(name, { label: "#" + name, kind: CompletionItemKind.Variable });
         }
       }

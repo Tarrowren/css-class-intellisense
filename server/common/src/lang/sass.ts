@@ -19,7 +19,7 @@ export default class SassLanguage implements Language {
 
   readonly parser: LRParser;
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (isCanDoCompleteCssNode(node, true)) {

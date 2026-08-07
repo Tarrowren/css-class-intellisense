@@ -1,4 +1,4 @@
 export * from "./language";
-export * from "./lock";
 export * from "./rpc";
+export * from "./unsafe-queue";
 export * from "./with-resolvers";

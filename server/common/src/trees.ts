@@ -2,10 +2,10 @@ import { withResolvers } from "@cci/shared";
 import { TreeFragment, type ChangedRange, type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
 import {
-  CancellationToken,
   CancellationTokenSource,
   DocumentUri,
   LRUCache,
+  type CancellationToken,
   type Disposable,
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -61,7 +61,7 @@ export class Trees implements Disposable {
   getParseTree(
     document: TextDocument,
     language: Language,
-    token: CancellationToken = CancellationToken.None,
+    token: CancellationToken,
   ): Promise<ParseTreeResult> | ParseTreeResult {
     const documentUri = document.uri;
     const request = this._requests.get(documentUri);

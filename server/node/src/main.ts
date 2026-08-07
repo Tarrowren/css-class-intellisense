@@ -6,7 +6,7 @@ import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
-import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
+import { type CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -37,7 +37,7 @@ install({
     concurrency: Math.max(cpus().length, 4),
   },
   scheduler: {
-    async wait(ms, token = CancellationToken.None) {
+    async wait(ms, token) {
       if (token.isCancellationRequested) {
         throw new CancellationError();
       }
@@ -54,7 +54,7 @@ install({
         disposable.dispose();
       }
     },
-    async yield(token = CancellationToken.None) {
+    async yield(token) {
       if (token.isCancellationRequested) {
         throw new CancellationError();
       }
@@ -75,7 +75,7 @@ install({
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token: CancellationToken = CancellationToken.None): AbortSignal | undefined {
+function _to_abort_signal(token: CancellationToken): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {

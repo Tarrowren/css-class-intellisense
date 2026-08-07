@@ -7,13 +7,16 @@ export class UnsafeNode<T> {
 export class UnsafeQueue<T> {
   private _head: UnsafeNode<T> | null = null;
   private _tail: UnsafeNode<T> | null = null;
+  private _size = 0;
 
-  head(): UnsafeNode<T> | null {
-    return this._head;
+  dispose(): void {
+    this._head = null;
+    this._tail = null;
+    this._size = 0;
   }
 
   has(node: UnsafeNode<T>): boolean {
-    return this._head === node || this._tail === node || !!node.next || !!node.prev;
+    return this._head === node || this._tail === node || node.next !== null || node.prev !== null;
   }
 
   push(node: UnsafeNode<T>): boolean {
@@ -24,13 +27,31 @@ export class UnsafeQueue<T> {
     if (this._tail) {
       node.prev = this._tail;
       this._tail.next = node;
-      this._tail = node;
     } else {
       this._head = node;
-      this._tail = node;
+    }
+    this._tail = node;
+
+    this._size++;
+    return true;
+  }
+
+  shift(): UnsafeNode<T> | null {
+    if (this._head === null) {
+      return null;
     }
 
-    return true;
+    const node = this._head;
+    const next = node.next;
+    node.next = null;
+
+    this._head = next;
+    if (next === null) {
+      this._tail = null;
+    }
+
+    this._size--;
+    return node;
   }
 
   remove(node: UnsafeNode<T>): boolean {
@@ -57,11 +78,11 @@ export class UnsafeQueue<T> {
       next.prev = prev;
     }
 
+    this._size--;
     return true;
   }
 
-  dispose(): void {
-    this._head = null;
-    this._tail = null;
+  get size(): number {
+    return this._size;
   }
 }

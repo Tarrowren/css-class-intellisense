@@ -15,7 +15,7 @@ export default class HtmlLanguage implements Language {
 
   readonly parser: LRParser = getHtmlParser();
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (node.type.is("ClassAttributeValue")) {

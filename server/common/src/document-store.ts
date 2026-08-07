@@ -1,11 +1,11 @@
 import { CustomMessages } from "@cci/shared";
 import type { ChangedRange } from "@lezer/common";
 import {
-  CancellationToken,
   CancellationTokenSource,
   Emitter,
   LRUCache,
   TextDocumentContentChangeEvent,
+  type CancellationToken,
   type Connection,
   type Disposable,
   type DocumentUri,
@@ -142,7 +142,7 @@ export class DocumentStore implements Disposable {
     return this._synced.get(documentUri);
   }
 
-  async retrieve(documentUri: DocumentUri, token: CancellationToken = CancellationToken.None): Promise<TextDocument> {
+  async retrieve(documentUri: DocumentUri, token: CancellationToken): Promise<TextDocument> {
     if (token.isCancellationRequested) {
       throw new CancellationError();
     }

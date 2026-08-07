@@ -20,7 +20,7 @@ export default class VueLanguage implements Language {
 
   readonly parser: LRParser = getVueParser();
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (node.type.is("ClassAttributeValue")) {

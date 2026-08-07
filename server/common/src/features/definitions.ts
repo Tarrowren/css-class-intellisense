@@ -3,13 +3,16 @@ import { Location, type CancellationToken, type DefinitionParams, type DocumentU
 import type { DocumentStore } from "../document-store";
 import { os } from "../env";
 import type { Languages } from "../languages";
+import { Semaphore } from "../semaphore";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
 import type { SourceFile, SymbolInfo } from "../type";
-import { lspRange, lspRange2, normalize, parallel, textRange } from "../util";
+import { lspRange, lspRange2, normalize, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class DefinitionProvider {
+  private readonly _semaphore = new Semaphore(os().concurrency);
+
   constructor(
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
@@ -29,66 +32,63 @@ export class DefinitionProvider {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language);
-    if (token.isCancellationRequested) {
-      return;
-    }
+    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
     const pos = document.offsetAt(params.position);
-    const info = this._getInfo(tree.resolve(pos, -1)) ?? this._getInfo(tree.resolve(pos, 1));
+    const info = this._get_info(tree.resolve(pos, -1)) ?? this._get_info(tree.resolve(pos, 1));
     if (!info) {
       return;
     }
 
-    await this._symbols.update();
-    if (token.isCancellationRequested) {
-      return;
-    }
+    await this._symbols.update(token);
+
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;
     }
 
     const name = document.getText().substring(info.range.from, info.range.to);
-    return await this._provideDefinition(uri, sourceFile, info.kind, name);
+    return await this._get_definitions(uri, sourceFile, info.kind, name, token);
   }
 
-  private async _provideDefinition(
-    uri: DocumentUri,
+  private async _get_definitions(
+    documentUri: DocumentUri,
     sourceFile: SourceFile,
     kind: TriggeredSymbolKind,
     name: string,
+    token: CancellationToken,
   ): Promise<Location[]> {
-    const prop = this._getProp(kind);
-    const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
+    const prop = this._get_prop(kind);
+    const locations: Promise<Location[]>[] = [];
 
     const info = sourceFile[prop].get(name);
     if (info) {
-      tasks.push(this._createTask(uri, sourceFile, info));
+      locations.push(this._semaphore.lock(this._get_locations(documentUri, sourceFile, info, token), token));
     }
 
-    for (const _uri of sourceFile.refs.keys()) {
-      const _source_file = this._symbols.index.get(_uri);
-      if (!_source_file) {
+    for (const uri of sourceFile.refs.keys()) {
+      const defSourceFile = this._symbols.index.get(uri);
+      if (!defSourceFile) {
         continue;
       }
 
-      const _info = _source_file[prop].get(name);
-      if (_info) {
-        tasks.push(this._createTask(_uri, _source_file, _info));
+      const defInfo = defSourceFile[prop].get(name);
+      if (defInfo) {
+        locations.push(this._semaphore.lock(this._get_locations(uri, defSourceFile, defInfo, token), token));
       }
     }
 
-    const result = await parallel(tasks, os().concurrency);
+    const result = await Promise.all(locations);
     return result.flat();
   }
 
-  private _createTask(
+  private _get_locations(
     uri: DocumentUri,
     { suffixes }: SourceFile,
     { ranges, suffix_ranges }: SymbolInfo,
+    token: CancellationToken,
   ): () => Promise<Location[]> {
     return async () => {
-      const document = await this._documents.retrieve(uri);
+      const document = await this._documents.retrieve(uri, token);
 
       const result: Location[] = [];
       for (const range of ranges) {
@@ -109,7 +109,7 @@ export class DefinitionProvider {
     };
   }
 
-  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
+  private _get_info(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
     if (node.type.is("UsedClassName")) {
       return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
@@ -118,7 +118,7 @@ export class DefinitionProvider {
     }
   }
 
-  private _getProp(kind: TriggeredSymbolKind): "class_names" | "id_names" {
+  private _get_prop(kind: TriggeredSymbolKind): "class_names" | "id_names" {
     switch (kind) {
       case TriggeredSymbolKind.ClassName:
         return "class_names";
