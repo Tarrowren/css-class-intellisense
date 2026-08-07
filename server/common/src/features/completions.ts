@@ -28,17 +28,17 @@ export class CompletionItemProvider {
     token: CancellationToken,
   ): Promise<CompletionList | undefined> {
     const uri = normalize(params.textDocument.uri);
-    const document = this._documents.get(uri);
-    if (!document) {
+    const maybeExpired = this._documents.get(uri);
+    if (!maybeExpired) {
       return;
     }
 
-    const language = this._languages.getLanguage(document.languageId);
+    const language = this._languages.getLanguage(maybeExpired.languageId);
     if (!language || !language.getCompletionTriggeredSymbolInfo) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(uri, language);
+    const { document, tree } = await this._trees.getParseTree(maybeExpired, language);
     if (token.isCancellationRequested) {
       return;
     }

@@ -8,6 +8,7 @@ import {
   LRUCache,
   type Disposable,
 } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 import { CancellationError } from "./cancellation";
 import type { DocumentStore } from "./document-store";
 import { scheduler } from "./env";
@@ -22,7 +23,7 @@ interface Edit {
 
 interface ParseTreeRequest {
   readonly source: CancellationTokenSource;
-  readonly value: Promise<Tree>;
+  readonly value: Promise<ParseTreeResult>;
 }
 
 interface ParseTreeContext {
@@ -30,6 +31,11 @@ interface ParseTreeContext {
   tree: Tree;
   fragments: ReadonlyArray<TreeFragment>;
   edits: Edit[];
+}
+
+interface ParseTreeResult {
+  readonly document: TextDocument;
+  readonly tree: Tree;
 }
 
 export class Trees implements Disposable {
@@ -53,10 +59,11 @@ export class Trees implements Disposable {
   }
 
   getParseTree(
-    documentUri: DocumentUri,
+    document: TextDocument,
     language: Language,
     token: CancellationToken = CancellationToken.None,
-  ): Promise<Tree> | Tree {
+  ): Promise<ParseTreeResult> | ParseTreeResult {
+    const documentUri = document.uri;
     const request = this._requests.get(documentUri);
     if (request) {
       return _cancelable(request.value, token);
@@ -64,7 +71,7 @@ export class Trees implements Disposable {
 
     const ctx = this._ctxs.get(documentUri);
     if (ctx && ctx.edits.length === 0) {
-      return ctx.tree;
+      return { document, tree: ctx.tree };
     }
 
     const source = new CancellationTokenSource();
@@ -84,10 +91,13 @@ export class Trees implements Disposable {
     this._ctxs.delete(documentUri);
   }
 
-  async _parse_document(documentUri: DocumentUri, parser: LRParser, token: CancellationToken): Promise<Tree> {
+  async _parse_document(
+    documentUri: DocumentUri,
+    parser: LRParser,
+    token: CancellationToken,
+  ): Promise<ParseTreeResult> {
     for (;;) {
-      const maybeExpired = await this._documents.retrieve(documentUri, token);
-      const document = this._documents.get(documentUri) ?? maybeExpired;
+      const document = await this._documents.retrieve(documentUri, token);
       const ctx = this._ctxs.get(documentUri);
 
       const version = document.version;
@@ -111,7 +121,7 @@ export class Trees implements Disposable {
         ctx.tree = tree;
         ctx.fragments = fragments;
         if (ctx.edits.length === 0) {
-          return tree;
+          return { document, tree };
         }
       } else {
         const sw = StopWatch.create();
@@ -121,7 +131,7 @@ export class Trees implements Disposable {
         const fragments = TreeFragment.addTree(tree);
         this._ctxs.set(documentUri, { version, tree, fragments, edits: [] });
 
-        return tree;
+        return { document, tree };
       }
     }
   }
@@ -148,7 +158,7 @@ async function _parse(
     }
 
     const time = sw.elapsed();
-    console.debug("[AsyncParse] spin:", _spin.toString(), ", time:", time.toFixed(2) + "ms");
+    // console.debug("[AsyncParse] spin:", _spin.toString(), ", time:", time.toFixed(2) + "ms");
 
     if (time > 16) {
       _spin.decrease();
@@ -164,12 +174,12 @@ async function _parse(
   }
 }
 
-async function _cancelable(value: Promise<Tree>, token: CancellationToken): Promise<Tree> {
+async function _cancelable(value: Promise<ParseTreeResult>, token: CancellationToken): Promise<ParseTreeResult> {
   if (token.isCancellationRequested) {
     throw new CancellationError();
   }
 
-  const { promise, reject } = withResolvers<Tree>();
+  const { promise, reject } = withResolvers<ParseTreeResult>();
   const disposable = token.onCancellationRequested(() => {
     reject(new CancellationError());
   });

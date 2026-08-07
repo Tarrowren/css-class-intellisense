@@ -21,9 +21,9 @@ export class Semaphore implements Disposable {
     this._active = 0;
   }
 
-  lock<T>(thunk: Waiting<T>["thunk"], token: CancellationToken): Promise<T> {
+  async lock<T>(thunk: Waiting<T>["thunk"], token: CancellationToken): Promise<T> {
     if (token.isCancellationRequested) {
-      return Promise.reject(new CancellationError());
+      throw new CancellationError();
     }
 
     const { promise, resolve, reject } = withResolvers<unknown>();
@@ -31,14 +31,18 @@ export class Semaphore implements Disposable {
     const node = new UnsafeNode<Waiting>({ thunk, resolve, reject });
     this._queue.push(node);
 
-    token.onCancellationRequested(() => {
+    const disposable = token.onCancellationRequested(() => {
       reject(new CancellationError());
       this._queue.remove(node);
     });
 
     this._next();
 
-    return promise as Promise<T>;
+    try {
+      return await (promise as Promise<T>);
+    } finally {
+      disposable.dispose();
+    }
   }
 
   get active(): number {

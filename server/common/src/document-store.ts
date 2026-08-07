@@ -160,7 +160,8 @@ export class DocumentStore implements Disposable {
       request.subscriptions.push(this._cancel(documentUri, token));
       request.tokens.add(token);
     }
-    return await request.value;
+    const maybeExpired = await request.value;
+    return this._synced.get(documentUri) ?? maybeExpired;
   }
 
   removeFile(documentUri: DocumentUri): boolean {

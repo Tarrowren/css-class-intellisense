@@ -87,8 +87,8 @@ export class Server {
         }
       });
 
-      connection.onRequest(CustomMessages.IndexUpdate, async (uris) => {
-        await symbols.initFiles(uris);
+      connection.onRequest(CustomMessages.IndexUpdate, async (uris, token) => {
+        await symbols.initFiles(uris, token);
       });
       documents.onDidChangeContent(({ uri }) => {
         symbols.addFile(uri);
