@@ -126,7 +126,7 @@ export class SymbolIndex implements Disposable {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
+    const tree = await this._trees.getParseTree(document.uri, language);
     const uri = document.uri;
 
     const sourceFile = language.query(uri, document.getText(), tree);

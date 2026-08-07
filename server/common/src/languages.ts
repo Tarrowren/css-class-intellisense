@@ -40,12 +40,12 @@ export class Languages implements Disposable {
       return this._instances.get(languageId);
     }
 
-    const language = this._createInstance(languageId);
+    const language = this._create_instance(languageId);
     this._instances.set(languageId, language);
     return language;
   }
 
-  private _createInstance(languageId: string): Language | null {
+  private _create_instance(languageId: string): Language | null {
     switch (languageId) {
       case "html":
         return new HtmlLanguage(this._configuration);

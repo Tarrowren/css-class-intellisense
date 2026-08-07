@@ -6,7 +6,7 @@ import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
 import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
-import { type CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
+import { CancellationToken, createConnection, ProposedFeatures } from "vscode-languageserver/node";
 import { FileSymbolStorage } from "./storage";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -37,41 +37,45 @@ install({
     concurrency: Math.max(cpus().length, 4),
   },
   scheduler: {
-    async wait(ms, token) {
+    async wait(ms, token = CancellationToken.None) {
+      if (token.isCancellationRequested) {
+        throw new CancellationError();
+      }
+
       const { promise, resolve, reject } = withResolvers<void>();
       const timer = setTimeout(resolve, ms);
-      const disposable = token?.onCancellationRequested(() => {
+      const disposable = token.onCancellationRequested(() => {
         clearTimeout(timer);
         reject(new CancellationError());
       });
       try {
         await promise;
       } finally {
-        disposable?.dispose();
+        disposable.dispose();
       }
     },
-    async yield(token) {
+    async yield(token = CancellationToken.None) {
+      if (token.isCancellationRequested) {
+        throw new CancellationError();
+      }
+
       const { promise, resolve, reject } = withResolvers<void>();
       const timer = setImmediate(resolve);
-      const disposable = token?.onCancellationRequested(() => {
+      const disposable = token.onCancellationRequested(() => {
         clearImmediate(timer);
         reject(new CancellationError());
       });
       try {
         await promise;
       } finally {
-        disposable?.dispose();
+        disposable.dispose();
       }
     },
   },
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token?: CancellationToken): AbortSignal | undefined {
-  if (!token) {
-    return;
-  }
-
+function _to_abort_signal(token: CancellationToken = CancellationToken.None): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {

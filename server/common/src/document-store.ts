@@ -54,32 +54,32 @@ export class DocumentStore implements Disposable {
     private readonly _connection: Connection,
     private readonly _languages: Languages,
   ) {
-    _connection.onDidOpenTextDocument(({ textDocument: { uri: raw_uri, languageId, version, text } }) => {
-      const uri = normalize(raw_uri);
-      const document = TextDocument.create(uri, languageId, version, text);
+    _connection.onDidOpenTextDocument(({ textDocument: { uri, languageId, version, text } }) => {
+      const documentUri = normalize(uri);
+      const document = TextDocument.create(documentUri, languageId, version, text);
 
-      this._synced.set(uri, document);
-      this._on_did_open.fire({ uri, version });
-      this._on_did_change_content.fire({ uri, version, changes: Empty.array() });
+      this._synced.set(documentUri, document);
+      this._on_did_open.fire({ uri: documentUri, version });
+      this._on_did_change_content.fire({ uri: documentUri, version, changes: Empty.array() });
     });
 
-    _connection.onDidChangeTextDocument(({ textDocument: { uri: raw_uri, version }, contentChanges }) => {
+    _connection.onDidChangeTextDocument(({ textDocument: { uri, version }, contentChanges }) => {
       if (contentChanges.length === 0) {
         return;
       }
 
-      const uri = normalize(raw_uri);
+      const documentUri = normalize(uri);
 
-      const prev = this._synced.get(uri);
+      const prev = this._synced.get(documentUri);
       if (!prev) {
         return;
       }
 
       const document = TextDocument.update(prev, contentChanges, version);
 
-      this._synced.set(uri, document);
+      this._synced.set(documentUri, document);
       this._on_did_change_content.fire({
-        uri,
+        uri: documentUri,
         version,
         changes: contentChanges
           .filter(TextDocumentContentChangeEvent.isIncremental)
@@ -95,15 +95,15 @@ export class DocumentStore implements Disposable {
       });
     });
 
-    _connection.onDidCloseTextDocument(({ textDocument: { uri: raw_uri } }) => {
-      const uri = normalize(raw_uri);
+    _connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
+      const documentUri = normalize(uri);
 
-      if (!this._synced.has(uri)) {
+      if (!this._synced.has(documentUri)) {
         return;
       }
 
-      this._synced.delete(uri);
-      this._on_did_close.fire({ uri });
+      this._synced.delete(documentUri);
+      this._on_did_close.fire({ uri: documentUri });
     });
   }
 
@@ -117,6 +117,25 @@ export class DocumentStore implements Disposable {
 
   get onDidClose(): Event<TextDocumentCloseEvent> {
     return this._on_did_close.event;
+  }
+
+  dispose(): void {
+    this._on_did_open.dispose();
+    this._on_did_change_content.dispose();
+    this._on_did_close.dispose();
+
+    this._semaphore.dispose();
+
+    this._synced.clear();
+    for (const request of this._requests.values()) {
+      request.source.cancel();
+    }
+    this._requests.clear();
+    this._files.clear();
+  }
+
+  has(documentUri: DocumentUri): boolean {
+    return this._synced.has(documentUri);
   }
 
   get(documentUri: DocumentUri): TextDocument | undefined {
@@ -142,6 +161,17 @@ export class DocumentStore implements Disposable {
       request.tokens.add(token);
     }
     return await request.value;
+  }
+
+  removeFile(documentUri: DocumentUri): boolean {
+    const request = this._requests.get(documentUri);
+    if (request) {
+      request.source.cancel();
+      this._files.delete(documentUri);
+      return true;
+    }
+
+    return this._files.delete(documentUri);
   }
 
   private _create_request(documentUri: DocumentUri, token: CancellationToken): DocumentRequest {
@@ -208,32 +238,6 @@ export class DocumentStore implements Disposable {
     }
 
     return TextDocument.create(documentUri, languageId, 1, content);
-  }
-
-  removeFile(documentUri: DocumentUri): boolean {
-    const request = this._requests.get(documentUri);
-    if (request) {
-      request.source.cancel();
-      this._files.delete(documentUri);
-      return true;
-    }
-
-    return this._files.delete(documentUri);
-  }
-
-  dispose(): void {
-    this._on_did_open.dispose();
-    this._on_did_change_content.dispose();
-    this._on_did_close.dispose();
-
-    this._semaphore.dispose();
-
-    this._synced.clear();
-    for (const request of this._requests.values()) {
-      request.source.cancel();
-    }
-    this._requests.clear();
-    this._files.clear();
   }
 }
 

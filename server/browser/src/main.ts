@@ -7,9 +7,9 @@ import * as l10n from "@vscode/l10n";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
+  CancellationToken,
   createConnection,
   ProposedFeatures,
-  type CancellationToken,
 } from "vscode-languageserver/browser";
 import { IndexedDBSymbolStorage } from "./storage";
 
@@ -43,11 +43,7 @@ install({
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token?: CancellationToken): AbortSignal | undefined {
-  if (!token) {
-    return;
-  }
-
+function _to_abort_signal(token: CancellationToken = CancellationToken.None): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {
@@ -67,42 +63,42 @@ function _to_abort_signal(token?: CancellationToken): AbortSignal | undefined {
   return signal;
 }
 
-async function _wait(ms: number, token?: CancellationToken) {
-  if (token?.isCancellationRequested) {
+async function _wait(ms: number, token: CancellationToken = CancellationToken.None) {
+  if (token.isCancellationRequested) {
     throw new CancellationError();
   }
 
   const { promise, resolve, reject } = withResolvers<void>();
   const timer = setTimeout(resolve, ms);
-  const disposable = token?.onCancellationRequested(() => {
+  const disposable = token.onCancellationRequested(() => {
     clearTimeout(timer);
     reject(new CancellationError());
   });
   try {
     await promise;
   } finally {
-    disposable?.dispose();
+    disposable.dispose();
   }
 }
 
-async function _yield(token?: CancellationToken) {
-  if (token?.isCancellationRequested) {
+async function _yield(token: CancellationToken = CancellationToken.None) {
+  if (token.isCancellationRequested) {
     throw new CancellationError();
   }
 
   const { promise, resolve, reject } = withResolvers<void>();
   queueMicrotask(resolve);
-  const disposable = token?.onCancellationRequested(() => {
+  const disposable = token.onCancellationRequested(() => {
     reject(new CancellationError());
   });
   try {
     await promise;
   } finally {
-    disposable?.dispose();
+    disposable.dispose();
   }
 }
 
-async function _polyfill_yield(token?: CancellationToken) {
+async function _polyfill_yield(token: CancellationToken = CancellationToken.None) {
   await _wait(0, token);
 }
 

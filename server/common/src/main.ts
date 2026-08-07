@@ -94,20 +94,24 @@ export class Server {
         symbols.addFile(uri);
       });
       connection.onDidChangeWatchedFiles((e) => {
-        for (const { type, uri: raw_uri } of e.changes) {
-          const uri = normalize(raw_uri);
+        for (const { type, uri } of e.changes) {
+          const documentUri = normalize(uri);
           switch (type) {
             case FileChangeType.Created:
-              symbols.addFile(uri);
+              symbols.addFile(documentUri);
               break;
             case FileChangeType.Deleted:
-              documents.removeFile(uri);
-              symbols.removeFile(uri);
+              documents.removeFile(documentUri);
+              trees.removeFile(documentUri);
+              symbols.removeFile(documentUri);
               break;
             case FileChangeType.Changed:
-              if (documents.removeFile(uri)) {
-                symbols.addFile(uri);
+              documents.removeFile(documentUri);
+              if (!documents.has(documentUri)) {
+                trees.removeFile(documentUri);
+                symbols.addFile(documentUri);
               }
+
               break;
           }
         }
@@ -147,14 +151,15 @@ export interface StorageFactory {
 
 async function run<T>(func: () => Promise<T>, defaultValue: T, token: CancellationToken): Promise<T> {
   try {
-    await scheduler().wait(0, token);
+    await scheduler().yield(token);
   } catch (_) {
     return defaultValue;
   }
 
-  const result = await func();
-  if (token.isCancellationRequested) {
+  try {
+    const result = await func();
+    return token.isCancellationRequested ? defaultValue : result;
+  } catch (_) {
     return defaultValue;
   }
-  return result;
 }

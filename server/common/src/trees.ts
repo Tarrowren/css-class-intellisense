@@ -1,8 +1,13 @@
+import { withResolvers } from "@cci/shared";
 import { TreeFragment, type ChangedRange, type Tree } from "@lezer/common";
 import type { LRParser } from "@lezer/lr";
-import { CancellationToken, CancellationTokenSource, type Disposable } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
-import { Cache } from "./cache";
+import {
+  CancellationToken,
+  CancellationTokenSource,
+  DocumentUri,
+  LRUCache,
+  type Disposable,
+} from "vscode-languageserver";
 import { CancellationError } from "./cancellation";
 import type { DocumentStore } from "./document-store";
 import { scheduler } from "./env";
@@ -15,7 +20,12 @@ interface Edit {
   readonly changes: ReadonlyArray<ChangedRange>;
 }
 
-interface Entry {
+interface ParseTreeRequest {
+  readonly source: CancellationTokenSource;
+  readonly value: Promise<Tree>;
+}
+
+interface ParseTreeContext {
   version: number;
   tree: Tree;
   fragments: ReadonlyArray<TreeFragment>;
@@ -23,100 +33,106 @@ interface Entry {
 }
 
 export class Trees implements Disposable {
-  private readonly _cache = Cache.create<string, Entry>();
-  private readonly _source = new CancellationTokenSource();
+  private readonly _requests = new Map<DocumentUri, ParseTreeRequest>();
+  private readonly _ctxs = new LRUCache<DocumentUri, ParseTreeContext>(1024);
 
   constructor(private readonly _documents: DocumentStore) {
-    const listener = _documents.onDidChangeContent(({ uri, version, changes }) => {
+    _documents.onDidChangeContent(({ uri, version, changes }) => {
       if (changes.length > 0) {
-        this._cache.get(uri)?.edits.push({ version, changes });
+        this._ctxs.get(uri)?.edits.push({ version, changes });
       }
     });
-    this._source.token.onCancellationRequested(listener.dispose, listener);
   }
 
   dispose(): void {
-    this._source.cancel();
-    this._cache.dispose();
+    for (const request of this._requests.values()) {
+      request.source.cancel();
+    }
+    this._requests.clear();
+    this._ctxs.clear();
   }
 
-  async getParseTree(documentOrUri: TextDocument | string, language: Language): Promise<Tree> {
-    const document: TextDocument =
-      typeof documentOrUri === "string" ? await this._documents.retrieve(documentOrUri) : documentOrUri;
-
-    const uri = document.uri;
-    const version = document.version;
-    const input = document.getText();
-
-    const parser = language.parser;
-
-    const entry = this._cache.get(uri);
-    if (entry && entry.version === version) {
-      return entry.tree;
+  getParseTree(
+    documentUri: DocumentUri,
+    language: Language,
+    token: CancellationToken = CancellationToken.None,
+  ): Promise<Tree> | Tree {
+    const request = this._requests.get(documentUri);
+    if (request) {
+      return _cancelable(request.value, token);
     }
 
-    const sw = StopWatch.create();
+    const ctx = this._ctxs.get(documentUri);
+    if (ctx && ctx.edits.length === 0) {
+      return ctx.tree;
+    }
 
-    if (entry) {
-      let start = -1;
-      let end = -1;
-      for (let i = 0; i < entry.edits.length; i++) {
-        const edit = entry.edits[i];
-        if (edit.version === entry.version + 1) {
-          start = i;
+    const source = new CancellationTokenSource();
+    const value = this._parse_document(documentUri, language.parser, source.token).finally(() => {
+      this._requests.delete(documentUri);
+    });
+    this._requests.set(documentUri, { source, value });
+    return _cancelable(value, token);
+  }
+
+  removeFile(documentUri: DocumentUri): void {
+    const request = this._requests.get(documentUri);
+    if (request) {
+      request.source.cancel();
+      this._requests.delete(documentUri);
+    }
+    this._ctxs.delete(documentUri);
+  }
+
+  async _parse_document(documentUri: DocumentUri, parser: LRParser, token: CancellationToken): Promise<Tree> {
+    for (;;) {
+      const maybeExpired = await this._documents.retrieve(documentUri, token);
+      const document = this._documents.get(documentUri) ?? maybeExpired;
+      const ctx = this._ctxs.get(documentUri);
+
+      const version = document.version;
+      const input = document.getText();
+
+      if (ctx) {
+        let prevFragments = ctx.fragments;
+        for (const edit of ctx.edits) {
+          prevFragments = TreeFragment.applyChanges(prevFragments, edit.changes);
         }
 
-        if (edit.version === version) {
-          end = i + 1;
-          break;
+        ctx.edits.length = 0;
+
+        const sw = StopWatch.create();
+        const tree = await _parse(parser, input, prevFragments, token);
+        console.info("[Incparse]", documentUri, sw.elapsed(2));
+
+        const fragments = TreeFragment.addTree(tree, prevFragments);
+
+        ctx.version = version;
+        ctx.tree = tree;
+        ctx.fragments = fragments;
+        if (ctx.edits.length === 0) {
+          return tree;
         }
-      }
-
-      if (start >= 0 && end >= 0) {
-        const edits = entry.edits.slice(start, end);
-        entry.edits = entry.edits.slice(end);
-
-        let prev_fragments = entry.fragments;
-        for (const edit of edits) {
-          prev_fragments = TreeFragment.applyChanges(prev_fragments, edit.changes);
-        }
-
-        const tree = await parse(parser, input, prev_fragments, this._source.token);
-        const fragments = TreeFragment.addTree(tree, prev_fragments);
-
-        entry.version = version;
-        entry.tree = tree;
-        entry.fragments = fragments;
-
-        console.info("[Incparse]", document.uri, sw.elapsed(2));
-        return tree;
       } else {
-        entry.edits.length = 0;
+        const sw = StopWatch.create();
+        const tree = await _parse(parser, input, undefined, token);
+        console.info("[Parse]", documentUri, sw.elapsed(2));
+
+        const fragments = TreeFragment.addTree(tree);
+        this._ctxs.set(documentUri, { version, tree, fragments, edits: [] });
+
+        return tree;
       }
     }
-
-    const tree = await parse(parser, input, undefined, this._source.token);
-    const fragments = TreeFragment.addTree(tree);
-
-    if (entry) {
-      entry.version = version;
-      entry.tree = tree;
-      entry.fragments = fragments;
-    } else {
-      this._cache.set(uri, { edits: [], version, tree, fragments });
-    }
-
-    console.info("[Parse]", document.uri, sw.elapsed(2));
-    return tree;
   }
 }
 
-const spin = Spin.create(4096);
-async function parse(
+const _spin = Spin.create(4096);
+async function _parse(
   parser: LRParser,
   input: string,
-  fragments?: ReadonlyArray<TreeFragment>,
-  token?: CancellationToken,
+  fragments: ReadonlyArray<TreeFragment> | undefined,
+  token: CancellationToken,
 ): Promise<Tree> {
   const parse = parser.startParse(input, fragments);
 
@@ -124,7 +140,7 @@ async function parse(
   for (;;) {
     const sw = StopWatch.create();
 
-    for (let i = 0; i < spin.value; i++) {
+    for (let i = 0; i < _spin.value; i++) {
       tree = parse.advance();
       if (tree) {
         break;
@@ -132,23 +148,34 @@ async function parse(
     }
 
     const time = sw.elapsed();
-    console.debug("[Async Parse] spin:", spin.toString(), ", time:", time.toFixed(2));
+    console.debug("[AsyncParse] spin:", _spin.toString(), ", time:", time.toFixed(2) + "ms");
 
     if (time > 16) {
-      spin.decrease();
+      _spin.decrease();
+    } else {
+      _spin.increase();
     }
 
     if (tree) {
       return tree;
     }
 
-    if (time <= 16) {
-      spin.increase();
-    }
+    await scheduler().yield(token);
+  }
+}
 
-    await scheduler().yield();
-    if (token?.isCancellationRequested) {
-      throw new CancellationError();
-    }
+async function _cancelable(value: Promise<Tree>, token: CancellationToken): Promise<Tree> {
+  if (token.isCancellationRequested) {
+    throw new CancellationError();
+  }
+
+  const { promise, reject } = withResolvers<Tree>();
+  const disposable = token.onCancellationRequested(() => {
+    reject(new CancellationError());
+  });
+  try {
+    return await Promise.race([value, promise]);
+  } finally {
+    disposable.dispose();
   }
 }

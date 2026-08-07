@@ -43,7 +43,7 @@ export class RenameProvider {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
+    const tree = await this._trees.getParseTree(uri, language);
     const pos = document.offsetAt(position);
 
     const info =
@@ -69,7 +69,7 @@ export class RenameProvider {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
+    const tree = await this._trees.getParseTree(uri, language);
     if (token.isCancellationRequested) {
       return;
     }

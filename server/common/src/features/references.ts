@@ -29,7 +29,7 @@ export class ReferenceProvider {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
+    const tree = await this._trees.getParseTree(uri, language);
     if (token.isCancellationRequested) {
       return;
     }
