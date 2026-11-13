@@ -8,10 +8,10 @@
     "prepare": "npm run build"
   },
   "devDependencies": {
-    "@lezer/generator": "^1.8.0"
+    "@lezer/generator": "^1.8.1"
   },
   "dependencies": {
-    "@lezer/common": "^1.5.2",
-    "@lezer/lr": "^1.4.10"
+    "@lezer/common": "^1.5.5",
+    "@lezer/lr": "^1.4.12"
   }
 }

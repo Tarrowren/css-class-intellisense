@@ -117,23 +117,22 @@
     "lezer/less"
   ],
   "devDependencies": {
-    "@eslint/compat": "^2.1.0",
+    "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.19.2",
     "@typia/unplugin": "^12.1.1",
     "@vscode/test-web": "^0.0.81",
-    "@vscode/vsce": "^3.9.2",
-    "eslint": "^10.8.0",
+    "@vscode/vsce": "^4.1.1",
+    "eslint": "^10.14.0",
     "jiti": "^2.7.0",
-    "tsdown": "^0.22.14",
+    "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.72.2",
     "typia": "^12.1.1",
-    "vitest": "^4.1.10"
+    "vitest": "^5.1.0"
   },
   "allowScripts": {
-    "@playwright/browser-chromium": false,
-    "@vscode/vsce-sign": false,
-    "keytar": false
+    "@playwright/browser-chromium@1.65.0": true,
+    "@vscode/vsce-sign@2.1.1": true
   }
 }

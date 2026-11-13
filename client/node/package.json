@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@cci/client-common": "*",
-    "vscode-languageclient": "^10.1.0"
+    "vscode-languageclient": "^11.0.0"
   }
 }
