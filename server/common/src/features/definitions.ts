@@ -22,19 +22,19 @@ export class DefinitionProvider {
 
   async provideDefinition(params: DefinitionParams, token: CancellationToken): Promise<Location[] | undefined> {
     const uri = normalize(params.textDocument.uri);
-    const maybeExpired = this._documents.get(uri);
-    if (!maybeExpired) {
+    const document = this._documents.get(uri);
+    if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(params.position);
-    const info = this._get_info(tree.resolve(pos, -1)) ?? this._get_info(tree.resolve(pos, 1));
+    const info = this._getInfo(tree.resolve(pos, -1)) ?? this._getInfo(tree.resolve(pos, 1));
     if (!info) {
       return;
     }
@@ -47,22 +47,22 @@ export class DefinitionProvider {
     }
 
     const name = document.getText().substring(info.range.from, info.range.to);
-    return await this._get_definitions(uri, sourceFile, info.kind, name, token);
+    return await this._getDefinitions(uri, sourceFile, info.kind, name, token);
   }
 
-  private async _get_definitions(
+  private async _getDefinitions(
     documentUri: DocumentUri,
     sourceFile: SourceFile,
     kind: TriggeredSymbolKind,
     name: string,
     token: CancellationToken,
   ): Promise<Location[]> {
-    const prop = this._get_prop(kind);
+    const prop = this._getProp(kind);
     const locations: Promise<Location[]>[] = [];
 
     const info = sourceFile[prop].get(name);
     if (info) {
-      locations.push(this._semaphore.lock(this._get_locations(documentUri, sourceFile, info, token), token));
+      locations.push(this._semaphore.lock(this._getLocations(documentUri, sourceFile, info, token), token));
     }
 
     for (const uri of sourceFile.refs.keys()) {
@@ -73,7 +73,7 @@ export class DefinitionProvider {
 
       const defInfo = defSourceFile[prop].get(name);
       if (defInfo) {
-        locations.push(this._semaphore.lock(this._get_locations(uri, defSourceFile, defInfo, token), token));
+        locations.push(this._semaphore.lock(this._getLocations(uri, defSourceFile, defInfo, token), token));
       }
     }
 
@@ -81,7 +81,7 @@ export class DefinitionProvider {
     return result.flat();
   }
 
-  private _get_locations(
+  private _getLocations(
     uri: DocumentUri,
     { suffixes }: SourceFile,
     { ranges, suffix_ranges }: SymbolInfo,
@@ -109,7 +109,7 @@ export class DefinitionProvider {
     };
   }
 
-  private _get_info(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
+  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | undefined {
     if (node.type.is("UsedClassName")) {
       return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
@@ -118,7 +118,7 @@ export class DefinitionProvider {
     }
   }
 
-  private _get_prop(kind: TriggeredSymbolKind): "class_names" | "id_names" {
+  private _getProp(kind: TriggeredSymbolKind): "class_names" | "id_names" {
     switch (kind) {
       case TriggeredSymbolKind.ClassName:
         return "class_names";

@@ -3,16 +3,16 @@ import { Uri, workspace, type ConfigurationChangeEvent, type WorkspaceFolder } f
 
 const _prefix = "cssci.";
 
-const _vue_language = _prefix + "languages.vue";
-const _use_node_fs = _prefix + "useNodeFS";
+const _vueLanguage = _prefix + "languages.vue";
+const _useNodeFS = _prefix + "useNodeFS";
 
-const _global_css_files = _prefix + "globalCSSFiles";
+const _globalCSSFiles = _prefix + "globalCSSFiles";
 const _include = _prefix + "include";
 const _exclude = _prefix + "exclude";
 
 export function getConfig(): CommonConfig {
-  const vueLanguage = workspace.getConfiguration().get<boolean>(_vue_language, true);
-  const useNodeFS = workspace.getConfiguration().get<boolean>(_use_node_fs, true);
+  const vueLanguage = workspace.getConfiguration().get<boolean>(_vueLanguage, true);
+  const useNodeFS = workspace.getConfiguration().get<boolean>(_useNodeFS, true);
 
   const folders = workspace.workspaceFolders;
   let projects: ProjectConfig[];
@@ -26,7 +26,7 @@ export function getConfig(): CommonConfig {
 }
 
 export function getProjectConfig(folder: WorkspaceFolder): ProjectConfig {
-  const globalCSSFiles = workspace.getConfiguration(undefined, folder).get<string[]>(_global_css_files, []);
+  const globalCSSFiles = workspace.getConfiguration(undefined, folder).get<string[]>(_globalCSSFiles, []);
   const include = workspace.getConfiguration(undefined, folder).get<string[]>(_include, []);
   const exclude = workspace.getConfiguration(undefined, folder).get<string[]>(_exclude, []);
 
@@ -44,7 +44,7 @@ export function getProjectConfig(folder: WorkspaceFolder): ProjectConfig {
 
 export function isNeedUpdateIndex(event: ConfigurationChangeEvent, folder: WorkspaceFolder): boolean {
   return (
-    event.affectsConfiguration(_global_css_files, folder) ||
+    event.affectsConfiguration(_globalCSSFiles, folder) ||
     event.affectsConfiguration(_include, folder) ||
     event.affectsConfiguration(_exclude, folder)
   );

@@ -123,16 +123,16 @@
     "@typia/unplugin": "^12.1.1",
     "@vscode/test-web": "^0.0.81",
     "@vscode/vsce": "^4.1.1",
-    "eslint": "^10.14.0",
+    "eslint": "^10.15.0",
     "jiti": "^2.7.0",
     "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "typia": "^12.1.1",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "allowScripts": {
-    "@playwright/browser-chromium@1.65.0": true,
+    "@playwright/browser-chromium@1.65.1": true,
     "@vscode/vsce-sign@2.1.1": true
   }
 }

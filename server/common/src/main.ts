@@ -36,7 +36,7 @@ export class Server {
 
       const languages = new Languages(configuration);
       const documents = new DocumentStore(configuration, connection, languages);
-      const trees = new Trees(documents);
+      const trees = new Trees(documents, languages);
       const symbols = new SymbolIndex(documents, languages, trees, storage);
 
       const completions = new CompletionItemProvider(languages, documents, trees, symbols);
@@ -89,6 +89,9 @@ export class Server {
 
       connection.onRequest(CustomMessages.IndexUpdate, async (uris, token) => {
         await symbols.initFiles(uris, token);
+      });
+      documents.onDidOpen(({ uri }) => {
+        symbols.addFile(uri);
       });
       documents.onDidChangeContent(({ uri }) => {
         symbols.addFile(uri);

@@ -19,7 +19,7 @@ install({
   fs: {
     async fetchFile(url, token) {
       try {
-        const response = await fetch(url, { signal: _to_abort_signal(token) });
+        const response = await fetch(url, { signal: _toAbortSignal(token) });
         if (!response.ok) {
           throw new Error((await response.text()).substring(0, 200));
         }
@@ -30,7 +30,7 @@ install({
       }
     },
     async readFile(path, token) {
-      return await readFile(path, { signal: _to_abort_signal(token) });
+      return await readFile(path, { signal: _toAbortSignal(token) });
     },
   },
   os: {
@@ -75,7 +75,7 @@ install({
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token: CancellationToken): AbortSignal | undefined {
+function _toAbortSignal(token: CancellationToken): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {

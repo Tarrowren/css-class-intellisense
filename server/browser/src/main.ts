@@ -22,7 +22,7 @@ install({
   fs: {
     async fetchFile(url, token) {
       try {
-        const response = await fetch(url, { cache: "no-cache", signal: _to_abort_signal(token) });
+        const response = await fetch(url, { cache: "no-cache", signal: _toAbortSignal(token) });
         if (!response.ok) {
           throw new Error((await response.text()).substring(0, 200));
         }
@@ -38,12 +38,12 @@ install({
   },
   scheduler: {
     wait: _wait,
-    yield: typeof globalThis.queueMicrotask === "function" ? _yield : _polyfill_yield,
+    yield: globalThis.scheduler ? _schedulerYield : _setTimeoutYield,
   },
 });
 
 const _cache = new WeakMap<CancellationToken, AbortSignal>();
-function _to_abort_signal(token: CancellationToken): AbortSignal | undefined {
+function _toAbortSignal(token: CancellationToken): AbortSignal | undefined {
   let signal = _cache.get(token);
   if (!signal) {
     if (token.isCancellationRequested) {
@@ -81,26 +81,15 @@ async function _wait(ms: number, token: CancellationToken) {
   }
 }
 
-async function _yield(token: CancellationToken) {
-  if (token.isCancellationRequested) {
-    throw new CancellationError();
-  }
-
-  const { promise, resolve, reject } = withResolvers<void>();
-  queueMicrotask(resolve);
-  const disposable = token.onCancellationRequested(() => {
-    reject(new CancellationError());
-  });
-  try {
-    await promise;
-  } finally {
-    disposable.dispose();
-  }
+function _schedulerYield(token: CancellationToken) {
+  return scheduler.postTask(_noop, { signal: _toAbortSignal(token) });
 }
 
-async function _polyfill_yield(token: CancellationToken) {
-  await _wait(0, token);
+function _setTimeoutYield(token: CancellationToken) {
+  return _wait(0, token);
 }
+
+function _noop() {}
 
 Server.create(connection, {
   async create(options) {

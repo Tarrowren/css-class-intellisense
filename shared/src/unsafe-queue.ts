@@ -32,7 +32,7 @@ export class UnsafeQueue<T> {
     }
     this._tail = node;
 
-    this._size++;
+    ++this._size;
     return true;
   }
 
@@ -50,7 +50,7 @@ export class UnsafeQueue<T> {
       this._tail = null;
     }
 
-    this._size--;
+    --this._size;
     return node;
   }
 
@@ -78,7 +78,7 @@ export class UnsafeQueue<T> {
       next.prev = prev;
     }
 
-    this._size--;
+    --this._size;
     return true;
   }
 

@@ -28,17 +28,17 @@ export class CompletionItemProvider {
     token: CancellationToken,
   ): Promise<CompletionList | undefined> {
     const uri = normalize(params.textDocument.uri);
-    const maybeExpired = this._documents.get(uri);
-    if (!maybeExpired) {
+    const document = this._documents.get(uri);
+    if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language || !language.completion) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const tree = await this._trees.get(document, language, token);
     const info = language.completion(document.getText(), document.offsetAt(params.position), tree);
     if (!info) {
       return;
@@ -54,13 +54,13 @@ export class CompletionItemProvider {
     let items: Map<string, CompletionItem>;
     switch (info.kind) {
       case CompletionTriggeredSymbolKind.ClassName:
-        items = this._collect_definition(sourceFile, "class_names");
+        items = this._collectDefinition(sourceFile, "class_names");
         break;
       case CompletionTriggeredSymbolKind.IdName:
-        items = this._collect_definition(sourceFile, "id_names");
+        items = this._collectDefinition(sourceFile, "id_names");
         break;
       case CompletionTriggeredSymbolKind.Css:
-        items = this._collect_reference(uri);
+        items = this._collectReference(uri);
         break;
     }
 
@@ -76,7 +76,7 @@ export class CompletionItemProvider {
     return { isIncomplete: false, itemDefaults: { editRange }, items: [...items.values()] };
   }
 
-  private _collect_definition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
+  private _collectDefinition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
     for (const name of sourceFile[prop].keys()) {
@@ -97,7 +97,7 @@ export class CompletionItemProvider {
     return result;
   }
 
-  private _collect_reference(documentUri: DocumentUri): Map<string, CompletionItem> {
+  private _collectReference(documentUri: DocumentUri): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
     for (const [uri, refSourceFile] of this._symbols.index) {

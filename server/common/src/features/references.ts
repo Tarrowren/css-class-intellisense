@@ -22,22 +22,22 @@ export class ReferenceProvider {
 
   async provideReferences(params: ReferenceParams, token: CancellationToken): Promise<Location[] | undefined> {
     const uri = normalize(params.textDocument.uri);
-    const maybeExpired = this._documents.get(uri);
-    if (!maybeExpired) {
+    const document = this._documents.get(uri);
+    if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(params.position);
     const info =
-      this._get_info(tree.resolve(pos, -1)) ??
-      this._get_info(tree.resolve(pos, 1)) ??
-      this._get_info(tree.resolve(pos + 1, 1));
+      this._getInfo(tree.resolve(pos, -1)) ??
+      this._getInfo(tree.resolve(pos, 1)) ??
+      this._getInfo(tree.resolve(pos + 1, 1));
     if (!info) {
       return;
     }
@@ -45,9 +45,9 @@ export class ReferenceProvider {
     await this._symbols.update(token);
 
     if (info.kind === "suffix") {
-      return await this._provide_suffix_references(uri, info.from, token);
+      return await this._provideSuffixReferences(uri, info.from, token);
     } else {
-      return await this._provide_references(
+      return await this._provideReferences(
         uri,
         info.kind,
         document.getText().substring(info.range.from, info.range.to),
@@ -56,7 +56,7 @@ export class ReferenceProvider {
     }
   }
 
-  private async _provide_suffix_references(documentUri: DocumentUri, from: number, token: CancellationToken) {
+  private async _provideSuffixReferences(documentUri: DocumentUri, from: number, token: CancellationToken) {
     const sourceFile = this._symbols.index.get(documentUri);
     if (!sourceFile) {
       return;
@@ -72,20 +72,20 @@ export class ReferenceProvider {
       if (refSourceFile.refs.has(documentUri) || documentUri === uri) {
         for (const [name, kinds] of suffix.full_names) {
           if (kinds & TriggeredSymbolKind.ClassName) {
-            const prop = this._get_prop(TriggeredSymbolKind.ClassName);
+            const prop = this._getProp(TriggeredSymbolKind.ClassName);
 
             const info = refSourceFile[prop].get(name);
             if (info) {
-              values.push(this._semaphore.lock(this._create_task(uri, info, token), token));
+              values.push(this._semaphore.lock(this._createTask(uri, info, token), token));
             }
           }
 
           if (kinds & TriggeredSymbolKind.IdName) {
-            const prop = this._get_prop(TriggeredSymbolKind.IdName);
+            const prop = this._getProp(TriggeredSymbolKind.IdName);
 
             const info = refSourceFile[prop].get(name);
             if (info) {
-              values.push(this._semaphore.lock(this._create_task(uri, info, token), token));
+              values.push(this._semaphore.lock(this._createTask(uri, info, token), token));
             }
           }
         }
@@ -95,19 +95,19 @@ export class ReferenceProvider {
     const result = await Promise.all(values);
     return result.flat();
   }
-  private async _provide_references(
+  private async _provideReferences(
     uri: DocumentUri,
     kind: TriggeredSymbolKind,
     name: string,
     token: CancellationToken,
   ): Promise<Location[]> {
-    const prop = this._get_prop(kind);
+    const prop = this._getProp(kind);
     const values: Promise<Location[]>[] = [];
     for (const [_uri, refSourceFile] of this._symbols.index) {
       if (refSourceFile.refs.has(uri) || uri === _uri) {
         const info = refSourceFile[prop].get(name);
         if (info) {
-          values.push(this._semaphore.lock(this._create_task(_uri, info, token), token));
+          values.push(this._semaphore.lock(this._createTask(_uri, info, token), token));
         }
       }
     }
@@ -116,14 +116,14 @@ export class ReferenceProvider {
     return result.flat();
   }
 
-  private _create_task(uri: DocumentUri, info: SymbolInfo, token: CancellationToken): () => Promise<Location[]> {
+  private _createTask(uri: DocumentUri, info: SymbolInfo, token: CancellationToken): () => Promise<Location[]> {
     return async () => {
       const document = await this._documents.retrieve(uri, token);
       return info.ranges.map((range) => Location.create(uri, lspRange(document, range)));
     };
   }
 
-  private _get_info(node: SyntaxNode): TriggeredSymbolInfo | { kind: "suffix"; from: number } | undefined {
+  private _getInfo(node: SyntaxNode): TriggeredSymbolInfo | { kind: "suffix"; from: number } | undefined {
     if (node.type.is("ClassName")) {
       return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
@@ -135,7 +135,7 @@ export class ReferenceProvider {
     }
   }
 
-  private _get_prop(kind: TriggeredSymbolKind): "used_class_names" | "used_id_names" {
+  private _getProp(kind: TriggeredSymbolKind): "used_class_names" | "used_id_names" {
     switch (kind) {
       case TriggeredSymbolKind.ClassName:
         return "used_class_names";

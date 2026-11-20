@@ -15,10 +15,10 @@ export class SymbolIndex implements Disposable {
 
   private _source: CancellationTokenSource | null | undefined;
 
-  private readonly _immediate_files = new FileQueue();
-  private readonly _lazy_files = new FileQueue();
-  private _immediate_files_active = 0;
-  private _files_active = 0;
+  private readonly _immediateFiles = new FileQueue();
+  private readonly _lazyFiles = new FileQueue();
+  private _immediateFilesActive = 0;
+  private _filesActive = 0;
   private readonly _queue = new UnsafeQueue<Executor>();
 
   constructor(
@@ -37,20 +37,20 @@ export class SymbolIndex implements Disposable {
       node.value.reject(new CancellationError());
     }
 
-    this._immediate_files.clear();
-    this._lazy_files.clear();
-    this._immediate_files_active = 0;
-    this._files_active = 0;
+    this._immediateFiles.clear();
+    this._lazyFiles.clear();
+    this._immediateFilesActive = 0;
+    this._filesActive = 0;
   }
 
   addFile(uri: DocumentUri): void {
-    this._immediate_files.push(uri);
-    this._lazy_files.delete(uri);
+    this._immediateFiles.push(uri);
+    this._lazyFiles.delete(uri);
   }
 
   removeFile(uri: DocumentUri): void {
-    this._immediate_files.delete(uri);
-    this._lazy_files.delete(uri);
+    this._immediateFiles.delete(uri);
+    this._lazyFiles.delete(uri);
     this.index.delete(uri);
   }
 
@@ -87,8 +87,8 @@ export class SymbolIndex implements Disposable {
     this._source = null;
     try {
       this.index.clear();
-      this._immediate_files.clear();
-      this._lazy_files.clear();
+      this._immediateFiles.clear();
+      this._lazyFiles.clear();
 
       const uris = new Set(documentUris);
       console.info("[SymbolIndex] initializing index for", uris.size, "files.");
@@ -99,18 +99,18 @@ export class SymbolIndex implements Disposable {
 
       let size = 0;
       for await (const [uri, sourceFile] of this._storage.entries(token)) {
-        size++;
+        --size;
 
         if (uris.delete(uri)) {
           this.index.set(uri, sourceFile);
-          this._lazy_files.push(uri);
+          this._lazyFiles.push(uri);
         } else {
           obsolete.add(uri);
         }
       }
 
       for (const uri of uris) {
-        this._immediate_files.push(uri);
+        this._immediateFiles.push(uri);
       }
 
       this._storage.delete(obsolete);
@@ -136,29 +136,29 @@ export class SymbolIndex implements Disposable {
       .yield(token)
       .then(() => {
         let uri: DocumentUri | undefined;
-        while (this._files_active < os().concurrency && (uri = this._immediate_files.shift())) {
-          this._immediate_files_active++;
-          this._files_active++;
+        while (this._filesActive < os().concurrency && (uri = this._immediateFiles.shift())) {
+          ++this._immediateFilesActive;
+          ++this._filesActive;
 
-          this._update_index(false, uri, token).finally(() => {
-            this._immediate_files_active--;
-            this._files_active--;
+          this._updateIndex(false, uri, token).finally(() => {
+            --this._immediateFilesActive;
+            --this._filesActive;
 
             this._next(token);
           });
         }
 
-        if (this._immediate_files_active === 0) {
+        if (this._immediateFilesActive === 0) {
           let node: UnsafeNode<Executor> | null | undefined;
           while ((node = this._queue.shift())) {
             node.value.resolve();
           }
 
-          while (this._files_active < os().concurrency && (uri = this._lazy_files.shift())) {
-            this._files_active++;
+          while (this._filesActive < os().concurrency && (uri = this._lazyFiles.shift())) {
+            ++this._filesActive;
 
-            this._update_index(true, uri, token).finally(() => {
-              this._files_active--;
+            this._updateIndex(true, uri, token).finally(() => {
+              --this._filesActive;
 
               this._next(token);
             });
@@ -170,7 +170,7 @@ export class SymbolIndex implements Disposable {
       });
   }
 
-  private async _update_index(lazy: boolean, uri: DocumentUri, token: CancellationToken): Promise<void> {
+  private async _updateIndex(lazy: boolean, uri: DocumentUri, token: CancellationToken): Promise<void> {
     // fetch document
     let document: TextDocument | undefined;
     try {
@@ -185,7 +185,7 @@ export class SymbolIndex implements Disposable {
     if (document) {
       try {
         // const sw = StopWatch.create();
-        await this._do_index(lazy, document, token);
+        await this._doIndex(lazy, document, token);
         // console.debug("[SymbolIndex] index time", uri, sw.elapsed(2));
       } catch (e) {
         console.warn("[SymbolIndex] FAILED to index", uri, e);
@@ -193,18 +193,18 @@ export class SymbolIndex implements Disposable {
     }
   }
 
-  private async _do_index(lazy: boolean, maybeExpired: TextDocument, token: CancellationToken): Promise<void> {
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+  private async _doIndex(lazy: boolean, document: TextDocument, token: CancellationToken): Promise<void> {
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const uri = maybeExpired.uri;
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const uri = document.uri;
+    const tree = await this._trees.get(document, language, token);
     const sourceFile = language.query(uri, document.getText(), tree);
     for (const href of sourceFile.refs.keys()) {
-      if (!this.index.has(href) && (!lazy || !this._lazy_files.has(href))) {
-        this._immediate_files.push(href);
+      if (!this.index.has(href) && (!lazy || !this._lazyFiles.has(href))) {
+        this._immediateFiles.push(href);
       }
     }
 

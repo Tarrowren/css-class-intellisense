@@ -87,18 +87,18 @@ class EmptySet<T> implements Set<T> {
 }
 
 export class Empty {
-  private static readonly empty_array = Object.freeze<unknown[]>([]);
+  private static readonly emptyArray = Object.freeze<unknown[]>([]);
   static array<T>(): Array<T> {
-    return this.empty_array as Array<T>;
+    return this.emptyArray as Array<T>;
   }
 
-  private static readonly empty_map = new EmptyMap();
+  private static readonly emptyMap = new EmptyMap();
   static map<K, V>(): Map<K, V> {
-    return this.empty_map as Map<K, V>;
+    return this.emptyMap as Map<K, V>;
   }
 
-  private static readonly empty_set = new EmptySet();
+  private static readonly emptySet = new EmptySet();
   static set<T>(): Set<T> {
-    return this.empty_set as Set<T>;
+    return this.emptySet as Set<T>;
   }
 }

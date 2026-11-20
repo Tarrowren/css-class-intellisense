@@ -4,9 +4,11 @@ import {
   CancellationTokenSource,
   Emitter,
   LRUCache,
-  TextDocumentContentChangeEvent,
   type CancellationToken,
   type Connection,
+  type DidChangeTextDocumentParams,
+  type DidCloseTextDocumentParams,
+  type DidOpenTextDocumentParams,
   type Disposable,
   type DocumentUri,
   type Event,
@@ -15,11 +17,10 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import { CancellationError } from "./cancellation";
 import type { Configuration } from "./configuration";
-import { Empty } from "./empty";
 import { fs, os } from "./env";
 import type { Languages } from "./languages";
 import { Semaphore } from "./semaphore";
-import { normalize } from "./util";
+import { changedRange, normalize } from "./util";
 
 export interface TextDocumentOpenEvent {
   readonly uri: DocumentUri;
@@ -39,90 +40,42 @@ export interface TextDocumentCloseEvent {
 export class DocumentStore implements Disposable {
   private readonly _synced = new Map<DocumentUri, TextDocument>();
   private readonly _requests = new Map<DocumentUri, DocumentRequest>();
-  private readonly _files = new LRUCache<DocumentUri, TextDocument>(256);
+  private readonly _cache = new LRUCache<DocumentUri, TextDocument>(256);
 
   private readonly _decoder = new TextDecoder();
 
   private readonly _semaphore = new Semaphore(os().concurrency);
 
-  private readonly _on_did_open = new Emitter<TextDocumentOpenEvent>();
-  private readonly _on_did_change_content = new Emitter<TextDocumentChangeEvent>();
-  private readonly _on_did_close = new Emitter<TextDocumentCloseEvent>();
+  private readonly _onDidOpen = new Emitter<TextDocumentOpenEvent>();
+  private readonly _onDidChangeContent = new Emitter<TextDocumentChangeEvent>();
+  private readonly _onDidClose = new Emitter<TextDocumentCloseEvent>();
 
   constructor(
     private readonly _configuration: Configuration,
     private readonly _connection: Connection,
     private readonly _languages: Languages,
   ) {
-    _connection.onDidOpenTextDocument(({ textDocument: { uri, languageId, version, text } }) => {
-      const documentUri = normalize(uri);
-      const document = TextDocument.create(documentUri, languageId, version, text);
-
-      this._synced.set(documentUri, document);
-      this._on_did_open.fire({ uri: documentUri, version });
-      this._on_did_change_content.fire({ uri: documentUri, version, changes: Empty.array() });
-    });
-
-    _connection.onDidChangeTextDocument(({ textDocument: { uri, version }, contentChanges }) => {
-      if (contentChanges.length === 0) {
-        return;
-      }
-
-      const documentUri = normalize(uri);
-
-      const prev = this._synced.get(documentUri);
-      if (!prev) {
-        return;
-      }
-
-      const document = TextDocument.update(prev, contentChanges, version);
-
-      this._synced.set(documentUri, document);
-      this._on_did_change_content.fire({
-        uri: documentUri,
-        version,
-        changes: contentChanges
-          .filter(TextDocumentContentChangeEvent.isIncremental)
-          .map<ChangedRange>(({ range, rangeLength, text }) => {
-            const from = prev.offsetAt(range.start);
-            return {
-              fromA: from,
-              toA: rangeLength ? from + rangeLength : prev.offsetAt(range.end),
-              fromB: from,
-              toB: from + text.length,
-            };
-          }),
-      });
-    });
-
-    _connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
-      const documentUri = normalize(uri);
-
-      if (!this._synced.has(documentUri)) {
-        return;
-      }
-
-      this._synced.delete(documentUri);
-      this._on_did_close.fire({ uri: documentUri });
-    });
+    _connection.onDidOpenTextDocument(this._onOpen.bind(this));
+    _connection.onDidChangeTextDocument(this._onChange.bind(this));
+    _connection.onDidCloseTextDocument(this._onClose.bind(this));
   }
 
   get onDidOpen(): Event<TextDocumentOpenEvent> {
-    return this._on_did_open.event;
+    return this._onDidOpen.event;
   }
 
   get onDidChangeContent(): Event<TextDocumentChangeEvent> {
-    return this._on_did_change_content.event;
+    return this._onDidChangeContent.event;
   }
 
   get onDidClose(): Event<TextDocumentCloseEvent> {
-    return this._on_did_close.event;
+    return this._onDidClose.event;
   }
 
   dispose(): void {
-    this._on_did_open.dispose();
-    this._on_did_change_content.dispose();
-    this._on_did_close.dispose();
+    this._onDidOpen.dispose();
+    this._onDidChangeContent.dispose();
+    this._onDidClose.dispose();
 
     this._semaphore.dispose();
 
@@ -131,7 +84,7 @@ export class DocumentStore implements Disposable {
       request.source.cancel();
     }
     this._requests.clear();
-    this._files.clear();
+    this._cache.clear();
   }
 
   has(documentUri: DocumentUri): boolean {
@@ -147,14 +100,14 @@ export class DocumentStore implements Disposable {
       throw new CancellationError();
     }
 
-    const document = this._synced.get(documentUri) ?? this._files.get(documentUri);
+    const document = this._synced.get(documentUri) ?? this._cache.get(documentUri);
     if (document) {
       return document;
     }
 
     let request = this._requests.get(documentUri);
     if (!request) {
-      request = this._create_request(documentUri, token);
+      request = this._createRequest(documentUri, token);
       this._requests.set(documentUri, request);
     } else if (!request.tokens.has(token)) {
       request.subscriptions.push(this._cancel(documentUri, token));
@@ -168,24 +121,26 @@ export class DocumentStore implements Disposable {
     const request = this._requests.get(documentUri);
     if (request) {
       request.source.cancel();
-      this._files.delete(documentUri);
+      this._cache.delete(documentUri);
       return true;
     }
 
-    return this._files.delete(documentUri);
+    return this._cache.delete(documentUri);
   }
 
-  private _create_request(documentUri: DocumentUri, token: CancellationToken): DocumentRequest {
+  private _createRequest(documentUri: DocumentUri, token: CancellationToken): DocumentRequest {
     const source = new CancellationTokenSource();
     const subscriptions: Disposable[] = [this._cancel(documentUri, token)];
     const tokens = new Set<CancellationToken>([token]);
-    const value = this._request_document(documentUri, source.token)
+    const value = this._requestDocument(documentUri, source.token)
       .then((value) => {
-        this._files.set(documentUri, value);
+        this._cache.set(documentUri, value);
         return value;
       })
       .finally(() => {
-        this._requests.delete(documentUri);
+        if (this._requests.get(documentUri) === request) {
+          this._requests.delete(documentUri);
+        }
 
         source.dispose();
         for (const disposable of subscriptions) {
@@ -194,12 +149,9 @@ export class DocumentStore implements Disposable {
         tokens.clear();
       });
 
-    return {
-      source,
-      subscriptions,
-      tokens,
-      value,
-    };
+    const request: DocumentRequest = { source, subscriptions, tokens, value };
+
+    return request;
   }
 
   private _cancel(documentUri: DocumentUri, token: CancellationToken): Disposable {
@@ -217,7 +169,7 @@ export class DocumentStore implements Disposable {
     });
   }
 
-  private async _request_document(documentUri: DocumentUri, token: CancellationToken): Promise<TextDocument> {
+  private async _requestDocument(documentUri: DocumentUri, token: CancellationToken): Promise<TextDocument> {
     const languageId = this._languages.getLanguageIdByUri(documentUri);
 
     const f = fs();
@@ -239,6 +191,41 @@ export class DocumentStore implements Disposable {
     }
 
     return TextDocument.create(documentUri, languageId, 1, content);
+  }
+
+  private _onOpen({ textDocument: { uri, languageId, version, text } }: DidOpenTextDocumentParams) {
+    const documentUri = normalize(uri);
+
+    const document = TextDocument.create(documentUri, languageId, version, text);
+
+    this._synced.set(documentUri, document);
+    this._onDidOpen.fire({ uri: documentUri, version });
+  }
+
+  private _onChange({ textDocument: { uri, version }, contentChanges }: DidChangeTextDocumentParams) {
+    const documentUri = normalize(uri);
+
+    const prev = this._synced.get(documentUri);
+    if (!prev) {
+      return;
+    }
+
+    const changes = changedRange(prev, contentChanges);
+    const document = TextDocument.update(prev, contentChanges, version);
+
+    this._synced.set(documentUri, document);
+    this._onDidChangeContent.fire({
+      uri: documentUri,
+      version,
+      changes,
+    });
+  }
+
+  private _onClose({ textDocument: { uri } }: DidCloseTextDocumentParams) {
+    const documentUri = normalize(uri);
+
+    this._synced.delete(documentUri);
+    this._onDidClose.fire({ uri: documentUri });
   }
 }
 

@@ -34,32 +34,32 @@ export class RenameProvider {
     token: CancellationToken,
   ): Promise<Range | { defaultBehavior: boolean }> {
     const uri = normalize(params.textDocument.uri);
-    const range = await this._prepare_rename(uri, params.position, token);
+    const range = await this._prepareRename(uri, params.position, token);
     return range ?? { defaultBehavior: true };
   }
 
-  private async _prepare_rename(
+  private async _prepareRename(
     uri: DocumentUri,
     position: Position,
     token: CancellationToken,
   ): Promise<Range | undefined> {
-    const maybeExpired = this._documents.get(uri);
-    if (!maybeExpired) {
+    const document = this._documents.get(uri);
+    if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(position);
 
     const info =
-      this._get_info(tree.resolve(pos, -1)) ??
-      this._get_info(tree.resolve(pos, 1)) ??
-      this._get_info(tree.resolve(pos + 1, 1));
+      this._getInfo(tree.resolve(pos, -1)) ??
+      this._getInfo(tree.resolve(pos, 1)) ??
+      this._getInfo(tree.resolve(pos + 1, 1));
     if (!info) {
       return;
     }
@@ -69,22 +69,22 @@ export class RenameProvider {
 
   async provideRenameEdits(params: RenameParams, token: CancellationToken): Promise<WorkspaceEdit | undefined> {
     const uri = normalize(params.textDocument.uri);
-    const maybeExpired = this._documents.get(uri);
-    if (!maybeExpired) {
+    const document = this._documents.get(uri);
+    if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(maybeExpired.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const { document, tree } = await this._trees.getParseTree(maybeExpired, language, token);
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(params.position);
     const info =
-      this._get_info(tree.resolve(pos, -1)) ??
-      this._get_info(tree.resolve(pos, 1)) ??
-      this._get_info(tree.resolve(pos + 1, 1));
+      this._getInfo(tree.resolve(pos, -1)) ??
+      this._getInfo(tree.resolve(pos, 1)) ??
+      this._getInfo(tree.resolve(pos + 1, 1));
     if (!info) {
       return;
     }
@@ -103,23 +103,16 @@ export class RenameProvider {
       }
 
       const suffixLen = info.range.to - info.range.from;
-      const changes = await this._provide_suffix_rename_edits(
-        uri,
-        sourceFile,
-        suffix,
-        suffixLen,
-        params.newName,
-        token,
-      );
+      const changes = await this._provideSuffixRenameEdits(uri, sourceFile, suffix, suffixLen, params.newName, token);
       return { changes };
     } else {
       const name = document.getText().substring(info.range.from, info.range.to);
-      const changes = await this._provide_rename_edits(uri, sourceFile, info.kind, name, params.newName, token);
+      const changes = await this._provideRenameEdits(uri, sourceFile, info.kind, name, params.newName, token);
       return { changes };
     }
   }
 
-  private async _provide_suffix_rename_edits(
+  private async _provideSuffixRenameEdits(
     documentUri: DocumentUri,
     sourceFile: SourceFile,
     suffix: SuffixInfo,
@@ -135,7 +128,7 @@ export class RenameProvider {
 
         for (const [name, kinds] of suffix.full_names) {
           if (kinds & TriggeredSymbolKind.ClassName) {
-            const [defProp, refProp] = this._get_prop(TriggeredSymbolKind.ClassName);
+            const [defProp, refProp] = this._getProp(TriggeredSymbolKind.ClassName);
             const defRanges = defOrRefSourceFile[defProp].get(name);
             const refRanges = defOrRefSourceFile[refProp].get(name);
 
@@ -162,7 +155,7 @@ export class RenameProvider {
           }
 
           if (kinds & TriggeredSymbolKind.IdName) {
-            const [defProp, refProp] = this._get_prop(TriggeredSymbolKind.IdName);
+            const [defProp, refProp] = this._getProp(TriggeredSymbolKind.IdName);
             const defRanges = defOrRefSourceFile[defProp].get(name);
             const refRanges = defOrRefSourceFile[refProp].get(name);
 
@@ -208,7 +201,7 @@ export class RenameProvider {
     return Object.fromEntries(result);
   }
 
-  private async _provide_rename_edits(
+  private async _provideRenameEdits(
     documentUri: DocumentUri,
     sourceFile: SourceFile,
     kind: TriggeredSymbolKind,
@@ -216,7 +209,7 @@ export class RenameProvider {
     newText: string,
     token: CancellationToken,
   ): Promise<Record<DocumentUri, TextEdit[]>> {
-    const [defProp, refProp] = this._get_prop(kind);
+    const [defProp, refProp] = this._getProp(kind);
 
     const values: Promise<[DocumentUri, TextEdit[]]>[] = [];
     for (const [uri, defOrRefSourceFile] of this._symbols.index) {
@@ -249,7 +242,7 @@ export class RenameProvider {
     return Object.fromEntries(result);
   }
 
-  private _get_info(node: SyntaxNodeRef): TriggeredSymbolInfo | { kind: "suffix"; range: SymbolRange } | undefined {
+  private _getInfo(node: SyntaxNodeRef): TriggeredSymbolInfo | { kind: "suffix"; range: SymbolRange } | undefined {
     if (node.type.is("ClassName") || node.type.is("UsedClassName")) {
       return { kind: TriggeredSymbolKind.ClassName, range: textRange(node) };
     }
@@ -261,7 +254,7 @@ export class RenameProvider {
     }
   }
 
-  private _get_prop(kind: TriggeredSymbolKind): ["class_names", "used_class_names"] | ["id_names", "used_id_names"] {
+  private _getProp(kind: TriggeredSymbolKind): ["class_names", "used_class_names"] | ["id_names", "used_id_names"] {
     switch (kind) {
       case TriggeredSymbolKind.ClassName:
         return ["class_names", "used_class_names"];

@@ -59,13 +59,13 @@ export class Semaphore implements Disposable {
       .then(() => {
         let node: UnsafeNode<Waiting> | null | undefined;
         while (this._active < this._capacity && (node = this._queue.shift())) {
-          this._active++;
+          ++this._active;
           node.value
             .thunk()
             .then(node.value.resolve)
             .catch(node.value.reject)
             .finally(() => {
-              this._active--;
+              --this._active;
               this._next();
             });
         }

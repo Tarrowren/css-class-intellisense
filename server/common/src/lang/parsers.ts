@@ -8,15 +8,15 @@ import type { LRParser } from "@lezer/lr";
 import { parser as phpParser } from "@lezer/php";
 import { parser as scssParser } from "@lezer/sass";
 
-function _get_class_names_parser() {
+function _getClassNamesParser() {
   return classNamesParser;
 }
-const _get_id_name_parser = _lazy(() => classNamesParser.configure({ top: "IdAttributeValue" }));
+const _getIdNameParser = _lazy(() => classNamesParser.configure({ top: "IdAttributeValue" }));
 
-function _get_js_parser() {
+function _getJsParser() {
   return jsParser;
 }
-const _get_ts_parser = _lazy(() => jsParser.configure({ dialect: "ts" }));
+const _getTsParser = _lazy(() => jsParser.configure({ dialect: "ts" }));
 
 export const getHtmlParser: () => LRParser = _lazy(() =>
   htmlParser.configure({
@@ -33,9 +33,9 @@ export const getHtmlParser: () => LRParser = _lazy(() =>
             const name = input.read(attrName.from, attrName.to);
             switch (name) {
               case "class":
-                return { parser: _get_class_names_parser() };
+                return { parser: _getClassNamesParser() };
               case "id":
-                return { parser: _get_id_name_parser() };
+                return { parser: _getIdNameParser() };
               default:
                 return null;
             }
@@ -77,9 +77,9 @@ function _jsx(ts: boolean) {
             switch (name) {
               case "class":
               case "className":
-                return { parser: _get_class_names_parser() };
+                return { parser: _getClassNamesParser() };
               case "id":
-                return { parser: _get_id_name_parser() };
+                return { parser: _getIdNameParser() };
               default:
                 return null;
             }
@@ -97,11 +97,11 @@ export const getVueParser: () => LRParser = _lazy(() =>
     dialect: "selfClosing",
     wrap: parseMixed((node, input) => {
       if (node.type.is("StyleText")) {
-        return _vue_style(node.node, input);
+        return _vueStyle(node.node, input);
       }
 
       if (node.type.is("ScriptText")) {
-        return _vue_script(node.node, input);
+        return _vueScript(node.node, input);
       }
 
       if (node.type.is("AttributeValue") || node.type.is("UnquotedAttributeValue")) {
@@ -112,9 +112,9 @@ export const getVueParser: () => LRParser = _lazy(() =>
             const name = input.read(attrName.from, attrName.to);
             switch (name) {
               case "class":
-                return { parser: _get_class_names_parser() };
+                return { parser: _getClassNamesParser() };
               case "id":
-                return { parser: _get_id_name_parser() };
+                return { parser: _getIdNameParser() };
               default:
                 return null;
             }
@@ -127,8 +127,8 @@ export const getVueParser: () => LRParser = _lazy(() =>
   }),
 );
 
-function _vue_style(node: SyntaxNode, input: Input): NestedParse | null {
-  const attrs = _vue_attrs(node, input);
+function _vueStyle(node: SyntaxNode, input: Input): NestedParse | null {
+  const attrs = _vueAttrs(node, input);
 
   const lang = attrs.lang;
   const module = attrs.module;
@@ -149,21 +149,21 @@ function _vue_style(node: SyntaxNode, input: Input): NestedParse | null {
   }
 }
 
-function _vue_script(node: SyntaxNode, input: Input): NestedParse {
-  const lang = _vue_attrs(node, input).lang;
+function _vueScript(node: SyntaxNode, input: Input): NestedParse {
+  const lang = _vueAttrs(node, input).lang;
   switch (lang) {
     case "jsx":
       return { parser: getJsxParser() };
     case "ts":
-      return { parser: _get_ts_parser() };
+      return { parser: _getTsParser() };
     case "tsx":
       return { parser: getTsxParser() };
     default:
-      return { parser: _get_js_parser() };
+      return { parser: _getJsParser() };
   }
 }
 
-function _vue_attrs(node: SyntaxNode, input: Input): Record<string, string> {
+function _vueAttrs(node: SyntaxNode, input: Input): Record<string, string> {
   const elNode = node.parent;
   if (!elNode) {
     return {};

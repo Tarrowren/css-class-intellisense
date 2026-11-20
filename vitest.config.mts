@@ -17,6 +17,12 @@ export default defineConfig({
       // },
       {
         test: {
+          name: "server-common",
+          include: ["server/common/test/**/*.ts"],
+        },
+      },
+      {
+        test: {
           name: "shared",
           include: ["shared/test/**/*.ts"],
         },

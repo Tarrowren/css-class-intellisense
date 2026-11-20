@@ -31,7 +31,7 @@ export class Languages implements Disposable {
     return `unknown/${uri}`;
   }
 
-  getLanguage(languageId: string): Language | null | undefined {
+  get(languageId: string): Language | null | undefined {
     if (!this._configuration.vueLanguage && languageId === "vue") {
       return null;
     }
@@ -40,12 +40,12 @@ export class Languages implements Disposable {
       return this._instances.get(languageId);
     }
 
-    const language = this._create_instance(languageId);
+    const language = this._create(languageId);
     this._instances.set(languageId, language);
     return language;
   }
 
-  private _create_instance(languageId: string): Language | null {
+  private _create(languageId: string): Language | null {
     switch (languageId) {
       case "html":
         return new HtmlLanguage(this._configuration);

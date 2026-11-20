@@ -16,14 +16,14 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
 
   insert(uri: DocumentUri, info: SourceFile): void {
     this._queue.set(uri, { type: ActionType.PUT, value: typia.protobuf.encode<SourceFile>(info) });
-    this._save_soon();
+    this._saveSoon();
   }
 
   delete(uris: Set<DocumentUri>): void {
     for (const uri of uris) {
       this._queue.set(uri, { type: ActionType.DEL, value: null });
     }
-    this._save_soon();
+    this._saveSoon();
   }
 
   async *entries(token: CancellationToken): AsyncGenerator<[DocumentUri, SourceFile]> {
@@ -101,7 +101,7 @@ export class IndexedDBSymbolStorage implements SymbolStorage {
     await promise;
   }
 
-  private _save_soon(): void {
+  private _saveSoon(): void {
     clearTimeout(this._timer);
     this._timer = setTimeout(() => {
       this._save();
