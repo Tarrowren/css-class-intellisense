@@ -1,0 +1,348 @@
+# Variables
+
+@link-color:        #428bca; // sea blue
+@link-color-hover:  darken(@link-color, 10%);
+
+==>
+
+StyleSheet(
+  Declaration(AtKeyword,":",ColorLiteral),";",
+  LineComment,
+  Declaration(AtKeyword,":",
+    CallExpression(
+      ValueName,ArgList("(",AtKeyword,",",NumberLiteral(Unit),")"))),";"
+)
+
+# Usage
+
+a,
+.link {
+  color: @link-color;
+}
+a:hover {
+  color: @link-color-hover;
+}
+.widget {
+  color: #fff;
+  background: @link-color;
+}
+@property: color;
+
+.widget {
+  @{property}: #0ee;
+  background-@{property}: #999;
+}
+@primary:  green;
+@secondary: blue;
+
+.section {
+  @color: primary;
+
+  .element {
+    color: @@color;
+  }
+}
+
+==>
+
+StyleSheet(
+  RuleSet(TagSelector(TagName),",",ClassSelector(ClassName),Block("{",Declaration(PropertyName,":",AtKeyword),";","}")),
+  RuleSet(PseudoClassSelector(TagSelector(TagName),":",PseudoClassName),Block("{",Declaration(PropertyName,":",AtKeyword),";","}")),
+  RuleSet(ClassSelector(ClassName),Block("{",Declaration(PropertyName,":",ColorLiteral),";",Declaration(PropertyName,":",AtKeyword),";","}")),
+  Declaration(AtKeyword,":",ValueName),";",
+  RuleSet(ClassSelector(ClassName),Block("{",Declaration(Interpolation,":",ColorLiteral),";",Declaration(PropertyName,Interpolation,":",ColorLiteral),";","}")),
+  Declaration(AtKeyword,":",ValueName),";",
+  Declaration(AtKeyword,":",ValueName),";",
+  RuleSet(ClassSelector(ClassName),
+    Block("{",Declaration(AtKeyword,":",ValueName),";",RuleSet(ClassSelector(ClassName),Block("{",Declaration(PropertyName,":",AtKeyword),";","}")),"}"))
+)
+
+# Properties as variables
+
+.widget {
+  color: #efefef;
+  background-color: $color;
+}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),
+    Block("{",Declaration(PropertyName,":",ColorLiteral),";",Declaration(PropertyName,":",PropertyVariable),";","}"))
+)
+
+# Parent selector join
+
+.button {
+  &-ok {
+    background-image: url("ok.png");
+  }
+}
+.a:extend(.b) {}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),
+    Block("{",
+      RuleSet(SuffixedSelector(NestingSelector,Suffix),Block("{",Declaration(PropertyName,":",CallLiteral(CallTag,"(",StringLiteral,")")),";","}")),
+    "}")
+  ),
+  RuleSet(PseudoClassSelector(ClassSelector(ClassName),":",PseudoClassName,ArgList("(",ClassSelector(ClassName),")")),Block("{","}"))
+)
+
+# the above block does the same thing as the below block
+
+.a {
+  &:extend(.b);
+}
+pre:hover,
+.some-class {
+  &:extend(div pre);
+}
+:nth-child(1n+3) {
+  color: blue;
+}
+.child:extend(:nth-child(n+3)) {}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(PseudoClassSelector(NestingSelector,":",PseudoClassName,ArgList("(",ClassSelector(ClassName),")"))),";","}")),
+  RuleSet(PseudoClassSelector(TagSelector(TagName),":",PseudoClassName),",",ClassSelector(ClassName),
+    Block("{",Inclusion(PseudoClassSelector(NestingSelector,":",PseudoClassName,ArgList("(",DescendantSelector(TagSelector(TagName),TagSelector(TagName)),")"))),";","}")),
+  RuleSet(PseudoClassSelector(":",PseudoClassName,ArgList("(",NumberLiteral(Unit),NumberLiteral,")")),Block("{",Declaration(PropertyName,":",ValueName),";","}")),
+  RuleSet(PseudoClassSelector(ClassSelector(ClassName),":",PseudoClassName,ArgList("(",PseudoClassSelector(":",PseudoClassName,ArgList("(",ValueName,NumberLiteral,")")),")")),Block("{","}"))
+)
+
+# Merge
+
+.mixin() {
+  box-shadow+: inset 0 0 10px #555;
+}
+.myclass {
+  .mixin();
+  box-shadow+_: 0 0 20px black;
+}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),"(",")",Block("{",Declaration(PropertyName,":",ValueName,NumberLiteral,NumberLiteral,NumberLiteral(Unit),ColorLiteral),";","}")),
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(ClassSelector(ClassName),"(",")"),";",Declaration(PropertyName,":",NumberLiteral,NumberLiteral,NumberLiteral(Unit),ValueName),";","}"))
+)
+
+# Guarded namespace
+
+#namespace when (@mode = huge) {
+  .mixin() { /* */ }
+}
+
+#namespace {
+  .mixin() when (@mode = huge) { /* */ }
+}
+.foo (@bg: #f5f5f5; @color: #900) {
+  background: @bg;
+  color: @color;
+}
+.unimportant {
+  .foo();
+}
+.important {
+  .foo() !important;
+}
+
+==>
+
+StyleSheet(
+  RuleSet(DescendantSelector(IdSelector("#",IdName),TagSelector(TagName)),"(",BinaryExpression(AtKeyword,BinOp,ValueName),")",Block("{",RuleSet(ClassSelector(ClassName),"(",")",Block("{",Comment,"}")),"}")),
+  RuleSet(IdSelector("#",IdName),Block("{",RuleSet(ClassSelector(ClassName),"(",")",when,ParenthesizedValue("(",BinaryExpression(AtKeyword,BinOp,ValueName),")"),Block("{",Comment,"}")),"}")),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,":",ColorLiteral,";",AtKeyword,":",ColorLiteral,")",
+    Block("{",Declaration(PropertyName,":",AtKeyword),";",Declaration(PropertyName,":",AtKeyword),";","}")),
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(ClassSelector(ClassName),"(",")"),";","}")),
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(ClassSelector(ClassName),"(",")",Important),";","}"))
+)
+
+# Named parameters
+
+.mixin(@color: black; @margin: 10px; @padding: 20px) {
+  color: @color;
+  margin: @margin;
+  padding: @padding;
+}
+.class1 {
+  .mixin(@margin: 20px; @color: #33acfe);
+}
+.class2 {
+  .mixin(#efca44; @padding: 40px);
+}
+.mixin(...) {}
+.mixin() {}
+.mixin(@a: 1) {}
+.mixin(@a: 1, ...) {}
+.mixin(@a, ...) {}
+.mixin(@b...) {}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,":",ValueName,";",AtKeyword,":",NumberLiteral(Unit),";",AtKeyword,":",NumberLiteral(Unit),")",
+    Block("{",
+      Declaration(PropertyName,":",AtKeyword),";",
+      Declaration(PropertyName,":",AtKeyword),";",
+      Declaration(PropertyName,":",AtKeyword),";",
+    "}")
+  ),
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(ClassSelector(ClassName),"(",AtKeyword,":",NumberLiteral(Unit),";",AtKeyword,":",ColorLiteral,")"),";","}")),
+  RuleSet(ClassSelector(ClassName),Block("{",Inclusion(ClassSelector(ClassName),"(",ColorLiteral,";",AtKeyword,":",NumberLiteral(Unit),")"),";","}")),
+  RuleSet(ClassSelector(ClassName),"(",")",Block("{","}")),
+  RuleSet(ClassSelector(ClassName),"(",")",Block("{","}")),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,":",NumberLiteral,")",Block("{","}")),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,":",NumberLiteral,",",")",Block("{","}")),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,",",")",Block("{","}")),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,")",Block("{","}"))
+)
+
+# Mixin guards
+
+.mixin(@a) when (lightness(@a) >= 50%) {
+  background-color: black;
+}
+.mixin(@a) when (lightness(@a) < 50%) {
+  background-color: white;
+}
+.mixin(@a) {
+  color: @a;
+}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,")",when,ParenthesizedValue("(",BinaryExpression(CallExpression(ValueName,ArgList("(",AtKeyword,")")),BinOp,NumberLiteral(Unit)),")"),
+    Block("{",Declaration(PropertyName,":",ValueName),";","}")
+  ),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,")",when,ParenthesizedValue("(",BinaryExpression(CallExpression(ValueName,ArgList("(",AtKeyword,")")),BinOp,NumberLiteral(Unit)),")"),
+    Block("{",Declaration(PropertyName,":",ValueName),";","}")
+  ),
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,")",Block("{",Declaration(PropertyName,":",AtKeyword),";","}"))
+)
+
+# Logic ops
+
+.mixin(@a) when (isnumber(@a)) and not (@a > 0) { }
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),"(",AtKeyword,")",
+    when,
+    BinaryExpression(
+      ParenthesizedValue("(",CallExpression(ValueName,ArgList("(",AtKeyword,")")),")"),
+      LogicOp,
+      UnaryExpression(UnaryQueryOp,ParenthesizedValue("(",BinaryExpression(AtKeyword,BinOp,NumberLiteral),")"))
+    ),
+    Block("{","}")
+  )
+)
+
+# Aliasing
+
+#theme.dark.navbar {
+  .colors(light) {
+    primary: purple;
+  }
+  .colors(dark) {
+    primary: black;
+    secondary: grey;
+  }
+}
+
+.navbar {
+  @colors: #theme.dark.navbar.colors(dark);
+  background: @colors[primary];
+  border: 1px solid @colors[secondary];
+}
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassSelector(IdSelector("#",IdName),ClassName),ClassName),
+    Block("{",
+      RuleSet(ClassSelector(ClassName),"(",ValueName,")",Block("{",Declaration(PropertyName,":",ValueName),";","}")),
+      RuleSet(ClassSelector(ClassName),"(",ValueName,")",Block("{",Declaration(PropertyName,":",ValueName),";",Declaration(PropertyName,":",ValueName),";","}")),
+    "}")),
+  RuleSet(ClassSelector(ClassName),
+    Block("{",
+      Declaration(AtKeyword,":",Inclusion(IdSelector("#",IdName),ClassSelector(ClassSelector(ClassSelector(ClassName),ClassName),ClassName),"(",ValueName,")")),";",
+      Declaration(PropertyName,":",SubscriptExpression(AtKeyword,"[",ValueName,"]")),";",
+      Declaration(PropertyName,":",NumberLiteral(Unit),ValueName,SubscriptExpression(AtKeyword,"[",ValueName,"]")),";"
+    ,"}")
+  )
+)
+
+# Variable calls
+
+#library() {
+  .colors() {
+    background: green;
+  }
+}
+.box {
+  @alias: #library.colors();
+  @alias();
+}
+
+==>
+
+StyleSheet(
+  RuleSet(IdSelector("#",IdName),"(",")",
+    Block("{",
+      RuleSet(ClassSelector(ClassName),"(",")",Block("{",Declaration(PropertyName,":",ValueName),";","}")),
+    "}")
+  ),
+  RuleSet(ClassSelector(ClassName),
+    Block("{",
+      Declaration(AtKeyword,":",Inclusion(IdSelector("#",IdName),ClassSelector(ClassName),"(",")")),";",
+      CallExpression(AtKeyword,"(",")"),";",
+    "}")
+  )
+)
+
+# declare detached ruleset
+
+@detached-ruleset: { background: red; }; // semi-colon is optional in 3.5.0+
+
+==>
+
+StyleSheet(
+  DetachedRuleSet(AtKeyword,":",Block("{",Declaration(PropertyName,":",ValueName),";","}"),";"),
+  LineComment
+)
+
+# use detached ruleset
+
+.top {
+    @detached-ruleset();
+}
+@import (less) "foo.css";
+@plugin "my-plugin";
+
+==>
+
+StyleSheet(
+  RuleSet(ClassSelector(ClassName),Block("{",CallExpression(AtKeyword,"(",")"),";","}")),
+  ImportStatement(import,"(",ValueName,")",StringLiteral,";"),
+  ImportStatement(import,StringLiteral,";")
+)
+
+# Detached without semi
+
+@name: { font-face: sad; }
+div { line-height: 2 }
+
+==>
+
+StyleSheet(
+  DetachedRuleSet(AtKeyword,":",Block("{",Declaration(PropertyName,":",ValueName),";","}")),
+  RuleSet(TagSelector(TagName),Block("{",Declaration(PropertyName,":",NumberLiteral),"}"))
+)

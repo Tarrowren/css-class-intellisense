@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "isolatedDeclarations": false,
     "types": ["node"]
   },
   "include": ["*.config.mts"]

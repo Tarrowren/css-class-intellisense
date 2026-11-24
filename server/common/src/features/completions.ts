@@ -1,3 +1,4 @@
+import * as l10n from "@vscode/l10n";
 import {
   CancellationToken,
   CompletionItemKind,
@@ -7,14 +8,15 @@ import {
   type CompletionParams,
   type DocumentUri,
 } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
+import { URI } from "vscode-uri";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import type { SourceFile } from "../type";
-import { lspRange } from "../util";
+import type { SourceFile, SymbolInfo, SymbolRange } from "../type";
+import { lspRange, normalize } from "../util";
 import { CompletionTriggeredSymbolKind } from "./common";
-import { URI } from "vscode-uri";
 
 export class CompletionItemProvider {
   constructor(
@@ -28,34 +30,25 @@ export class CompletionItemProvider {
     params: CompletionParams,
     token: CancellationToken,
   ): Promise<CompletionList | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(document.languageId);
-    if (!language || !language.getCompletionTriggeredSymbolInfo) {
+    const language = this._languages.get(document.languageId);
+    if (!language || !language.completion) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
-    if (token.isCancellationRequested) {
-      return;
-    }
-    const info = language.getCompletionTriggeredSymbolInfo(
-      document.getText(),
-      document.offsetAt(params.position),
-      tree,
-    );
+    const tree = await this._trees.get(document, language, token);
+    const info = language.completion(document.getText(), document.offsetAt(params.position), tree);
     if (!info) {
       return;
     }
 
-    await this._symbols.update();
-    if (token.isCancellationRequested) {
-      return;
-    }
+    await this._symbols.update(token);
+
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;
@@ -64,10 +57,10 @@ export class CompletionItemProvider {
     let items: Map<string, CompletionItem>;
     switch (info.kind) {
       case CompletionTriggeredSymbolKind.ClassName:
-        items = this._collectDefinition(sourceFile, "class_names");
+        items = this._collectDefinition(uri, document, sourceFile, "class_names");
         break;
       case CompletionTriggeredSymbolKind.IdName:
-        items = this._collectDefinition(sourceFile, "id_names");
+        items = this._collectDefinition(uri, document, sourceFile, "id_names");
         break;
       case CompletionTriggeredSymbolKind.Css:
         items = this._collectReference(uri);
@@ -86,21 +79,84 @@ export class CompletionItemProvider {
     return { isIncomplete: false, itemDefaults: { editRange }, items: [...items.values()] };
   }
 
-  private _collectDefinition(sourceFile: SourceFile, prop: "class_names" | "id_names"): Map<string, CompletionItem> {
-    const result = new Map<string, CompletionItem>();
-
-    for (const name of sourceFile[prop].keys()) {
-      result.set(name, { label: name, kind: CompletionItemKind.Variable });
+  async provideCompletionResolve(params: CompletionItem, token: CancellationToken): Promise<CompletionItem> {
+    const data = params.data as CompletionData;
+    if (!data || data.length === 0) {
+      return params;
     }
 
-    for (const _uri of sourceFile.refs.keys()) {
-      const _sourceFile = this._symbols.index.get(_uri);
-      if (!_sourceFile) {
+    const detail = data.length === 1 ? _getLabel(data[0].uri) : l10n.t("{0} files", data.length);
+
+    const files = await Promise.all(
+      data.map(async ({ uri, position_ranges, offset_ranges }) => {
+        const doc = await this._documents.retrieve(uri, token);
+        if (!doc) {
+          return null;
+        }
+
+        const r = /\.((?:c|sc|sa|le)ss)$/.exec(uri);
+        const lang = r ? r[1] : "css";
+        const ranges = [
+          ...position_ranges,
+          ...offset_ranges.map((v) => Range.create(doc.positionAt(v.from), doc.positionAt(v.to))),
+        ];
+
+        return (
+          `### ${_getLabel(uri)}\n\n` +
+          ranges.map((range) => "```" + lang + "\n" + doc.getText(range) + "\n```").join("\n\n---\n\n")
+        );
+      }),
+    );
+
+    const documentation = files.filter((v) => !!v).join("\n\n");
+
+    params.detail = detail;
+    params.documentation = {
+      kind: "markdown",
+      value: documentation,
+    };
+
+    return params;
+  }
+
+  private _collectDefinition(
+    uri: DocumentUri,
+    document: TextDocument,
+    sourceFile: SourceFile,
+    prop: "class_names" | "id_names",
+  ): Map<string, CompletionItem> {
+    const result = new Map<string, _CompletionItem>();
+
+    for (const [name, symbolInfo] of sourceFile[prop]) {
+      const d = _getDocRanges(uri, document, sourceFile, symbolInfo);
+      if (result.has(name)) {
+        result.get(name)!.data.push(d);
+      } else {
+        result.set(name, {
+          label: name,
+          kind: CompletionItemKind.Variable,
+          data: [d],
+        });
+      }
+    }
+
+    for (const defUri of sourceFile.refs.keys()) {
+      const defSourceFile = this._symbols.index.get(defUri);
+      if (!defSourceFile) {
         continue;
       }
 
-      for (const name of _sourceFile[prop].keys()) {
-        result.set(name, { label: name, kind: CompletionItemKind.Variable });
+      for (const [name, symbolInfo] of defSourceFile[prop]) {
+        const d = _getDocRanges(defUri, null, defSourceFile, symbolInfo);
+        if (result.has(name)) {
+          result.get(name)!.data.push(d);
+        } else {
+          result.set(name, {
+            label: name,
+            kind: CompletionItemKind.Variable,
+            data: [d],
+          });
+        }
       }
     }
 
@@ -110,17 +166,67 @@ export class CompletionItemProvider {
   private _collectReference(uri: DocumentUri): Map<string, CompletionItem> {
     const result = new Map<string, CompletionItem>();
 
-    for (const [_uri, _sourceFile] of this._symbols.index) {
-      if (_sourceFile.refs.has(uri) || uri === _uri) {
-        for (const name of _sourceFile.used_class_names.keys()) {
-          result.set(name, { label: "." + name, kind: CompletionItemKind.Variable });
+    for (const [refUri, refSourceFile] of this._symbols.index) {
+      if (refSourceFile.refs.has(uri) || uri === refUri) {
+        for (const name of refSourceFile.used_class_names.keys()) {
+          result.set(name, {
+            label: "." + name,
+            kind: CompletionItemKind.Variable,
+          });
         }
-        for (const name of _sourceFile.used_id_names.keys()) {
-          result.set(name, { label: "#" + name, kind: CompletionItemKind.Variable });
+        for (const name of refSourceFile.used_id_names.keys()) {
+          result.set(name, {
+            label: "#" + name,
+            kind: CompletionItemKind.Variable,
+          });
         }
       }
     }
 
     return result;
   }
+}
+
+function _getLabel(uri: DocumentUri): string {
+  const u = URI.parse(uri);
+  if (u.scheme === "file") {
+    return u.fsPath;
+  } else {
+    return uri;
+  }
+}
+
+function _getDocRanges(
+  uri: DocumentUri,
+  document: TextDocument | null,
+  sourceFile: SourceFile,
+  symbolInfo: SymbolInfo,
+): DocRanges {
+  const ranges = [
+    ...symbolInfo.doc_ranges,
+    ...symbolInfo.suffix_ranges
+      .map<SymbolRange | undefined>((from) => sourceFile.suffixes.get(from)?.doc_range)
+      .filter<SymbolRange>((v) => !!v),
+  ];
+  if (document) {
+    return {
+      uri,
+      offset_ranges: [],
+      position_ranges: ranges.map((v) => Range.create(document.positionAt(v.from), document.positionAt(v.to))),
+    };
+  } else {
+    return { uri, offset_ranges: ranges, position_ranges: [] };
+  }
+}
+
+interface DocRanges {
+  readonly uri: string;
+  readonly offset_ranges: SymbolRange[];
+  readonly position_ranges: Range[];
+}
+
+interface CompletionData extends ReadonlyArray<DocRanges> {}
+
+interface _CompletionItem extends CompletionItem {
+  readonly data: DocRanges[];
 }

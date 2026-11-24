@@ -1,10 +1,10 @@
 import { RequestType } from "vscode-jsonrpc";
 
 export class CustomMessages {
-  static readonly FileRead = new RequestType<string, number[], void>("file/read");
-  static readonly QueueInit = new RequestType<string[], void, void>("queue/init");
+  static readonly FileRead: RequestType<string, number[], void> = new RequestType("file/read");
 
-  static readonly ConfigUpdate = new RequestType<CommonConfig, void, void>("config/update");
+  static readonly ConfigUpdate: RequestType<CommonConfig, void, void> = new RequestType("config/update");
+  static readonly IndexUpdate: RequestType<string[], void, void> = new RequestType("index/update");
 }
 
 export interface CommonConfig {
@@ -23,7 +23,7 @@ export interface ProjectConfig {
 }
 
 export interface InitOptions {
-  databaseName: string;
-  storagePath?: string;
-  l10nLocation?: string;
+  readonly databaseName: string;
+  readonly storagePath?: string;
+  readonly l10nLocation?: string;
 }

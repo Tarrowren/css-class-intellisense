@@ -8,11 +8,11 @@ export class Spin {
     return this._value;
   }
 
-  decrease() {
+  decrease(): void {
     this._value = Spin._limit(this._value >> 1);
   }
 
-  increase() {
+  increase(): void {
     this._value = Spin._limit(this._value + (this._value >> 4));
   }
 
@@ -30,7 +30,7 @@ export class Spin {
     }
   }
 
-  static create(value: number) {
+  static create(value: number): Spin {
     return new Spin(this._limit(value));
   }
 }

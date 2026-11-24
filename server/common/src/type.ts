@@ -13,6 +13,7 @@ export interface SourceFile {
 export interface SymbolInfo {
   readonly ranges: SymbolRange[];
   readonly suffix_ranges: (number & typia.tags.Type<"uint32">)[];
+  readonly doc_ranges: SymbolRange[];
 }
 
 export interface SymbolRange {
@@ -23,4 +24,5 @@ export interface SymbolRange {
 export interface SuffixInfo {
   readonly to: number & typia.tags.Type<"uint32">;
   readonly full_names: Map<string, TriggeredSymbolKind>;
+  readonly doc_range: SymbolRange;
 }

@@ -1,21 +1,22 @@
-import { CustomMessages, languageConfigs, LockType, ReadWriteLock, type InitOptions } from "@cci/shared";
+import { CustomMessages, languageConfigs, type InitOptions } from "@cci/shared";
 import {
+  CancellationError,
   CancellationTokenSource,
   RelativePattern,
   Uri,
   window,
   workspace,
+  type CancellationToken,
   type ExtensionContext,
-  type GlobPattern,
   type LogOutputChannel,
 } from "vscode";
-import { type BaseLanguageClient, type LanguageClientOptions } from "vscode-languageclient";
+import type { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
 import { getConfig, getProjectConfig, isNeedUpdateIndex } from "./config";
 
 export class Client {
-  private readonly _source = new CancellationTokenSource();
-  private readonly _index_lock = new ReadWriteLock();
-  private _index_initing = false;
+  private _configUpdateSource: CancellationTokenSource | null | undefined;
+  private _indexUpdateSource: CancellationTokenSource | null | undefined;
+  private _needUpdateIndex = false;
 
   private constructor(
     private readonly _client: BaseLanguageClient,
@@ -23,122 +24,153 @@ export class Client {
     private readonly _logger: LogOutputChannel,
   ) {}
 
-  async start() {
+  async start(): Promise<void> {
     await this._client.start();
 
     // readfile
     this._context.subscriptions.push(
-      this._client.onRequest(CustomMessages.FileRead, async (uri_string) => {
-        const uri = Uri.parse(uri_string);
-        return await this._fs_read(uri);
+      this._client.onRequest(CustomMessages.FileRead, async (uriString, token) => {
+        const uri = Uri.parse(uriString);
+        let bytes: Uint8Array | undefined;
+        try {
+          bytes = await workspace.fs.readFile(uri);
+        } catch (err) {
+          this._logger.warn("[FileRead] FAILED", err);
+        }
+        if (token.isCancellationRequested) {
+          throw new CancellationError();
+        }
+        return bytes ? Array.from(bytes) : [];
       }),
     );
 
     // init
     this._context.subscriptions.push(
-      workspace.onDidChangeConfiguration(async (e) => {
-        await this._updateConfig();
-
+      workspace.onDidChangeConfiguration((e) => {
         const folders = workspace.workspaceFolders;
-        if (folders && folders.length > 0 && folders.every((folder) => !isNeedUpdateIndex(e, folder))) {
-          return;
-        }
-        await this._initIndex();
+        const index = !folders || folders.length === 0 || folders.some((folder) => isNeedUpdateIndex(e, folder));
+        this._update(index);
       }),
     );
     this._context.subscriptions.push(
-      workspace.onDidChangeWorkspaceFolders(async () => {
-        await this._updateConfig();
-        await this._initIndex();
+      workspace.onDidChangeWorkspaceFolders(() => {
+        this._update(true);
       }),
     );
-    await this._updateConfig();
-    await this._initIndex();
+    this._update(true);
   }
 
-  private async _updateConfig() {
-    await this._client.sendRequest(CustomMessages.ConfigUpdate, getConfig(), this._source.token);
-  }
+  async stop(): Promise<void> {
+    this._configUpdateSource?.cancel();
+    this._configUpdateSource = null;
 
-  private async _initIndex() {
-    if (this._index_initing) {
-      return;
-    }
-    this._index_initing = true;
-    const lk = this._index_lock.get(LockType.WRITE);
-    await lk.lock();
-    try {
-      const uris = new Set<string>();
+    this._indexUpdateSource?.cancel();
+    this._indexUpdateSource = null;
 
-      const folders = workspace.workspaceFolders;
-      if (folders && folders.length > 0) {
-        const patterns: [GlobPattern, GlobPattern | null][] = [];
-        for (const folder of folders) {
-          const config = getProjectConfig(folder);
-
-          const include =
-            concat_patterns(config.include) ?? `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
-          const exclude = concat_patterns([
-            ...Object.entries(workspace.getConfiguration().get<Record<string, boolean>>("search.exclude", {}))
-              .filter(([_, v]) => v)
-              .map(([k, _v]) => k),
-            ...Object.entries(workspace.getConfiguration().get<Record<string, boolean>>("files.exclude", {}))
-              .filter(([_, v]) => v)
-              .map(([k, _v]) => k),
-            ...config.exclude,
-          ]);
-          // TODO support .gitignore
-
-          this._logger.info("[Init Index] folder:", folder.name, "include:", include);
-          this._logger.info("[Init Index] folder:", folder.name, "exclude:", exclude);
-
-          patterns.push([new RelativePattern(folder, include), exclude ? new RelativePattern(folder, exclude) : null]);
-        }
-
-        this._index_initing = false;
-
-        for (const [include, exclude] of patterns) {
-          const files = await workspace.findFiles(include, exclude, undefined, this._source.token);
-          for (const file of files) {
-            uris.add(file.toString(true));
-          }
-        }
-      }
-
-      for (const uri of uris) {
-        this._logger.debug("[Init Index] find file", uri);
-      }
-
-      await this._client.sendRequest(CustomMessages.QueueInit, [...uris], this._source.token);
-    } finally {
-      lk.unlock();
-    }
-  }
-
-  async stop() {
-    this._index_lock.dispose();
-    this._source.cancel();
     await this._client.stop();
   }
 
-  private async _fs_read(uri: Uri): Promise<number[]> {
+  private async _update(indexUpdate: boolean) {
+    this._configUpdateSource?.cancel();
+    const configSource = (this._configUpdateSource = new CancellationTokenSource());
+
+    let indexSource = this._indexUpdateSource;
+    if (indexUpdate) {
+      this._needUpdateIndex = true;
+
+      this._indexUpdateSource?.cancel();
+      indexSource = this._indexUpdateSource = new CancellationTokenSource();
+    }
+
     try {
-      return Array.from(await workspace.fs.readFile(uri));
+      await this._configUpdate(configSource.token);
     } catch (err) {
-      this._logger.warn("[File Read] FAILED", err);
-      return [];
+      this._logger.error("[ConfigUpdate] FAILED", err);
+
+      return;
+    } finally {
+      configSource.dispose();
+      if (this._configUpdateSource === configSource) {
+        this._configUpdateSource = null;
+      }
+    }
+
+    if (this._needUpdateIndex && indexSource) {
+      this._needUpdateIndex = false;
+
+      try {
+        await this._indexUpdate(indexSource.token);
+      } catch (err) {
+        this._logger.error("[IndexUpdate] FAILED", err);
+
+        return;
+      } finally {
+        indexSource.dispose();
+        if (this._indexUpdateSource === indexSource) {
+          this._indexUpdateSource = null;
+        }
+      }
     }
   }
 
-  static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions) {
+  private async _configUpdate(token: CancellationToken) {
+    const config = getConfig();
+
+    await this._client.sendRequest(CustomMessages.ConfigUpdate, config, token);
+  }
+
+  private async _indexUpdate(token: CancellationToken) {
+    const uris = new Set<string>();
+
+    const folders = workspace.workspaceFolders;
+    if (folders && folders.length > 0) {
+      for (const folder of folders) {
+        const config = getProjectConfig(folder);
+
+        const include =
+          _concatPatterns(config.include) ?? `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
+        const exclude = _concatPatterns([
+          ...Object.entries(workspace.getConfiguration().get<Record<string, boolean>>("search.exclude", {}))
+            .filter(([_, v]) => v)
+            .map(([k, _v]) => k),
+          ...Object.entries(workspace.getConfiguration().get<Record<string, boolean>>("files.exclude", {}))
+            .filter(([_, v]) => v)
+            .map(([k, _v]) => k),
+          ...config.exclude,
+        ]);
+        // TODO support .gitignore
+
+        this._logger.info("[IndexUpdate] folder:", folder.name, "include:", include);
+        this._logger.info("[IndexUpdate] folder:", folder.name, "exclude:", exclude);
+
+        const files = await workspace.findFiles(
+          new RelativePattern(folder, include),
+          exclude ? new RelativePattern(folder, exclude) : null,
+          undefined,
+          token,
+        );
+        for (const uri of files) {
+          uris.add(uri.toString(true));
+        }
+      }
+    }
+
+    for (const uri of uris) {
+      this._logger.debug("[IndexUpdate] find file", uri);
+    }
+
+    await this._client.sendRequest(CustomMessages.IndexUpdate, [...uris], token);
+  }
+
+  static create(factory: LanguageClientFactory, context: ExtensionContext, initializationOptions: InitOptions): Client {
     const id = "css-class-intellisense";
     const name = "CSS Class Intellisense";
 
-    const lang_pattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
-    const watcher = workspace.createFileSystemWatcher(lang_pattern);
+    const langPattern = `**/*.{${languageConfigs.flatMap((lang) => lang.suffixes).join(",")}}`;
+    const watcher = workspace.createFileSystemWatcher(langPattern);
     context.subscriptions.push(watcher);
 
-    const client_options: LanguageClientOptions = {
+    const clientOptions: LanguageClientOptions = {
       outputChannel: window.createOutputChannel(name + " Server", { log: true }),
       documentSelector: languageConfigs.map((lang) => lang.languageId),
       synchronize: { fileEvents: watcher },
@@ -146,7 +178,7 @@ export class Client {
     };
 
     return new Client(
-      factory(id, name, client_options),
+      factory(id, name, clientOptions),
       context,
       window.createOutputChannel(name + " Client", { log: true }),
     );
@@ -154,10 +186,10 @@ export class Client {
 }
 
 interface LanguageClientFactory {
-  (id: string, name: string, client_options: LanguageClientOptions): BaseLanguageClient;
+  (id: string, name: string, clientOptions: LanguageClientOptions): BaseLanguageClient;
 }
 
-function concat_patterns(patterns: ReadonlyArray<string>) {
+function _concatPatterns(patterns: ReadonlyArray<string>) {
   if (patterns.length > 1) {
     return `{${patterns.join(",")}}`;
   } else if (patterns.length === 1) {

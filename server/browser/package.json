@@ -6,7 +6,7 @@
     "@cci/server-common": "*",
     "@cci/shared": "*",
     "@vscode/l10n": "^0.0.18",
-    "typia": "^12.1.1",
-    "vscode-languageserver": "^10.1.0"
+    "typia": "^12.2.1",
+    "vscode-languageserver": "^11.0.0"
   }
 }

@@ -1,184 +1,248 @@
-import { LockType, ReadWriteLock } from "@cci/shared";
-import { CancellationTokenSource, DocumentUri, type Disposable } from "vscode-languageserver";
+import { UnsafeNode, UnsafeQueue, withResolvers } from "@cci/shared";
+import { CancellationTokenSource, DocumentUri, type CancellationToken, type Disposable } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { Configuration } from "./configuration";
+import { CancellationError } from "./cancellation";
 import type { DocumentStore } from "./document-store";
+import { os, scheduler } from "./env";
 import type { Languages } from "./languages";
 import { StopWatch } from "./stop-watch";
 import type { SymbolStorage } from "./symbol-storage";
 import type { Trees } from "./trees";
 import type { SourceFile } from "./type";
-import { parallel, Queue } from "./util";
 
 export class SymbolIndex implements Disposable {
-  readonly index = new Map<DocumentUri, SourceFile>();
+  readonly index: Map<DocumentUri, SourceFile> = new Map();
 
-  private readonly _external = new Set<DocumentUri>();
-  private readonly _syncQueue = new Queue<DocumentUri>();
-  private readonly _asyncInitQueue = new Queue<DocumentUri>();
-  private readonly _source = new CancellationTokenSource();
-  private readonly _rwlock = new ReadWriteLock();
+  private _source: CancellationTokenSource | null | undefined;
+
+  private readonly _immediateFiles = new FileQueue();
+  private readonly _lazyFiles = new FileQueue();
+  private _immediateFilesActive = 0;
+  private _filesActive = 0;
+  private readonly _queue = new UnsafeQueue<Executor>();
 
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _documents: DocumentStore,
     private readonly _languages: Languages,
     private readonly _trees: Trees,
     private readonly _storage: SymbolStorage,
   ) {}
 
-  addFile(uri: string): void {
-    this._syncQueue.enqueue(uri);
-    this._asyncInitQueue.dequeue(uri);
+  dispose(): void {
+    this._source?.cancel();
+    this._source = null;
+
+    let node: UnsafeNode<Executor> | null | undefined;
+    while ((node = this._queue.shift())) {
+      node.value.reject(new CancellationError());
+    }
+
+    this._immediateFiles.clear();
+    this._lazyFiles.clear();
+    this._immediateFilesActive = 0;
+    this._filesActive = 0;
   }
 
-  removeFile(uri: string): void {
-    this._syncQueue.dequeue(uri);
-    this._asyncInitQueue.dequeue(uri);
+  addFile(uri: DocumentUri): void {
+    this._immediateFiles.push(uri);
+    this._lazyFiles.delete(uri);
+  }
+
+  removeFile(uri: DocumentUri): void {
+    this._immediateFiles.delete(uri);
+    this._lazyFiles.delete(uri);
     this.index.delete(uri);
   }
 
-  async update(): Promise<void> {
-    const lk = this._rwlock.get(LockType.WRITE);
-    await lk.lock();
+  async update(token: CancellationToken): Promise<void> {
+    if (token.isCancellationRequested) {
+      throw new CancellationError();
+    }
+
+    const { promise, resolve, reject } = withResolvers<void>();
+
+    const node = new UnsafeNode<Executor>({ resolve, reject });
+    this._queue.push(node);
+
+    const disposable = token.onCancellationRequested(() => {
+      reject(new CancellationError());
+      this._queue.remove(node);
+    });
+
+    if (this._source) {
+      this._next(this._source.token);
+    }
+
     try {
-      const uris = this._syncQueue.consume(undefined, (_uri) => true);
-      if (uris.length === 0) {
-        return;
-      }
-
-      await this._doUpdate(uris, false);
+      const sw = StopWatch.create();
+      await promise;
+      console.info("[SymbolIndex] update index time", sw.elapsed(2));
     } finally {
-      lk.unlock();
+      disposable.dispose();
     }
   }
 
-  private async _doUpdate(uris: string[], async: boolean): Promise<void> {
-    const sw = StopWatch.create();
-    const tasks = uris.map(this._createIndexTask, this);
-    const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
+  async initFiles(documentUris: ReadonlyArray<DocumentUri>, token: CancellationToken): Promise<void> {
+    this._source?.cancel();
+    this._source = null;
+    try {
+      this.index.clear();
+      this._immediateFiles.clear();
+      this._lazyFiles.clear();
 
-    let totalRetrieve = 0;
-    let totalIndex = 0;
-    for (const stat of stats) {
-      totalRetrieve += stat.durationRetrieve;
-      totalIndex += stat.durationIndex;
-    }
+      const uris = new Set(documentUris);
+      console.info("[SymbolIndex] initializing index for", uris.size, "files.");
 
-    if (this._external.size > 0) {
-      const tasks = [...this._external].map(this._createIndexTask, this);
-      this._external.clear();
-      const stats = await parallel(tasks, this._configuration.parallel, this._source.token);
-      for (const stat of stats) {
-        totalRetrieve += stat.durationRetrieve;
-        totalIndex += stat.durationIndex;
-      }
-    }
+      const sw = StopWatch.create();
 
-    logger.info(
-      `[Symbol Index] (${async ? "Async" : "Sync"}) added ${uris.length} files ${sw.elapsed(2)}ms (retrieval: ${totalRetrieve.toFixed(2)}ms, indexing: ${totalIndex.toFixed(2)}ms)`,
-    );
-  }
+      const obsolete = new Set<string>();
 
-  private _createIndexTask(
-    uri: string,
-  ): () => Promise<{ readonly durationRetrieve: number; readonly durationIndex: number }> {
-    return async () => {
-      // fetch document
-      let document: TextDocument | undefined;
-      const _retrieve_time = StopWatch.create();
-      try {
-        document = await this._documents.retrieve(uri);
-      } catch (e) {
-        logger.warn(`[Symbol Index] FAILED to get ${uri} ${e}`);
-      }
-      const durationRetrieve = _retrieve_time.elapsed();
+      let size = 0;
+      for await (const [uri, sourceFile] of this._storage.entries(token)) {
+        --size;
 
-      // update index
-      let durationIndex: number;
-      if (document) {
-        const _index_time = StopWatch.create();
-        try {
-          await this._doIndex(document);
-        } catch (e) {
-          logger.warn(`[Symbol Index] FAILED to index ${uri} ${e}`);
+        if (uris.delete(uri)) {
+          this.index.set(uri, sourceFile);
+          this._lazyFiles.push(uri);
+        } else {
+          obsolete.add(uri);
         }
-        durationIndex = _index_time.elapsed();
-      } else {
-        durationIndex = 0;
       }
 
-      return { durationRetrieve, durationIndex };
-    };
+      for (const uri of uris) {
+        this._immediateFiles.push(uri);
+      }
+
+      this._storage.delete(obsolete);
+
+      console.info(
+        "[SymbolIndex] added FROM CACHE",
+        size,
+        "files",
+        sw.elapsed(2) + ", all need revalidation,",
+        uris.size,
+        "files are NEW,",
+        obsolete.size,
+        "where OBSOLETE",
+      );
+    } finally {
+      this._source = new CancellationTokenSource();
+      this._next(this._source.token);
+    }
   }
 
-  private async _doIndex(document: TextDocument): Promise<void> {
-    const language = this._languages.getLanguage(document.languageId);
+  private _next(token: CancellationToken) {
+    scheduler()
+      .yield(token)
+      .then(() => {
+        let uri: DocumentUri | undefined;
+        while (this._filesActive < os().concurrency && (uri = this._immediateFiles.shift())) {
+          ++this._immediateFilesActive;
+          ++this._filesActive;
+
+          this._updateIndex(false, uri, token).finally(() => {
+            --this._immediateFilesActive;
+            --this._filesActive;
+
+            this._next(token);
+          });
+        }
+
+        if (this._immediateFilesActive === 0) {
+          let node: UnsafeNode<Executor> | null | undefined;
+          while ((node = this._queue.shift())) {
+            node.value.resolve();
+          }
+
+          while (this._filesActive < os().concurrency && (uri = this._lazyFiles.shift())) {
+            ++this._filesActive;
+
+            this._updateIndex(true, uri, token).finally(() => {
+              --this._filesActive;
+
+              this._next(token);
+            });
+          }
+        }
+      })
+      .catch((_) => {
+        // ignore
+      });
+  }
+
+  private async _updateIndex(lazy: boolean, uri: DocumentUri, token: CancellationToken): Promise<void> {
+    // fetch document
+    let document: TextDocument | undefined;
+    try {
+      // const sw = StopWatch.create();
+      document = await this._documents.retrieve(uri, token);
+      // console.debug("[SymbolIndex] retrieve time", uri, sw.elapsed(2));
+    } catch (e) {
+      console.warn("[SymbolIndex] FAILED to retrieve", uri, e);
+    }
+
+    // update index
+    if (document) {
+      try {
+        // const sw = StopWatch.create();
+        await this._doIndex(lazy, document, token);
+        // console.debug("[SymbolIndex] index time", uri, sw.elapsed(2));
+      } catch (e) {
+        console.warn("[SymbolIndex] FAILED to index", uri, e);
+      }
+    }
+  }
+
+  private async _doIndex(lazy: boolean, document: TextDocument, token: CancellationToken): Promise<void> {
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
     const uri = document.uri;
-
+    const tree = await this._trees.get(document, language, token);
     const sourceFile = language.query(uri, document.getText(), tree);
-    for (const [href] of sourceFile.refs) {
-      if (!this.index.has(href)) {
-        this._external.add(href);
+    for (const href of sourceFile.refs.keys()) {
+      if (!this.index.has(href) && (!lazy || !this._lazyFiles.has(href))) {
+        this._immediateFiles.push(href);
       }
     }
 
     this.index.set(uri, sourceFile);
     this._storage.insert(uri, sourceFile);
   }
+}
 
-  async initFiles(_uris: ReadonlyArray<DocumentUri>): Promise<void> {
-    this.index.clear();
-    const uris = new Set(_uris);
-    const sw = StopWatch.create();
+class FileQueue {
+  private readonly _set = new Set<DocumentUri>();
 
-    logger.info(`[Symbol Index] initializing index for ${uris.size} files.`);
-    const persisted = await this._storage.getAll();
-    const obsolete = new Set<string>();
+  clear(): void {
+    this._set.clear();
+  }
 
-    for (const [uri, sourceFile] of persisted) {
-      if (uris.delete(uri)) {
-        this.index.set(uri, sourceFile);
-        this._asyncInitQueue.enqueue(uri);
-      } else {
-        obsolete.add(uri);
-      }
-    }
-
-    for (const uri of uris) {
-      this._syncQueue.enqueue(uri);
-    }
-
-    this._storage.delete(obsolete);
-
-    logger.info(
-      `[Symbol Index] added FROM CACHE ${persisted.size} files ${sw.elapsed(2)}ms, all need revalidation, ${uris.size} files are NEW, ${obsolete.size} where OBSOLETE`,
-    );
-
-    await this.update();
-
-    while (!this._source.token.isCancellationRequested) {
-      const uris = this._asyncInitQueue.consume(this._configuration.parallel, (_uri) => true);
-      if (uris.length === 0) {
-        break;
-      }
-
-      const sw = StopWatch.create();
-      await this._doUpdate(uris, true);
-      await scheduler.wait(sw.elapsed() * 4, this._source.token);
+  push(uri: DocumentUri): void {
+    if (!this._set.has(uri)) {
+      this._set.add(uri);
     }
   }
 
-  dispose(): void {
-    this._rwlock.dispose();
-    this._source.cancel();
-    this._syncQueue.dispose();
-    this._asyncInitQueue.dispose();
-    this._external.clear();
+  shift(): DocumentUri | undefined {
+    for (const uri of this._set) {
+      this._set.delete(uri);
+      return uri;
+    }
   }
+
+  has(uri: DocumentUri): boolean {
+    return this._set.has(uri);
+  }
+
+  delete(uri: DocumentUri): void {
+    this._set.delete(uri);
+  }
+}
+
+interface Executor {
+  resolve: () => void;
+  reject: (reason?: unknown) => void;
 }

@@ -1,11 +1,13 @@
 import { Server } from "@cci/server-common";
+import { CancellationError } from "@cci/server-common/src/cancellation";
+import { install } from "@cci/server-common/src/env";
 import { NoopSymbolStorage } from "@cci/server-common/src/symbol-storage";
 import { withResolvers } from "@cci/shared";
 import * as l10n from "@vscode/l10n";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-  CancellationToken,
+  type CancellationToken,
   createConnection,
   ProposedFeatures,
 } from "vscode-languageserver/browser";
@@ -16,53 +18,84 @@ const messageWriter = new BrowserMessageWriter(self);
 
 const connection = createConnection(ProposedFeatures.all, messageReader, messageWriter);
 
-const _global = self as unknown as Record<string, unknown>;
-
-_global.logger = connection.console;
-_global.scheduler = {
-  async wait(ms: number, token?: CancellationToken): Promise<void> {
-    if (token?.isCancellationRequested) {
-      throw new Error("cancelled");
-    }
-
-    const { promise, resolve, reject } = withResolvers<void>();
-    const timer = setTimeout(resolve, ms);
-    const disposable = token?.onCancellationRequested(() => {
-      clearTimeout(timer);
-      reject(new Error("canceled"));
-    });
-    try {
-      await promise;
-    } finally {
-      disposable?.dispose();
-    }
-  },
-  yield(): Promise<void> {
-    return new Promise<void>((c) => setTimeout(c, 0));
-  },
-};
-
-_global.concurrency = navigator.hardwareConcurrency ?? 4;
-_global.fs = {
-  async readHttpFile(url: string): Promise<string> {
-    try {
-      const response = await fetch(url, { cache: "no-cache" });
-      if (!response.ok) {
-        throw new Error((await response.text()).substring(0, 200));
+install({
+  fs: {
+    async fetchFile(url, token) {
+      try {
+        const response = await fetch(url, { cache: "no-cache", signal: _toAbortSignal(token) });
+        if (!response.ok) {
+          throw new Error((await response.text()).substring(0, 200));
+        }
+        return await response.text();
+      } catch (err) {
+        connection.window.showErrorMessage(l10n.t("Failed to download {0}!\n{1}", url, (err as Error).message));
+        throw err;
       }
-      return await response.text();
-    } catch (err) {
-      connection.window.showErrorMessage(l10n.t("Failed to download {0}!\n{1}", url, (err as Error).message));
-      throw err;
-    }
+    },
   },
-};
+  os: {
+    concurrency: Math.max(navigator.hardwareConcurrency, 4),
+  },
+  scheduler: {
+    wait: _wait,
+    yield: globalThis.scheduler ? _schedulerYield : _setTimeoutYield,
+  },
+});
+
+const _cache = new WeakMap<CancellationToken, AbortSignal>();
+function _toAbortSignal(token: CancellationToken): AbortSignal | undefined {
+  let signal = _cache.get(token);
+  if (!signal) {
+    if (token.isCancellationRequested) {
+      signal = AbortSignal.abort(new CancellationError());
+    } else {
+      const controller = new AbortController();
+      token.onCancellationRequested(() => {
+        controller.abort(new CancellationError());
+      });
+
+      signal = controller.signal;
+    }
+
+    _cache.set(token, signal);
+  }
+
+  return signal;
+}
+
+async function _wait(ms: number, token: CancellationToken) {
+  if (token.isCancellationRequested) {
+    throw new CancellationError();
+  }
+
+  const { promise, resolve, reject } = withResolvers<void>();
+  const timer = setTimeout(resolve, ms);
+  const disposable = token.onCancellationRequested(() => {
+    clearTimeout(timer);
+    reject(new CancellationError());
+  });
+  try {
+    await promise;
+  } finally {
+    disposable.dispose();
+  }
+}
+
+function _schedulerYield(token: CancellationToken) {
+  return scheduler.postTask(_noop, { signal: _toAbortSignal(token) });
+}
+
+function _setTimeoutYield(token: CancellationToken) {
+  return _wait(0, token);
+}
+
+function _noop() {}
 
 Server.create(connection, {
   async create(options) {
     try {
       return await IndexedDBSymbolStorage.create(options.databaseName);
-    } catch (_err) {
+    } catch (_) {
       return new NoopSymbolStorage();
     }
   },

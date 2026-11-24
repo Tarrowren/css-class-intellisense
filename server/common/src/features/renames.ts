@@ -9,43 +9,51 @@ import type {
   TextEdit,
   WorkspaceEdit,
 } from "vscode-languageserver";
-import { URI } from "vscode-uri";
-import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
+import { os } from "../env";
 import type { Languages } from "../languages";
+import { Semaphore } from "../semaphore";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
-import type { SourceFile, SymbolRange } from "../type";
-import { lspRange, parallel, textRange } from "../util";
+import type { SourceFile, SuffixInfo, SymbolRange } from "../type";
+import { lspRange, normalize, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
 
 export class RenameProvider {
+  private readonly _semaphore = new Semaphore(os().concurrency);
+
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
     private readonly _trees: Trees,
     private readonly _symbols: SymbolIndex,
   ) {}
 
-  async prepareRename(params: PrepareRenameParams): Promise<Range | { defaultBehavior: boolean }> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
-    const range = await this._prepareRename(uri, params.position);
+  async prepareRename(
+    params: PrepareRenameParams,
+    token: CancellationToken,
+  ): Promise<Range | { defaultBehavior: boolean }> {
+    const uri = normalize(params.textDocument.uri);
+    const range = await this._prepareRename(uri, params.position, token);
     return range ?? { defaultBehavior: true };
   }
 
-  private async _prepareRename(uri: DocumentUri, position: Position): Promise<Range | undefined> {
+  private async _prepareRename(
+    uri: DocumentUri,
+    position: Position,
+    token: CancellationToken,
+  ): Promise<Range | undefined> {
     const document = this._documents.get(uri);
     if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(document.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(position);
 
     const info =
@@ -60,21 +68,18 @@ export class RenameProvider {
   }
 
   async provideRenameEdits(params: RenameParams, token: CancellationToken): Promise<WorkspaceEdit | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(document.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
-    if (token.isCancellationRequested) {
-      return;
-    }
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(params.position);
     const info =
       this._getInfo(tree.resolve(pos, -1)) ??
@@ -84,10 +89,8 @@ export class RenameProvider {
       return;
     }
 
-    await this._symbols.update();
-    if (token.isCancellationRequested) {
-      return;
-    }
+    await this._symbols.update(token);
+
     const sourceFile = this._symbols.index.get(uri);
     if (!sourceFile) {
       return;
@@ -100,107 +103,119 @@ export class RenameProvider {
       }
 
       const suffixLen = info.range.to - info.range.from;
-      const newText = params.newName;
-
-      const tasks: ((token?: CancellationToken) => Promise<[DocumentUri, TextEdit[]]>)[] = [];
-      for (const [_uri, _sourceFile] of this._symbols.index) {
-        if (_sourceFile.refs.has(uri) || sourceFile.refs.has(_uri) || uri === _uri) {
-          const ranges: [SymbolRange, string?][] = [];
-          const duplicates = new Set<number>();
-
-          for (const [name, kinds] of suffix.full_names) {
-            if (kinds & TriggeredSymbolKind.ClassName) {
-              const [defProp, refProp] = this._getProp(TriggeredSymbolKind.ClassName);
-              const defRanges = _sourceFile[defProp].get(name);
-              const refRanges = _sourceFile[refProp].get(name);
-
-              if (defRanges) {
-                for (const from of defRanges.suffix_ranges) {
-                  if (duplicates.has(from)) {
-                    continue;
-                  }
-                  duplicates.add(from);
-
-                  const _suffixInfo = _sourceFile.suffixes.get(from);
-                  if (_suffixInfo) {
-                    ranges.push([{ from, to: _suffixInfo.to }]);
-                  }
-                }
-              }
-
-              if (refRanges) {
-                const fullNewText = name.slice(0, -suffixLen) + newText;
-                for (const range of refRanges.ranges) {
-                  ranges.push([range, fullNewText]);
-                }
-              }
-            }
-
-            if (kinds & TriggeredSymbolKind.IdName) {
-              const [defProp, refProp] = this._getProp(TriggeredSymbolKind.IdName);
-              const defRanges = _sourceFile[defProp].get(name);
-              const refRanges = _sourceFile[refProp].get(name);
-
-              if (defRanges) {
-                for (const from of defRanges.suffix_ranges) {
-                  if (duplicates.has(from)) {
-                    continue;
-                  }
-                  duplicates.add(from);
-
-                  const _suffixInfo = _sourceFile.suffixes.get(from);
-                  if (_suffixInfo) {
-                    ranges.push([{ from, to: _suffixInfo.to }]);
-                  }
-                }
-              }
-
-              if (refRanges) {
-                const fullNewText = name.slice(0, -suffixLen) + newText;
-                for (const range of refRanges.ranges) {
-                  ranges.push([range, fullNewText]);
-                }
-              }
-            }
-          }
-
-          if (ranges.length > 0) {
-            tasks.push(async () => {
-              const document = await this._documents.retrieve(_uri);
-              const edits = ranges.map<TextEdit>(([range, text]) => ({
-                range: lspRange(document, range),
-                newText: text ?? newText,
-              }));
-              return [_uri, edits];
-            });
-          }
-        }
-      }
-
-      const result = await parallel(tasks, this._configuration.parallel);
-      const changes = Object.fromEntries(result);
+      const changes = await this._provideSuffixRenameEdits(uri, sourceFile, suffix, suffixLen, params.newName, token);
       return { changes };
     } else {
       const name = document.getText().substring(info.range.from, info.range.to);
-      const changes = await this._provideRenameEdits(uri, sourceFile, info.kind, name, params.newName);
+      const changes = await this._provideRenameEdits(uri, sourceFile, info.kind, name, params.newName, token);
       return { changes };
     }
   }
 
+  private async _provideSuffixRenameEdits(
+    documentUri: DocumentUri,
+    sourceFile: SourceFile,
+    suffix: SuffixInfo,
+    suffixLen: number,
+    newText: string,
+    token: CancellationToken,
+  ) {
+    const values: Promise<[DocumentUri, TextEdit[]]>[] = [];
+    for (const [uri, defOrRefSourceFile] of this._symbols.index) {
+      if (defOrRefSourceFile.refs.has(documentUri) || sourceFile.refs.has(uri) || documentUri === uri) {
+        const ranges: [SymbolRange, string?][] = [];
+        const duplicates = new Set<number>();
+
+        for (const [name, kinds] of suffix.full_names) {
+          if (kinds & TriggeredSymbolKind.ClassName) {
+            const [defProp, refProp] = this._getProp(TriggeredSymbolKind.ClassName);
+            const defRanges = defOrRefSourceFile[defProp].get(name);
+            const refRanges = defOrRefSourceFile[refProp].get(name);
+
+            if (defRanges) {
+              for (const from of defRanges.suffix_ranges) {
+                if (duplicates.has(from)) {
+                  continue;
+                }
+                duplicates.add(from);
+
+                const defSuffix = defOrRefSourceFile.suffixes.get(from);
+                if (defSuffix) {
+                  ranges.push([{ from, to: defSuffix.to }]);
+                }
+              }
+            }
+
+            if (refRanges) {
+              const fullNewText = name.slice(0, -suffixLen) + newText;
+              for (const range of refRanges.ranges) {
+                ranges.push([range, fullNewText]);
+              }
+            }
+          }
+
+          if (kinds & TriggeredSymbolKind.IdName) {
+            const [defProp, refProp] = this._getProp(TriggeredSymbolKind.IdName);
+            const defRanges = defOrRefSourceFile[defProp].get(name);
+            const refRanges = defOrRefSourceFile[refProp].get(name);
+
+            if (defRanges) {
+              for (const from of defRanges.suffix_ranges) {
+                if (duplicates.has(from)) {
+                  continue;
+                }
+                duplicates.add(from);
+
+                const defSuffix = defOrRefSourceFile.suffixes.get(from);
+                if (defSuffix) {
+                  ranges.push([{ from, to: defSuffix.to }]);
+                }
+              }
+            }
+
+            if (refRanges) {
+              const fullNewText = name.slice(0, -suffixLen) + newText;
+              for (const range of refRanges.ranges) {
+                ranges.push([range, fullNewText]);
+              }
+            }
+          }
+        }
+
+        if (ranges.length > 0) {
+          values.push(
+            this._semaphore.lock(async () => {
+              const document = await this._documents.retrieve(uri, token);
+              const edits = ranges.map<TextEdit>(([range, text]) => ({
+                range: lspRange(document, range),
+                newText: text ?? newText,
+              }));
+              return [uri, edits];
+            }, token),
+          );
+        }
+      }
+    }
+
+    const result = await Promise.all(values);
+    return Object.fromEntries(result);
+  }
+
   private async _provideRenameEdits(
-    uri: DocumentUri,
+    documentUri: DocumentUri,
     sourceFile: SourceFile,
     kind: TriggeredSymbolKind,
     name: string,
     newText: string,
+    token: CancellationToken,
   ): Promise<Record<DocumentUri, TextEdit[]>> {
     const [defProp, refProp] = this._getProp(kind);
 
-    const tasks: ((token?: CancellationToken) => Promise<[DocumentUri, TextEdit[]]>)[] = [];
-    for (const [_uri, _sourceFile] of this._symbols.index) {
-      if (_sourceFile.refs.has(uri) || sourceFile.refs.has(_uri) || uri === _uri) {
-        const defRanges = _sourceFile[defProp].get(name);
-        const refRanges = _sourceFile[refProp].get(name);
+    const values: Promise<[DocumentUri, TextEdit[]]>[] = [];
+    for (const [uri, defOrRefSourceFile] of this._symbols.index) {
+      if (defOrRefSourceFile.refs.has(documentUri) || sourceFile.refs.has(uri) || documentUri === uri) {
+        const defRanges = defOrRefSourceFile[defProp].get(name);
+        const refRanges = defOrRefSourceFile[refProp].get(name);
 
         const ranges: SymbolRange[] = [];
         if (defRanges) {
@@ -212,16 +227,18 @@ export class RenameProvider {
         }
 
         if (ranges.length > 0) {
-          tasks.push(async () => {
-            const document = await this._documents.retrieve(_uri);
-            const edits = ranges.map<TextEdit>((range) => ({ range: lspRange(document, range), newText }));
-            return [_uri, edits];
-          });
+          values.push(
+            this._semaphore.lock(async () => {
+              const document = await this._documents.retrieve(uri, token);
+              const edits = ranges.map<TextEdit>((range) => ({ range: lspRange(document, range), newText }));
+              return [uri, edits];
+            }, token),
+          );
         }
       }
     }
 
-    const result = await parallel(tasks, this._configuration.parallel);
+    const result = await Promise.all(values);
     return Object.fromEntries(result);
   }
 

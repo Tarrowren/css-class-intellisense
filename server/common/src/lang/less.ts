@@ -14,7 +14,7 @@ export default class LessLanguage implements Language {
 
   readonly parser: LRParser = getLessParser();
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (isCanDoCompleteCssNode(node, true)) {
@@ -31,9 +31,9 @@ export default class LessLanguage implements Language {
 
     do {
       if (cursor.type.is("ClassName")) {
-        collectSymbolInfos(class_names, input, cursor);
+        collectSymbolInfos(class_names, input, cursor, true);
       } else if (cursor.type.is("IdName")) {
-        collectSymbolInfos(id_names, input, cursor);
+        collectSymbolInfos(id_names, input, cursor, true);
       } else if (cursor.type.is("Suffix")) {
         collectSuffixInfos(suffixes, class_names, id_names, input, cursor.node);
       }

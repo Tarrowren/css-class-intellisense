@@ -8,9 +8,9 @@ import {
   type Connection,
   type InitializeResult,
 } from "vscode-languageserver";
-import { URI } from "vscode-uri";
 import { Configuration } from "./configuration";
 import { DocumentStore } from "./document-store";
+import { scheduler } from "./env";
 import { CompletionItemProvider } from "./features/completions";
 import { DefinitionProvider } from "./features/definitions";
 import { ReferenceProvider } from "./features/references";
@@ -20,9 +20,10 @@ import { StopWatch } from "./stop-watch";
 import { SymbolIndex } from "./symbol-index";
 import type { SymbolStorage } from "./symbol-storage";
 import { Trees } from "./trees";
+import { normalize } from "./util";
 
 export class Server {
-  static create(connection: Connection, factory: StorageFactory) {
+  static create(connection: Connection, factory: StorageFactory): void {
     connection.onInitialize(async (params) => {
       const initializationOptions = typia.assert<InitOptions>(params.initializationOptions);
 
@@ -35,8 +36,8 @@ export class Server {
 
       const languages = new Languages(configuration);
       const documents = new DocumentStore(configuration, connection, languages);
-      const trees = new Trees(documents);
-      const symbols = new SymbolIndex(configuration, documents, languages, trees, storage);
+      const trees = new Trees(documents, languages);
+      const symbols = new SymbolIndex(documents, languages, trees, storage);
 
       const completions = new CompletionItemProvider(languages, documents, trees, symbols);
       connection.onCompletion(async (params, token) => {
@@ -44,37 +45,45 @@ export class Server {
         try {
           return await run(() => completions.provideCompletionItems(params, token), null, token);
         } finally {
-          logger.info(`[Completion] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Completion]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
+        }
+      });
+      connection.onCompletionResolve(async (params, token) => {
+        const sw = StopWatch.create();
+        try {
+          return await run(() => completions.provideCompletionResolve(params, token), params, token);
+        } finally {
+          console.info("[CompletionResolve]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
-      const definitions = new DefinitionProvider(configuration, languages, documents, trees, symbols);
+      const definitions = new DefinitionProvider(languages, documents, trees, symbols);
       connection.onDefinition(async (params, token) => {
         const sw = StopWatch.create();
         try {
           return await run(() => definitions.provideDefinition(params, token), null, token);
         } finally {
-          logger.info(`[Definition] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Definition]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
-      const references = new ReferenceProvider(configuration, languages, documents, trees, symbols);
+      const references = new ReferenceProvider(languages, documents, trees, symbols);
       connection.onReferences(async (params, token) => {
         const sw = StopWatch.create();
         try {
           return await run(() => references.provideReferences(params, token), null, token);
         } finally {
-          logger.info(`[References] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[References]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
-      const renames = new RenameProvider(configuration, languages, documents, trees, symbols);
+      const renames = new RenameProvider(languages, documents, trees, symbols);
       connection.onPrepareRename(async (params, token) => {
         const sw = StopWatch.create();
         try {
-          return await run(() => renames.prepareRename(params), { defaultBehavior: true }, token);
+          return await run(() => renames.prepareRename(params, token), { defaultBehavior: true }, token);
         } finally {
-          logger.info(`[PrepareRename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[PrepareRename]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
       connection.onRenameRequest(async (params, token) => {
@@ -82,31 +91,38 @@ export class Server {
         try {
           return await run(() => renames.provideRenameEdits(params, token), null, token);
         } finally {
-          logger.info(`[Rename] (${token.isCancellationRequested ? "cancelled" : "done"}) ${sw.elapsed(2)}ms)`);
+          console.info("[Rename]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
 
-      connection.onRequest(CustomMessages.QueueInit, async (uris) => {
-        await symbols.initFiles(uris);
+      connection.onRequest(CustomMessages.IndexUpdate, async (uris, token) => {
+        await symbols.initFiles(uris, token);
+      });
+      documents.onDidOpen(({ uri }) => {
+        symbols.addFile(uri);
       });
       documents.onDidChangeContent(({ uri }) => {
         symbols.addFile(uri);
       });
       connection.onDidChangeWatchedFiles((e) => {
-        for (const { type, uri: raw_uri } of e.changes) {
-          const uri = URI.parse(raw_uri).toString(true);
+        for (const { type, uri } of e.changes) {
+          const documentUri = normalize(uri);
           switch (type) {
             case FileChangeType.Created:
-              symbols.addFile(uri);
+              symbols.addFile(documentUri);
               break;
             case FileChangeType.Deleted:
-              documents.removeFile(uri);
-              symbols.removeFile(uri);
+              documents.removeFile(documentUri);
+              trees.removeFile(documentUri);
+              symbols.removeFile(documentUri);
               break;
             case FileChangeType.Changed:
-              if (documents.removeFile(uri)) {
-                symbols.addFile(uri);
+              documents.removeFile(documentUri);
+              if (!documents.has(documentUri)) {
+                trees.removeFile(documentUri);
+                symbols.addFile(documentUri);
               }
+
               break;
           }
         }
@@ -128,7 +144,7 @@ export class Server {
       return {
         capabilities: {
           textDocumentSync: TextDocumentSyncKind.Incremental,
-          completionProvider: {},
+          completionProvider: { resolveProvider: true },
           definitionProvider: true,
           referencesProvider: true,
           renameProvider: { prepareProvider: true },
@@ -146,14 +162,15 @@ export interface StorageFactory {
 
 async function run<T>(func: () => Promise<T>, defaultValue: T, token: CancellationToken): Promise<T> {
   try {
-    await scheduler.wait(0, token);
-  } catch (_e) {
+    await scheduler().wait(0, token);
+  } catch (_) {
     return defaultValue;
   }
 
-  const result = await func();
-  if (token.isCancellationRequested) {
+  try {
+    const result = await func();
+    return token.isCancellationRequested ? defaultValue : result;
+  } catch (_) {
     return defaultValue;
   }
-  return result;
 }

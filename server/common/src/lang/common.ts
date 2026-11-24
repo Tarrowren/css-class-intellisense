@@ -1,4 +1,4 @@
-import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
+import type { SyntaxNode, SyntaxNodeRef, Tree, TreeCursor } from "@lezer/common";
 import { TriggeredSymbolKind } from "../features/common";
 import type { SuffixInfo, SymbolInfo, SymbolRange } from "../type";
 import { textRange } from "../util";
@@ -67,15 +67,30 @@ function _getCssEditRange(node: SyntaxNodeRef): SymbolRange | undefined {
   }
 }
 
-export function collectSymbolInfos(data: Map<string, SymbolInfo>, input: string, node: SyntaxNodeRef): void {
+export function collectSymbolInfos(data: Map<string, SymbolInfo>, input: string, node: TreeCursor, def: boolean): void {
   const name = getNodeText(input, node);
 
   const info = data.get(name);
   if (info) {
     info.ranges.push(textRange(node));
+    if (def) {
+      info.doc_ranges.push(textRange(_findRuleSet(node.node)));
+    }
   } else {
-    data.set(name, { ranges: [textRange(node)], suffix_ranges: [] });
+    data.set(name, {
+      ranges: [textRange(node)],
+      doc_ranges: def ? [textRange(_findRuleSet(node.node))] : [],
+      suffix_ranges: [],
+    });
   }
+}
+
+function _findRuleSet(node: SyntaxNode) {
+  if (node.type.is("RuleSet") || !node.parent) {
+    return node;
+  }
+
+  return _findRuleSet(node.parent);
 }
 
 export function getNodeText(input: string, { from, to }: SyntaxNodeRef): string {
@@ -138,7 +153,7 @@ export function collectSuffixInfos(
     return;
   }
 
-  suffixes.set(node.from, { to: node.to, full_names });
+  suffixes.set(node.from, { to: node.to, full_names, doc_range: textRange(_findRuleSet(node.node)) });
 
   for (const [name, kinds] of full_names) {
     if (kinds & TriggeredSymbolKind.ClassName) {
@@ -147,7 +162,7 @@ export function collectSuffixInfos(
       if (info) {
         info.suffix_ranges.push(node.from);
       } else {
-        class_names.set(name, { ranges: [], suffix_ranges: [node.from] });
+        class_names.set(name, { ranges: [], doc_ranges: [], suffix_ranges: [node.from] });
       }
     }
 
@@ -157,7 +172,7 @@ export function collectSuffixInfos(
       if (info) {
         info.suffix_ranges.push(node.from);
       } else {
-        id_names.set(name, { ranges: [], suffix_ranges: [node.from] });
+        id_names.set(name, { ranges: [], doc_ranges: [], suffix_ranges: [node.from] });
       }
     }
   }

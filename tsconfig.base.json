@@ -12,6 +12,7 @@
     "lib": ["ES2020"],
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
+    "isolatedDeclarations": true,
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
     "sourceMap": true,

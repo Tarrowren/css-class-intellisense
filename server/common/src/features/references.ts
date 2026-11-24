@@ -1,18 +1,19 @@
 import type { SyntaxNode } from "@lezer/common";
 import { Location, type CancellationToken, type DocumentUri, type ReferenceParams } from "vscode-languageserver";
-import type { Configuration } from "../configuration";
 import type { DocumentStore } from "../document-store";
+import { os } from "../env";
 import type { Languages } from "../languages";
+import { Semaphore } from "../semaphore";
 import type { SymbolIndex } from "../symbol-index";
 import type { Trees } from "../trees";
 import type { SymbolInfo } from "../type";
-import { lspRange, parallel, textRange } from "../util";
+import { lspRange, normalize, textRange } from "../util";
 import { TriggeredSymbolKind, type TriggeredSymbolInfo } from "./common";
-import { URI } from "vscode-uri";
 
 export class ReferenceProvider {
+  private readonly _semaphore = new Semaphore(os().concurrency);
+
   constructor(
-    private readonly _configuration: Configuration,
     private readonly _languages: Languages,
     private readonly _documents: DocumentStore,
     private readonly _trees: Trees,
@@ -20,21 +21,18 @@ export class ReferenceProvider {
   ) {}
 
   async provideReferences(params: ReferenceParams, token: CancellationToken): Promise<Location[] | undefined> {
-    const uri = URI.parse(params.textDocument.uri).toString(true);
+    const uri = normalize(params.textDocument.uri);
     const document = this._documents.get(uri);
     if (!document) {
       return;
     }
 
-    const language = this._languages.getLanguage(document.languageId);
+    const language = this._languages.get(document.languageId);
     if (!language) {
       return;
     }
 
-    const tree = await this._trees.getParseTree(document, language);
-    if (token.isCancellationRequested) {
-      return;
-    }
+    const tree = await this._trees.get(document, language, token);
     const pos = document.offsetAt(params.position);
     const info =
       this._getInfo(tree.resolve(pos, -1)) ??
@@ -44,77 +42,83 @@ export class ReferenceProvider {
       return;
     }
 
-    await this._symbols.update();
-    if (token.isCancellationRequested) {
-      return;
-    }
+    await this._symbols.update(token);
 
     if (info.kind === "suffix") {
-      const sourceFile = this._symbols.index.get(uri);
-      if (!sourceFile) {
-        return;
-      }
-
-      const suffix = sourceFile.suffixes.get(info.from);
-      if (!suffix) {
-        return;
-      }
-
-      const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
-      for (const [_uri, _sourceFile] of this._symbols.index) {
-        if (_sourceFile.refs.has(uri) || uri === _uri) {
-          for (const [name, kinds] of suffix.full_names) {
-            if (kinds & TriggeredSymbolKind.ClassName) {
-              const prop = this._getProp(TriggeredSymbolKind.ClassName);
-
-              const info = _sourceFile[prop].get(name);
-              if (info) {
-                tasks.push(this._createTask(_uri, info));
-              }
-            }
-
-            if (kinds & TriggeredSymbolKind.IdName) {
-              const prop = this._getProp(TriggeredSymbolKind.IdName);
-
-              const info = _sourceFile[prop].get(name);
-              if (info) {
-                tasks.push(this._createTask(_uri, info));
-              }
-            }
-          }
-        }
-      }
-
-      const result = await parallel(tasks, this._configuration.parallel);
-      return result.flat();
+      return await this._provideSuffixReferences(uri, info.from, token);
     } else {
       return await this._provideReferences(
         uri,
         info.kind,
         document.getText().substring(info.range.from, info.range.to),
+        token,
       );
     }
   }
 
-  private async _provideReferences(uri: DocumentUri, kind: TriggeredSymbolKind, name: string): Promise<Location[]> {
-    const prop = this._getProp(kind);
-    const tasks: ((token?: CancellationToken) => Promise<Location[]>)[] = [];
-    for (const [_uri, _sourceFile] of this._symbols.index) {
-      if (_sourceFile.refs.has(uri) || uri === _uri) {
-        const info = _sourceFile[prop].get(name);
-        if (info) {
-          tasks.push(this._createTask(_uri, info));
+  private async _provideSuffixReferences(documentUri: DocumentUri, from: number, token: CancellationToken) {
+    const sourceFile = this._symbols.index.get(documentUri);
+    if (!sourceFile) {
+      return;
+    }
+
+    const suffix = sourceFile.suffixes.get(from);
+    if (!suffix) {
+      return;
+    }
+
+    const values: Promise<Location[]>[] = [];
+    for (const [uri, refSourceFile] of this._symbols.index) {
+      if (refSourceFile.refs.has(documentUri) || documentUri === uri) {
+        for (const [name, kinds] of suffix.full_names) {
+          if (kinds & TriggeredSymbolKind.ClassName) {
+            const prop = this._getProp(TriggeredSymbolKind.ClassName);
+
+            const info = refSourceFile[prop].get(name);
+            if (info) {
+              values.push(this._semaphore.lock(this._createTask(uri, info, token), token));
+            }
+          }
+
+          if (kinds & TriggeredSymbolKind.IdName) {
+            const prop = this._getProp(TriggeredSymbolKind.IdName);
+
+            const info = refSourceFile[prop].get(name);
+            if (info) {
+              values.push(this._semaphore.lock(this._createTask(uri, info, token), token));
+            }
+          }
         }
       }
     }
 
-    const result = await parallel(tasks, this._configuration.parallel);
+    const result = await Promise.all(values);
+    return result.flat();
+  }
+  private async _provideReferences(
+    uri: DocumentUri,
+    kind: TriggeredSymbolKind,
+    name: string,
+    token: CancellationToken,
+  ): Promise<Location[]> {
+    const prop = this._getProp(kind);
+    const values: Promise<Location[]>[] = [];
+    for (const [_uri, refSourceFile] of this._symbols.index) {
+      if (refSourceFile.refs.has(uri) || uri === _uri) {
+        const info = refSourceFile[prop].get(name);
+        if (info) {
+          values.push(this._semaphore.lock(this._createTask(_uri, info, token), token));
+        }
+      }
+    }
+
+    const result = await Promise.all(values);
     return result.flat();
   }
 
-  private _createTask(uri: DocumentUri, info: SymbolInfo): (token?: CancellationToken) => Promise<Location[]> {
+  private _createTask(uri: DocumentUri, info: SymbolInfo, token: CancellationToken): () => Promise<Location[]> {
     return async () => {
-      const document = await this._documents.retrieve(uri);
+      const document = await this._documents.retrieve(uri, token);
       return info.ranges.map((range) => Location.create(uri, lspRange(document, range)));
     };
   }

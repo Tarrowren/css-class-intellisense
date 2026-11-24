@@ -16,7 +16,7 @@ export class StopWatch {
   elapsed(): number;
   elapsed(fractionDigits?: number): number | string {
     if (fractionDigits) {
-      return this._stop().toFixed(fractionDigits);
+      return this._stop().toFixed(fractionDigits) + "ms";
     } else {
       return this._stop();
     }

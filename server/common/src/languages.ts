@@ -31,7 +31,7 @@ export class Languages implements Disposable {
     return `unknown/${uri}`;
   }
 
-  getLanguage(languageId: string): Language | null | undefined {
+  get(languageId: string): Language | null | undefined {
     if (!this._configuration.vueLanguage && languageId === "vue") {
       return null;
     }
@@ -40,12 +40,12 @@ export class Languages implements Disposable {
       return this._instances.get(languageId);
     }
 
-    const language = this._createInstance(languageId);
+    const language = this._create(languageId);
     this._instances.set(languageId, language);
     return language;
   }
 
-  private _createInstance(languageId: string): Language | null {
+  private _create(languageId: string): Language | null {
     switch (languageId) {
       case "html":
         return new HtmlLanguage(this._configuration);
@@ -78,6 +78,6 @@ export class Languages implements Disposable {
 export interface Language {
   readonly parser: LRParser;
 
-  getCompletionTriggeredSymbolInfo?(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
+  completion?(input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined;
   query(uri: DocumentUri, input: string, tree: Tree): SourceFile;
 }

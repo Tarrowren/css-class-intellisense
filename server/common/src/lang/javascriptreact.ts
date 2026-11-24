@@ -20,7 +20,7 @@ export default class JsxLanguage implements Language {
 
   readonly parser: LRParser;
 
-  getCompletionTriggeredSymbolInfo(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
+  completion(_input: string, pos: number, tree: Tree): CompletionTriggeredSymbolInfo | undefined {
     const node = tree.resolve(pos);
 
     if (node.type.is("ClassAttributeValue")) {
@@ -79,9 +79,9 @@ export default class JsxLanguage implements Language {
           }
         }
       } else if (cursor.type.is("UsedClassName")) {
-        collectSymbolInfos(used_class_names, input, cursor);
+        collectSymbolInfos(used_class_names, input, cursor, false);
       } else if (cursor.type.is("UsedIdName")) {
-        collectSymbolInfos(used_id_names, input, cursor);
+        collectSymbolInfos(used_id_names, input, cursor, false);
       }
     } while (cursor.next());
 
