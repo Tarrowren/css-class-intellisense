@@ -8,6 +8,7 @@ import {
   type CompletionParams,
   type DocumentUri,
 } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import type { DocumentStore } from "../document-store";
 import type { Languages } from "../languages";
@@ -56,10 +57,10 @@ export class CompletionItemProvider {
     let items: Map<string, CompletionItem>;
     switch (info.kind) {
       case CompletionTriggeredSymbolKind.ClassName:
-        items = this._collectDefinition(uri, sourceFile, "class_names");
+        items = this._collectDefinition(uri, document, sourceFile, "class_names");
         break;
       case CompletionTriggeredSymbolKind.IdName:
-        items = this._collectDefinition(uri, sourceFile, "id_names");
+        items = this._collectDefinition(uri, document, sourceFile, "id_names");
         break;
       case CompletionTriggeredSymbolKind.Css:
         items = this._collectReference(uri);
@@ -87,7 +88,7 @@ export class CompletionItemProvider {
     const detail = data.length === 1 ? _getLabel(data[0].uri) : l10n.t("{0} files", data.length);
 
     const files = await Promise.all(
-      data.map(async ({ uri, ranges }) => {
+      data.map(async ({ uri, position_ranges, offset_ranges }) => {
         const doc = await this._documents.retrieve(uri, token);
         if (!doc) {
           return null;
@@ -95,15 +96,14 @@ export class CompletionItemProvider {
 
         const r = /\.((?:c|sc|sa|le)ss)$/.exec(uri);
         const lang = r ? r[1] : "css";
+        const ranges = [
+          ...position_ranges,
+          ...offset_ranges.map((v) => Range.create(doc.positionAt(v.from), doc.positionAt(v.to))),
+        ];
 
         return (
           `### ${_getLabel(uri)}\n\n` +
-          ranges
-            .map(
-              (v) =>
-                "```" + lang + "\n" + doc.getText(Range.create(doc.positionAt(v.from), doc.positionAt(v.to))) + "\n```",
-            )
-            .join("\n\n---\n\n")
+          ranges.map((range) => "```" + lang + "\n" + doc.getText(range) + "\n```").join("\n\n---\n\n")
         );
       }),
     );
@@ -121,13 +121,14 @@ export class CompletionItemProvider {
 
   private _collectDefinition(
     uri: DocumentUri,
+    document: TextDocument,
     sourceFile: SourceFile,
     prop: "class_names" | "id_names",
   ): Map<string, CompletionItem> {
     const result = new Map<string, _CompletionItem>();
 
     for (const [name, symbolInfo] of sourceFile[prop]) {
-      const d = _getDocRanges(uri, sourceFile, symbolInfo);
+      const d = _getDocRanges(uri, document, sourceFile, symbolInfo);
       if (result.has(name)) {
         result.get(name)!.data.push(d);
       } else {
@@ -146,7 +147,7 @@ export class CompletionItemProvider {
       }
 
       for (const [name, symbolInfo] of defSourceFile[prop]) {
-        const d = _getDocRanges(defUri, defSourceFile, symbolInfo);
+        const d = _getDocRanges(defUri, null, defSourceFile, symbolInfo);
         if (result.has(name)) {
           result.get(name)!.data.push(d);
         } else {
@@ -195,20 +196,33 @@ function _getLabel(uri: DocumentUri): string {
   }
 }
 
-function _getDocRanges(uri: DocumentUri, sourceFile: SourceFile, symbolInfo: SymbolInfo): DocRanges {
+function _getDocRanges(
+  uri: DocumentUri,
+  document: TextDocument | null,
+  sourceFile: SourceFile,
+  symbolInfo: SymbolInfo,
+): DocRanges {
   const ranges = [
     ...symbolInfo.doc_ranges,
     ...symbolInfo.suffix_ranges
       .map<SymbolRange | undefined>((from) => sourceFile.suffixes.get(from)?.doc_range)
       .filter<SymbolRange>((v) => !!v),
   ];
-
-  return { uri, ranges };
+  if (document) {
+    return {
+      uri,
+      offset_ranges: [],
+      position_ranges: ranges.map((v) => Range.create(document.positionAt(v.from), document.positionAt(v.to))),
+    };
+  } else {
+    return { uri, offset_ranges: ranges, position_ranges: [] };
+  }
 }
 
 interface DocRanges {
   readonly uri: string;
-  readonly ranges: SymbolRange[];
+  readonly offset_ranges: SymbolRange[];
+  readonly position_ranges: Range[];
 }
 
 interface CompletionData extends ReadonlyArray<DocRanges> {}
