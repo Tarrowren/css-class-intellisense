@@ -79,9 +79,9 @@ export default class JsxLanguage implements Language {
           }
         }
       } else if (cursor.type.is("UsedClassName")) {
-        collectSymbolInfos(used_class_names, input, cursor);
+        collectSymbolInfos(used_class_names, input, cursor, false);
       } else if (cursor.type.is("UsedIdName")) {
-        collectSymbolInfos(used_id_names, input, cursor);
+        collectSymbolInfos(used_id_names, input, cursor, false);
       }
     } while (cursor.next());
 

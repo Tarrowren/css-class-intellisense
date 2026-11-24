@@ -48,6 +48,14 @@ export class Server {
           console.info("[Completion]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
         }
       });
+      connection.onCompletionResolve(async (params, token) => {
+        const sw = StopWatch.create();
+        try {
+          return await run(() => completions.provideCompletionResolve(params, token), params, token);
+        } finally {
+          console.info("[CompletionResolve]", token.isCancellationRequested ? "(cancelled)" : "(done)", sw.elapsed(2));
+        }
+      });
 
       const definitions = new DefinitionProvider(languages, documents, trees, symbols);
       connection.onDefinition(async (params, token) => {
@@ -136,7 +144,7 @@ export class Server {
       return {
         capabilities: {
           textDocumentSync: TextDocumentSyncKind.Incremental,
-          completionProvider: {},
+          completionProvider: { resolveProvider: true },
           definitionProvider: true,
           referencesProvider: true,
           renameProvider: { prepareProvider: true },

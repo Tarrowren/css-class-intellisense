@@ -36,9 +36,9 @@ export default class SassLanguage implements Language {
 
     do {
       if (cursor.type.is("ClassName")) {
-        collectSymbolInfos(class_names, input, cursor);
+        collectSymbolInfos(class_names, input, cursor, true);
       } else if (cursor.type.is("IdName")) {
-        collectSymbolInfos(id_names, input, cursor);
+        collectSymbolInfos(id_names, input, cursor, true);
       } else if (cursor.type.is("Suffix")) {
         collectSuffixInfos(suffixes, class_names, id_names, input, cursor.node);
       }
