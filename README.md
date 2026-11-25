@@ -1,6 +1,6 @@
 # css-class-intellisense
 
-[![Build Status](https://dev.azure.com/tarrowren/css-class-intellisense/_apis/build/status/Tarrowren.css-class-intellisense?branchName=master)](https://dev.azure.com/tarrowren/css-class-intellisense/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://github.com/Tarrowren/css-class-intellisense/actions/workflows/ext-publish.yml/badge.svg)](https://github.com/Tarrowren/css-class-intellisense/actions/workflows/ext-publish.yml)
 
 Html/Vue/Jsx/PHP id/class attribute completion
 
